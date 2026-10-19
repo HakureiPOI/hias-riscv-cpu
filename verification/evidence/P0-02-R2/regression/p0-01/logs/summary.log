@@ -1,0 +1,14 @@
+P0-01 check summary
+date_utc: 2026-10-19T11:17:41Z
+git_head: c6e2e4335d11b0befbe28ce03565161f01075378
+git_branch: codex/p0-02-spec-interfaces
+host_timeout_seconds: 60
+step_timeout_seconds: 600
+log_dir: verification/evidence/P0-02-R2/regression/p0-01/logs
+git_status:
+  ?? verification/evidence/P0-02-R2/
+steps:
+  env-check    exit=0
+  rtl-smoke    exit=0
+  ref-smoke    exit=0
+result: PASS

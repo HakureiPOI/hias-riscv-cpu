@@ -1,0 +1,20 @@
+old implementation commit: cdc6238417aaa8a069de9c2cae6dd50ea68145fd
+date: 2026-10-19T11:14:49Z
+
+B01 reproduction: grep old docs
+$ git show cdc6238:docs/architecture/isa-support.md | grep -n "当前权限低于目标"
+88:- 当前权限低于目标权限时不响应；等于或高于目标权限时，按委托（mideleg）与目标级使能决定。
+$ git show cdc6238:docs/architecture/csr-support.md | grep -n "misa | RO\|mstatush | RO"
+46:| `0x301` | misa | RO（本项目） | **`0x4000_0100`** | MXL=1、I=1；P1 固定报告 RV32I，写不改变能力；P3/P5 若启用 M/S/U 再更新只读值 | 是 | 是 |
+64:| `0x310` | mstatush | RO | `0x0000_0000` | RV32 高半实现位均为 0；写忽略。MPRV 不在高半 | 是 | 是 |
+
+B02 reproduction: old interface fixture + new counterexample TB
+extract: git show cdc6238:verification/spec/interface/interface_fixture.sv > /tmp/r2-old/interface_fixture.sv
+build: verilator --cc --exe --build --assert -Irtl/include --top-module interface_fixture -Mdir /tmp/r2-old/obj /tmp/r2-old/interface_fixture.sv b02_repro.cpp
+build_exit: 0
+run_exit: 0 (observations printed; expected old-bug behaviour)
+
+B03 reproduction: old checker imported by repro driver
+extract: git show cdc6238:scripts/check_retire_contract.py > /tmp/r2-old/check_retire_contract.py
+run: python3 b03_repro.py   # imports the extracted old checker
+run_exit: 0 (old checker accepted the cases; see b03-old-checker.log)

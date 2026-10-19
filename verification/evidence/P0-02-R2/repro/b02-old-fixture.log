@@ -1,0 +1,5 @@
+B02_R1_first_alloc ready=1 idx=0 gen=0
+B02_R1_after_flush_alloc ready=1 idx=0 gen=0
+B02_R1_old_response_accepted=1
+B02_R2_after_4_active alloc_ready=1 alloc_idx=2
+B02_R3_after_nonhead_free alloc_ready=1 alloc_idx=0
