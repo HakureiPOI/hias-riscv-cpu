@@ -1,4 +1,4 @@
-# 验证入口（P0-01 / P0-01-R1 / P0-02 / P0-02-R1 实测）
+# 验证入口（P0-01 / P0-01-R1 / P0-02 / P0-02-R1 / P0-02-R2 实测）
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
@@ -30,7 +30,7 @@ make check-p0-01
 | `make r1-probes` | P0-01-R1 受控故障注入：正常路径挂起、观察挂起、构建非零、记分板比较 |
 | `make platform-generate` | 从 `config/platform.json` 生成平台头文件、链接片段、Spike 参数 |
 | `make platform-check` | 校验配置、生成文件漂移、链接/ELF 布局与 Spike 参数一致 |
-| `make check-p0-02` | 平台正/负向/漂移、共享类型、接口夹具、退休契约检查 + P0-01/R1 回归（R1 默认日志写入 P0-02-R1 目录） |
+| `make check-p0-02` | 平台正/负向/漂移、共享类型、接口/事件夹具、退休契约检查 + P0-01/R1 回归（R2 默认日志写入 P0-02-R2 目录） |
 | `make clean` | 删除 `build/`，不删除证据 |
 
 ## P0-02 平台配置
@@ -41,11 +41,11 @@ make check-p0-01
 
 ## P0-02 共享类型
 
-`rtl/include/core_config_pkg.sv` 与 `rtl/include/core_types_pkg.sv` 由 Verilator `--lint-only -Wall --assert` 检查；`verification/spec/types/type_selfcheck.sv` 编译运行并校验关键位宽、5 位 CSR 立即数、`exec_op_e`、异常/预测元数据、`prefix_accept_t` 与 `retire_trace_t` 的 seq 隔离；`type_invalid_probe` 用非法参数证明自检会失败。`verification/spec/interface/interface_fixture.sv` 是最小双槽/资源/Token 通道夹具，覆盖部分接收、连续背压、Flush、第二槽异常互斥、迟到响应与缩小代次宽度后的回绕排空；它不是 CPU 模块。
+`rtl/include/core_config_pkg.sv` 与 `rtl/include/core_types_pkg.sv` 由 Verilator `--lint-only -Wall --assert` 检查；`verification/spec/types/type_selfcheck.sv` 编译运行并校验关键位宽、5 位 CSR 立即数、`exec_op_e`、异常/预测元数据、`prefix_accept_t` 与 `retire_trace_t` 的 seq 隔离；`type_invalid_probe` 用非法参数证明自检会失败。`verification/spec/interface/interface_fixture.sv` 是最小双槽/资源/Token 通道夹具：发送端队列 + 接收端记分板在时钟边沿检查 S0/S1 恰好一次；Flush 后身份保留到外部响应；同拍分配/完成使用净计数；非队头完成不覆盖活动项；缩小编号/代次宽度强制回绕并排空。`retire_event_fixture.sv` 验证 S0 正常先退休、S1 异常下一拍 Trap、同拍互斥和异常元数据保持。它们不是 CPU 模块。
 
 ## P0-02 退休契约
 
-`verification/spec/retire/retire_schema.json`（`hias-retire/2`）定义字段与有效性规则；`scripts/check_retire_contract.py --self-test` 用合法正例与单项非法反例成对验证 CSR 六种读写条件、四字节 lane、半字位置、LBU/LHU、缺失观测、Token 范围、Trap 字段/来源、seq 顺序与 bundle 互斥；`--validate-examples` 校验基础、CSR、内存、bundle 合成夹具与由真实 Spike 提交日志转换的样例（`source=spike-derived`，不是 DUT 退休记录）。转换器对未知权限、损坏行或缺失 rd 值直接报错，不静默丢弃。转换命令与字段映射见 `docs/architecture/retire-contract.md`。
+`verification/spec/retire/retire_schema.json`（`hias-retire/2`）定义字段与有效性规则；`scripts/check_retire_contract.py --self-test` 用合法正例与单项非法反例成对验证 CSR 分类不可绕过、六种读写条件、四字节 lane、半字位置、LBU/LHU、缺失观测、Token 布尔/范围、Trap 字段/来源、跨 normal/bundle/Trap 的严格 seq、空 bundle 语义与 bundle 互斥；`--validate-examples` 校验基础、CSR、内存、bundle 合成夹具与由真实 Spike 提交日志转换的样例（`source=spike-derived`，不是 DUT 退休记录）。转换器对未知权限、损坏行或缺失 rd 值直接报错，不静默丢弃。转换命令与字段映射见 `docs/architecture/retire-contract.md`。
 
 ## 主机看门狗与可配置变量
 
@@ -77,4 +77,4 @@ make check-p0-01
 
 ## 证据
 
-原始小型日志位于 `verification/evidence/P0-01/`（首轮）与 `verification/evidence/P0-01-R1/`（修复轮），与对应报告的 Commit、命令和退出码对应。`build/` 产物不入库。
+原始小型日志位于 `verification/evidence/P0-01/`、`P0-01-R1/`、`P0-02/`、`P0-02-R1/`、`P0-02-R2/`，与对应报告的 Commit、命令和退出码对应。`build/` 产物不入库。R2 运行使用 `P0_02_EVIDENCE=verification/evidence/P0-02-R2`，回归的 `P0_01_LOG_DIR`/`P0_01_R1_PROBE_DIR` 指向其 `regression/` 子目录。

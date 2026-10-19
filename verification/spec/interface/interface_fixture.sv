@@ -1,11 +1,18 @@
-// P0-02-R1 small interface contract fixture.
+// P0-02-R2 small interface contract fixture (not a CPU module).
 //
-// This is not a CPU module. It exercises two shared rules that the P1/P2
-// implementation must follow:
-//   1. two-slot contiguous-prefix acceptance with backpressure/resource limits
-//   2. ROB-token allocation, stale-response rejection, and drain-before-wrap
+// Contracts exercised:
+//   - two-slot contiguous-prefix acceptance with resource/backpressure limits
+//   - reverse prefix accept_count sampled on the clock edge
+//   - Token allocation with per-allocation generation, so a freed index is
+//     re-used only with a new identity
+//   - Flush marks active/cancelled transactions and keeps them counted until
+//     their external response arrives; it does not silently forget them
+//   - one net in-flight count update (no overlapping +1/-1 assignments)
+//   - conservative allocation: the next index must be free; active targets are
+//     never overwritten by a non-head completion
+//   - drain-before-wrap and stale/duplicate response rejection
 module interface_fixture #(
-    parameter int GEN_W = 1,
+    parameter int GEN_W = 3,
     parameter int DEPTH = 4
 ) (
     input  logic             clk,
@@ -29,11 +36,16 @@ module interface_fixture #(
     input  logic             resp_valid,
     input  logic [1:0]       resp_idx,
     input  logic [GEN_W-1:0] resp_gen,
-    output logic             resp_accept
+    output logic             resp_accept,
+
+    output logic [2:0]       active_count,
+    output logic [2:0]       cancelled_count
 );
 
   localparam int IDX_W = (DEPTH > 1) ? $clog2(DEPTH) : 1;
 
+  // ---- prefix acceptance (combinational proposal; the receiver samples the
+  // ---- accepted slots at the clock edge in the testbench) -----------------
   always_comb begin
     logic [1:0] prefix_count;
     prefix_count = 2'd0;
@@ -53,26 +65,38 @@ module interface_fixture #(
     accepted1 = in1_tag;
   end
 
+  // ---- token ownership ----------------------------------------------------
   logic [GEN_W-1:0] idx_gen[0:DEPTH-1];
   logic             idx_valid[0:DEPTH-1];
+  logic             idx_cancelled[0:DEPTH-1];
   logic [IDX_W-1:0] next_idx;
   logic [GEN_W-1:0] next_gen;
   logic             wrap_blocked;
   logic [IDX_W:0]   busy;
-  logic             accept_resp;
+  logic             resp_fire;
+  logic             alloc_fire;
 
   always_comb begin
-    accept_resp = resp_valid && idx_valid[resp_idx] &&
-                  (idx_gen[resp_idx] == resp_gen);
+    resp_fire = resp_valid && idx_valid[resp_idx] &&
+                (idx_gen[resp_idx] == resp_gen);
+    alloc_fire = alloc_req && alloc_ready;
+    active_count = busy[2:0];
+    cancelled_count = 3'(idx_cancelled[0]) + 3'(idx_cancelled[1]) +
+                      ((DEPTH > 2) ? 3'(idx_cancelled[2]) : 3'd0) +
+                      ((DEPTH > 3) ? 3'(idx_cancelled[3]) : 3'd0);
   end
 
-  assign alloc_ready = !reset && !wrap_blocked && (busy < DEPTH[IDX_W:0]);
-  assign alloc_idx   = next_idx;
-  assign alloc_gen   = next_gen;
-  assign resp_accept = accept_resp;
+  assign alloc_ready = !reset && !flush && !wrap_blocked &&
+                       (busy < DEPTH[IDX_W:0]) && !idx_valid[next_idx];
+  assign alloc_idx = next_idx;
+  assign alloc_gen = next_gen;
+  assign resp_accept = resp_fire;
 
   always_ff @(posedge clk) begin
     if (reset) begin
+      // Environment contract: reset is only used after external requests have
+      // been quiesced; the fixture cannot discover in-flight requests that
+      // were forgotten outside the module.
       next_idx <= '0;
       next_gen <= '0;
       wrap_blocked <= 1'b0;
@@ -80,41 +104,48 @@ module interface_fixture #(
       for (int i = 0; i < DEPTH; i++) begin
         idx_gen[i] <= '0;
         idx_valid[i] <= 1'b0;
-      end
-    end else if (flush) begin
-      // A flush cancels young allocations. Responses for them must be rejected
-      // because the valid bits are cleared.
-      next_idx <= '0;
-      next_gen <= '0;
-      wrap_blocked <= 1'b0;
-      busy <= '0;
-      for (int i = 0; i < DEPTH; i++) begin
-        idx_gen[i] <= '0;
-        idx_valid[i] <= 1'b0;
+        idx_cancelled[i] <= 1'b0;
       end
     end else begin
-      if (alloc_req && alloc_ready) begin
-        idx_valid[next_idx] <= 1'b1;
-        idx_gen[next_idx] <= next_gen;
-        busy <= busy + 1'b1;
-        if (next_idx == IDX_W'(DEPTH - 1)) begin
-          if (next_gen == {GEN_W{1'b1}}) begin
-            wrap_blocked <= 1'b1;
-            next_idx <= '0;
-            next_gen <= '0;
-          end else begin
-            next_idx <= '0;
-            next_gen <= next_gen + 1'b1;
-          end
-        end else begin
-          next_idx <= next_idx + 1'b1;
+      // Flush converts active transactions to cancelled-but-in-flight. Their
+      // identities stay reserved until the matching external response arrives.
+      if (flush) begin
+        for (int i = 0; i < DEPTH; i++) begin
+          if (idx_valid[i]) idx_cancelled[i] <= 1'b1;
         end
       end
-      if (accept_resp) begin
+
+      // A response clears its own identity. This is the only completion path;
+      // a response for a freed/re-used generation is rejected.
+      if (resp_fire) begin
         idx_valid[resp_idx] <= 1'b0;
-        busy <= busy - 1'b1;
+        idx_cancelled[resp_idx] <= 1'b0;
       end
-      if (wrap_blocked && busy == '0 && !accept_resp) begin
+
+      // Allocation is conservative: never write the next active index.
+      if (alloc_fire) begin
+        idx_valid[next_idx] <= 1'b1;
+        idx_gen[next_idx] <= next_gen;
+        idx_cancelled[next_idx] <= 1'b0;
+        if (next_gen == {GEN_W{1'b1}}) begin
+          // This is the final generation before wrap. Stop allocating until
+          // every in-flight (including cancelled) token drains.
+          wrap_blocked <= 1'b1;
+          next_idx <= '0;
+          next_gen <= '0;
+        end else begin
+          next_gen <= next_gen + 1'b1;
+          next_idx <= (next_idx == IDX_W'(DEPTH - 1)) ? '0 : next_idx + 1'b1;
+        end
+      end
+
+      // One net count update, so simultaneous allocation and completion do
+      // not overwrite each other.
+      busy <= busy + (alloc_fire ? 3'd1 : 3'd0) -
+              (resp_fire ? 3'd1 : 3'd0);
+
+      if (wrap_blocked && ((busy + (alloc_fire ? 3'd1 : 3'd0) -
+                            (resp_fire ? 3'd1 : 3'd0)) == '0)) begin
         wrap_blocked <= 1'b0;
         next_idx <= '0;
         next_gen <= '0;
@@ -122,15 +153,19 @@ module interface_fixture #(
     end
   end
 
-  // Assertions for the contract itself.
+  // Contract assertions. These check the local ownership rules, not CPU
+  // behaviour.
   always_ff @(posedge clk) begin
-    if (!reset && !flush) begin
+    if (!reset) begin
       assert (accept_count <= resources) else
         $error("P0-02_IF_FIXTURE: accept_count exceeds resources");
-      assert ((accept_count == 2'd2) || (accepted_valid == {1'b0, (accept_count == 2'd1)}))
-        else $error("P0-02_IF_FIXTURE: accepted_valid is not a prefix");
-      assert (alloc_ready || wrap_blocked || busy >= DEPTH[IDX_W:0]) else
-        $error("P0-02_IF_FIXTURE: alloc_ready deasserted without cause");
+      assert ((accept_count == 2'd2) ||
+              (accepted_valid == {1'b0, (accept_count == 2'd1)})) else
+        $error("P0-02_IF_FIXTURE: accepted_valid is not a prefix");
+      assert (!alloc_fire || !idx_valid[next_idx]) else
+        $error("P0-02_IF_FIXTURE: allocation overwrote active token");
+      assert (busy <= DEPTH[IDX_W:0]) else
+        $error("P0-02_IF_FIXTURE: active count exceeds DEPTH");
     end
   end
 

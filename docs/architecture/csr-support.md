@@ -43,7 +43,7 @@ P1 = RV32I（40 条，含 FENCE/ECALL/EBREAK）+ 六种 Zicsr + 保守 Zifencei 
 | 地址 | 名称 | 权限 | 复位值 | 实现与写规则 | P1 | 最终 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `0x300` | mstatus | RW | **`0x0000_1800`** | MIE(3)、MPIE(7)、MPP[12:11] 可写；MPP 仅 M(11)，其他写入回读 11；MIE/MPIE 复位 0；其余位读 0、写忽略 | 是 | 是 |
-| `0x301` | misa | RO（本项目） | **`0x4000_0100`** | MXL=1、I=1；P1 固定报告 RV32I，写不改变能力；P3/P5 若启用 M/S/U 再更新只读值 | 是 | 是 |
+| `0x301` | misa | RW/WARL | **`0x4000_0100`** | MXL=1、I=1；P1 固定报告 RV32I；合法写完成但字段保持固定值，不 Trap；P3/P5 启用 M/S/U 时只读/固定能力位相应扩展 | 是 | 是 |
 | `0x305` | mtvec | RW | `0x0000_0000` | BASE[31:2]；MODE 仅 Direct(0)，其他写入回读 0 | 是 | 是 |
 | `0x341` | mepc | RW | `0x0000_0000` | 低 2 位读 0（无 C）；写入忽略低 2 位 | 是 | 是 |
 | `0x342` | mcause | RW | `0x0000_0000` | Interrupt(31)+Code；只接受已实现 cause，其他 WARL 回读 0 | 是 | 是 |
@@ -61,7 +61,7 @@ P1 = RV32I（40 条，含 FENCE/ECALL/EBREAK）+ 六种 Zicsr + 保守 Zifencei 
 | `0xf12` | marchid | RO | `0x0000_0000` | 只读零 | 是 | 是 |
 | `0xf13` | mimpid | RO | `0x0000_0000` | 只读零 | 是 | 是 |
 | `0xf14` | mhartid | RO | `0x0000_0000` | 只读零；单核 | 是 | 是 |
-| `0x310` | mstatush | RO | `0x0000_0000` | RV32 高半实现位均为 0；写忽略。MPRV 不在高半 | 是 | 是 |
+| `0x310` | mstatush | RW/WARL | `0x0000_0000` | RV32 高半实现位均为 0；合法写完成但保持 0，不 Trap。MPRV 在 `mstatus[17]`，不在高半 | 是 | 是 |
 
 计数器规则（D03）：
 
@@ -74,7 +74,7 @@ P1 = RV32I（40 条，含 FENCE/ECALL/EBREAK）+ 六种 Zicsr + 保守 Zifencei 
 
 其他 P1 规则：
 
-- `misa` 固定 `0x40000100`；写不改变能力（整只只读）。
+- `misa` 读固定 `0x40000100`；它是 RW/WARL 固定能力字段，合法写完成但值保持不变，不 Trap。
 - `mstatus` 复位 `0x00001800`；MPP=3，MIE/MPIE=0；未实现位读 0。
 - P1 没有 U/S，M-mode 访问已实现 CSR 不越权。
 - 未实现地址（如 `satp`、`medeleg`、`mideleg`、`mhpmevent3=0x323`、`mseccfg=0x747`、PMP 等）在 P1 产生非法指令；若未来定义为零项，必须在本表明确。
@@ -119,7 +119,14 @@ P1 = RV32I（40 条，含 FENCE/ECALL/EBREAK）+ 六种 Zicsr + 保守 Zifencei 
 
 - JALR 先清 `target[0]`，再要求 `target[1]==0`；JAL/branch 目标必须 4 字节对齐。
 - MRET 从 mepc 返回；P1 只返回 M。SRET 与 SFENCE.VMA 在 P1 产生非法指令（D02）。
-- 中断：当前权限低于目标权限时不响应；等于或高于目标权限时按委托规则决定；不能一律要求目标级全局使能位为 1。M-mode 下响应 M 中断需 `mstatus.MIE`；S 中断在 M 下需委托且 `mstatus.MIE`/相应条件按规范。
+- 中断判据（与 `docs/architecture/isa-support.md` 一致）：
+  1. 先由 `mideleg` 决定目标级；
+  2. 目标级 pending 与 individual enable 满足；
+  3. 当前权限低于目标级时响应，不受当前级 xIE 限制；
+  4. 当前权限等于目标级时还需该级 `xIE=1`；
+  5. 当前权限高于目标级时不响应。
+- 已委托给 S 的中断在 M-mode 被屏蔽，不能因 MIE/SIE 开启而转入 S；同步异常委托也不能使 M-mode 异常进入 S。
+- 边界例：S 下 MIE=0 的 M 目标中断响应；S 下 SIE=0 的已委托 S 中断不响应、SIE=1 响应；U 下 SIE=0 的已委托 S 中断响应；M 下已委托 S 中断不响应；M 下 MIE=0 的 M 中断不响应。
 - 中断优先级 MEI > MSI > MTI > SEI > SSI > STI；在提交边界评估，异常指令不退休，EPC 指向首条未退休指令。
 
 ## 6 依据与阶段

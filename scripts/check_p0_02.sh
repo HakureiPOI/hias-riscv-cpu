@@ -5,7 +5,7 @@ set -u
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="${P0_02_EVIDENCE:-$ROOT/verification/evidence/P0-02-R1}"
+BASE="${P0_02_EVIDENCE:-$ROOT/verification/evidence/P0-02-R2}"
 LOG_DIR="$BASE/logs"
 BUILD="$ROOT/build/p0-02"
 VERILATOR="${VERILATOR:-verilator}"
@@ -146,6 +146,31 @@ if run_logged interface-build "$VERILATOR" --cc --exe --build --assert \
   fi
 else
   bad "interface fixture build (see ${LOG_DIR#"$ROOT"/}/interface-build.log)"
+fi
+
+# V02b: minimum S0-normal / S1-exception event ordering fixture.
+rm -rf "$BUILD/retire-event"
+mkdir -p "$BUILD/retire-event/obj"
+EVENT_SRC=(
+  "$ROOT/verification/spec/interface/retire_event_fixture.sv"
+  "$ROOT/verification/spec/interface/tb_retire_event.cpp"
+)
+if run_logged retire-event-build "$VERILATOR" --cc --exe --build --assert \
+     -I"$ROOT/rtl/include" --top-module retire_event_fixture \
+     -Mdir "$BUILD/retire-event/obj" -CFLAGS -std=c++17 "${EVENT_SRC[@]}" \
+     -o retire_event_fixture; then
+  pass "retire event fixture build"
+  if run_logged retire-event-run "$BUILD/retire-event/obj/retire_event_fixture"; then
+    if grep -q 'P0-02_RETIRE_EVENT_FIXTURE_PASS' "$LOG_DIR/retire-event-run.log"; then
+      pass "S0 retire / S1 deferred Trap event fixture"
+    else
+      bad "retire event fixture missing PASS marker"
+    fi
+  else
+    bad "retire event fixture run (see ${LOG_DIR#"$ROOT"/}/retire-event-run.log)"
+  fi
+else
+  bad "retire event fixture build (see ${LOG_DIR#"$ROOT"/}/retire-event-build.log)"
 fi
 
 # S04: retire contract format and negative self-test.

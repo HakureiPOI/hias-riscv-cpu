@@ -143,9 +143,10 @@ core   0: 3 0x800000a4 (0x00c12503) x10 0x00000091 mem 0x8001ffdc
 | 中断 | 独立注入与边界测试，不使用提交日志替代 |
 | Sv32/Svade | P5 |
 
-## 6 待审决策
+## 6 已冻结规则与剩余问题
 
-1. DUT 退休流是否需要 `next_pc` 独立字段，还是由 DUT 输出的“架构下一 PC”与 Spike 后处理对齐。
-2. Trap 与正常退休是否允许同拍输出；当前 P1 规定不允许。
-3. `seq` 是否只存在于验证包装层，而不进入 `core_types_pkg`；当前保留在共享包并标注仿真专用。
-4. Spike 的 `mem` 地址在 Sv32 下的语义需在 P5 前用实验确认。
+已冻结（D05/D06）：正常退休与 Trap 同拍互斥；DUT 退休记录必须携带 Token 与 next_pc；`seq` 只在 `retire_trace_t` 仿真包装层，不进入可综合退休载荷；Token 代次回绕前必须停止分配并排空。
+
+仍待 P5 确认：Spike `--log-commits` 的 `mem` 地址在 Sv32 下表示 VA 还是 PA，需要在 P5 前用实验确认并同步转换器。
+
+访存 trace 数据语义（本轮冻结）：`mem_wdata` 是待写字节按访问 lane 对齐后的架构值，未使用的高位为零（SB 使用低 8 位，SH 使用低 16 位）；`mem_rdata` 是 load 结果经符号/零扩展后的 32 位架构值。`mem_mask` 指示四字节字内 lane；到 `mem_req_t` 时保持 `pa/va/size/byte_mask/wdata` 的同一映射，不重新打包成原始总线字。

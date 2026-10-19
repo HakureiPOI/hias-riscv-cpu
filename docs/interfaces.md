@@ -151,6 +151,8 @@ Token 身份 = `{idx, gen}`。代次在 ROB 项重新分配时递增；回绕前
 - Verilator `--lint-only -Wall --assert` 检查两个类型包与自检夹具。
 - 编译并运行 `type_selfcheck`，校验 XLEN/VA/PA、槽数、ROB/IQ/FIFO 容量、Token 位宽、各 bundle 位宽、RAM 常量，并构造每个字段一次以强制类型检查。
 - 负向参数夹具 `type_invalid_probe`（`-GINJECT_INVALID=1`）必须产生 `P0-02_INVALID_PARAM_DETECTED` 且非零退出。
+- `verification/spec/interface/interface_fixture.sv` 验证：部分接收/背压、Flush 后身份不复用、同拍分配/完成净计数、非队头完成不覆盖活动项、Flush+完成同拍、回绕前排空与缩小代次强制回绕。
+- `verification/spec/interface/retire_event_fixture.sv` 验证：S0 正常先退休、S1 异常下一拍 Trap、同拍互斥、异常 cause/tval/PC 不丢失、非连续输入不退休 S1。
 
 ## 11 已冻结决策与剩余问题
 

@@ -37,6 +37,7 @@ TRAP_REQUIRED = {
 }
 BUNDLE_REQUIRED = {"schema", "kind", "slots", "trap", "seq_base"}
 SOURCES = {"dut", "spike-derived", "synthetic"}
+NORMAL_FIELDS = NORMAL_REQUIRED - {"derived_fields", "not_observed_fields"}
 PRIVS = {"U", "S", "M"}
 SIZES = {"none", "byte", "half", "word"}
 SIZE_BYTES = {"byte": 1, "half": 2, "word": 4}
@@ -137,6 +138,24 @@ def validate_normal(record: dict) -> None:
     need_str(record["source"], "source", SOURCES)
     need_range(record["seq"], "seq", 0, 1 << 62)
     need_str(record["priv"], "priv", PRIVS)
+    for name in ("derived_fields", "not_observed_fields"):
+        if not isinstance(record[name], list) or not all(isinstance(x, str) for x in record[name]):
+            raise RecordError(f"{name} must be a list of strings")
+        unknown = sorted(set(record[name]) - NORMAL_FIELDS)
+        if unknown:
+            raise RecordError(f"{name}: unknown field names {unknown}")
+    for name in record["not_observed_fields"]:
+        if record[name] is not None:
+            raise RecordError(f"{name} is listed as not observed but has a value")
+    for name in record["derived_fields"]:
+        if record[name] is None:
+            raise RecordError(f"{name} is listed as derived but has no value")
+    both = set(record["derived_fields"]) & set(record["not_observed_fields"])
+    if both:
+        raise RecordError(f"fields both derived and not observed: {sorted(both)}")
+
+    need_bool(record["token_valid"], "token_valid")
+    need_bool(record["next_pc_valid"], "next_pc_valid")
 
     if record["token_valid"]:
         token = record["token"]
@@ -201,7 +220,7 @@ def validate_normal(record: dict) -> None:
                 need_range(record["csr_wdata"], "csr_wdata", 0, 0xffffffff)
         elif record["csr_wdata"] is not None:
             raise RecordError("csr_wr_valid=false requires csr_wdata=null")
-        check_csr(record)
+    check_csr(record)
 
     need_str(record["mem_size"], "mem_size", SIZES)
     if not record["mem_valid"]:
@@ -225,6 +244,9 @@ def validate_normal(record: dict) -> None:
                 f"for {record['mem_size']} at 0x{record['mem_va']:x}")
         if record["mem_we"]:
             need_range(record["mem_wdata"], "mem_wdata", 0, 0xffffffff)
+            width = SIZE_BYTES[record["mem_size"]]
+            if record["mem_wdata"] >= (1 << (8 * width)):
+                raise RecordError("store mem_wdata does not fit the access size")
             if record["mem_rdata"] is not None:
                 raise RecordError("store must not report mem_rdata")
         else:
@@ -237,13 +259,6 @@ def validate_normal(record: dict) -> None:
                 need_range(record["mem_rdata"], "mem_rdata", 0, 0xffffffff)
                 if "mem_rdata" in record["not_observed_fields"]:
                     raise RecordError("mem_rdata is both observed and not observed")
-
-    for name in ("derived_fields", "not_observed_fields"):
-        if not isinstance(record[name], list) or not all(isinstance(x, str) for x in record[name]):
-            raise RecordError(f"{name} must be a list of strings")
-    both = set(record["derived_fields"]) & set(record["not_observed_fields"])
-    if both:
-        raise RecordError(f"fields both derived and not observed: {sorted(both)}")
 
     if record["source"] == "dut":
         if not record["token_valid"] or not record["next_pc_valid"]:
@@ -306,9 +321,14 @@ def validate_stream(records: list[dict]) -> None:
         if kind == "bundle":
             events = validate_bundle(record)
             seqs = [e["seq"] for e in events]
-            if seqs and min(seqs) < last:
-                raise RecordError(f"stream:{index}: seq moved backwards")
-            last = max(seqs) if seqs else last
+            for seq in seqs:
+                if seq <= last:
+                    raise RecordError(
+                        f"stream:{index}: seq {seq} is not strictly greater than {last}")
+            if seqs:
+                last = max(seqs)
+            # An empty bundle is a no-op placeholder: it does not advance the
+            # retirement sequence, and repeated empty bundles are permitted.
         elif kind in ("normal", "trap"):
             if kind == "normal":
                 validate_normal(record)
@@ -381,15 +401,21 @@ def base_mem(**over):
 def self_test() -> int:
     failures = 0
     positives = 0
+    negatives = 0
 
     def positive(name, record):
         nonlocal positives
-        validate_normal(record)
+        if isinstance(record, list):
+            validate_stream(record)
+        elif isinstance(record, dict) and record.get("kind") == "bundle":
+            validate_bundle(record)
+        else:
+            validate_normal(record)
         positives += 1
         print(f"RETIRE_CONTRACT_POSITIVE_OK: {name}")
 
     def negative(name, record, reason):
-        nonlocal failures
+        nonlocal failures, negatives
         try:
             if isinstance(record, list):
                 validate_stream(record)
@@ -405,6 +431,7 @@ def self_test() -> int:
                       file=sys.stderr)
                 failures += 1
             else:
+                negatives += 1
                 print(f"RETIRE_CONTRACT_NEGATIVE_OK: {name} ({exc})")
         else:
             print(f"RETIRE_CONTRACT_NEGATIVE_FAIL: {name} was accepted", file=sys.stderr)
@@ -454,12 +481,23 @@ def self_test() -> int:
     positive("Spike-derived missing next_pc/token", base_normal(
         source="spike-derived", token=None, token_valid=False,
         next_pc=None, next_pc_valid=False,
-        derived_fields=["seq", "mem_pa"], not_observed_fields=["token", "next_pc"]))
+        derived_fields=["seq"], not_observed_fields=["token", "next_pc"]))
     positive("load x0 missing rdata", base_mem(
         source="spike-derived", token=None, token_valid=False,
         next_pc=None, next_pc_valid=False, mem_we=False, mem_wdata=None,
         mem_rdata=None, derived_fields=["mem_pa", "mem_size", "mem_mask"],
         not_observed_fields=["token", "next_pc", "mem_rdata"]))
+
+    # Legal false/zero and empty-bundle placeholder.
+    positive("legal token/next_pc false", base_normal(
+        source="synthetic", token=None, token_valid=False,
+        next_pc=None, next_pc_valid=False,
+        not_observed_fields=["token", "next_pc"]))
+    positive("empty bundle placeholder",
+             [base_normal(seq=0),
+              {"schema": "hias-retire/2", "kind": "bundle", "seq_base": 1,
+               "slots": [], "trap": None},
+              base_normal(seq=1)])
 
     # Paired negatives.
     negative("rd_we=false with rd_data",
@@ -517,6 +555,38 @@ def self_test() -> int:
         "cause_csr_before": 0, "cause_csr_after": 11,
         "epc_csr_before": 0, "epc_csr_after": 0x80000010,
     }, "source")
+    # CSR classification must not be hidden by csr_valid=false.
+    hidden = base_normal(instr=0x30002073, rd=0, rd_we=False, rd_data=None,
+                         csr_valid=False, csr_rd_valid=False,
+                         csr_wr_valid=False, csr_addr=None,
+                         csr_wdata=None, csr_rdata=None)
+    negative("CSR instruction hidden with csr_valid=false", hidden,
+             "CSR instruction missing csr_valid")
+    # Strict boolean types.
+    negative("token_valid not boolean",
+             base_normal(token_valid=1), "token_valid")
+    negative("next_pc_valid not boolean",
+             base_normal(next_pc_valid="yes"), "next_pc_valid")
+    # List type/name/consistency.
+    negative("not_observed not a list",
+             base_normal(not_observed_fields="token"), "list of strings")
+    negative("not_observed unknown field",
+             base_normal(not_observed_fields=["bogus"]), "unknown field")
+    negative("not_observed field has a value",
+             base_normal(not_observed_fields=["rd_data"]),
+             "listed as not observed")
+    negative("derived field has no value",
+             base_normal(derived_fields=["mem_pa"]), "listed as derived")
+    # Bundle sequence strictness.
+    dup_bundle = {"schema": "hias-retire/2", "kind": "bundle", "seq_base": 5,
+                  "slots": [base_normal(seq=5)], "trap": None}
+    negative("duplicate non-empty bundle",
+             [dup_bundle, json.loads(json.dumps(dup_bundle))],
+             "not strictly greater")
+    adjacent = {"schema": "hias-retire/2", "kind": "bundle", "seq_base": 5,
+                "slots": [base_normal(seq=5)], "trap": None}
+    negative("adjacent bundle repeats first seq",
+             [base_normal(seq=5), adjacent], "not strictly greater")
     negative("bundle trap plus retire", {
         "schema": "hias-retire/2", "kind": "bundle", "seq_base": 5,
         "slots": [base_normal(seq=5)],
@@ -530,10 +600,10 @@ def self_test() -> int:
     }, "mutually exclusive")
 
     if failures:
-        print(f"RETIRE_CONTRACT_SELFTEST_FAIL failures={failures} positives={positives}",
-              file=sys.stderr)
+        print(f"RETIRE_CONTRACT_SELFTEST_FAIL failures={failures} "
+              f"positives={positives} negatives={negatives}", file=sys.stderr)
         return 1
-    print(f"RETIRE_CONTRACT_SELFTEST_PASS positives={positives}")
+    print(f"RETIRE_CONTRACT_SELFTEST_PASS positives={positives} negatives={negatives}")
     return 0
 
 
