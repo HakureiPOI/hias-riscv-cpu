@@ -1,12 +1,94 @@
 P0-01 check summary
-date_utc: 2026-10-19T10:13:56Z
-git_head: cec5af9d7c367d4579779988ad66347b2dcc0df1
+date_utc: 2026-10-19T10:18:07Z
+git_head: ae3784f45996cd2400ad88a380dc8ec764bbb012
 git_branch: codex/p0-02-spec-interfaces
 host_timeout_seconds: 60
 step_timeout_seconds: 600
 log_dir: verification/evidence/P0-02/regression/p0-01/logs
 git_status:
-  ?? verification/evidence/P0-02/
+   D verification/evidence/P0-02/SHA256SUMS
+   M verification/evidence/P0-02/logs/regression-p0-01.log
+   D verification/evidence/P0-02/logs/regression-r1-probes.log
+   D verification/evidence/P0-02/logs/summary.log
+   M verification/evidence/P0-02/logs/types-invalid-run.log
+   D verification/evidence/P0-02/regression/p0-01-r1/build-fault-runner/logs/build-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/build-fault-runner/logs/build-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/build-fault-runner/logs/lint-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/build-fault-runner/run.log
+   D verification/evidence/P0-02/regression/p0-01-r1/checker-scoreboard/run.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/logs/build-fail.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/logs/build-hang.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/logs/build-ok.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/logs/elf-inspection.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/logs/spike-fail.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/logs/spike-hang.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/logs/spike-observe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/logs/spike-ok-commits.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/logs/spike-ok.log
+   D verification/evidence/P0-02/regression/p0-01-r1/observe-hang/run.log
+   D verification/evidence/P0-02/regression/p0-01-r1/rtl-normal-hang/logs/assertion-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/rtl-normal-hang/logs/build-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/rtl-normal-hang/logs/build-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/rtl-normal-hang/logs/checker-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/rtl-normal-hang/logs/lint-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/rtl-normal-hang/logs/normal-rtl.log
+   D verification/evidence/P0-02/regression/p0-01-r1/rtl-normal-hang/logs/timeout-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/rtl-normal-hang/logs/watchdog-rtl-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/rtl-normal-hang/run.log
+   D verification/evidence/P0-02/regression/p0-01-r1/spike-normal-hang/logs/build-fail.log
+   D verification/evidence/P0-02/regression/p0-01-r1/spike-normal-hang/logs/build-hang.log
+   D verification/evidence/P0-02/regression/p0-01-r1/spike-normal-hang/logs/build-ok.log
+   D verification/evidence/P0-02/regression/p0-01-r1/spike-normal-hang/logs/elf-inspection.log
+   D verification/evidence/P0-02/regression/p0-01-r1/spike-normal-hang/logs/spike-fail.log
+   D verification/evidence/P0-02/regression/p0-01-r1/spike-normal-hang/logs/spike-hang.log
+   D verification/evidence/P0-02/regression/p0-01-r1/spike-normal-hang/logs/spike-observe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/spike-normal-hang/logs/spike-ok.log
+   D verification/evidence/P0-02/regression/p0-01-r1/spike-normal-hang/run.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/build-fail.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/build-hang.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/build-ok.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/build-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/build-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/elf-inspection.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/env-check.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/lint-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/ref-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/rtl-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/spike-fail.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/spike-hang.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/spike-observe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/spike-ok-commits.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/spike-ok.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/logs/summary.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-build-fault/run.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/assertion-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/build-fail.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/build-hang.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/build-ok.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/build-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/build-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/checker-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/elf-inspection.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/env-check.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/lint-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/normal-rtl.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/ref-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/rtl-smoke.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/spike-fail.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/spike-hang.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/spike-observe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/spike-ok-commits.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/spike-ok.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/summary.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/timeout-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/logs/watchdog-rtl-probe.log
+   D verification/evidence/P0-02/regression/p0-01-r1/total-entry-rtl-hang/run.log
+   M verification/evidence/P0-02/regression/p0-01/logs/assertion-probe.log
+   M verification/evidence/P0-02/regression/p0-01/logs/build-probe.log
+   M verification/evidence/P0-02/regression/p0-01/logs/build-smoke.log
+   M verification/evidence/P0-02/regression/p0-01/logs/elf-inspection.log
+   M verification/evidence/P0-02/regression/p0-01/logs/env-check.log
+   M verification/evidence/P0-02/regression/p0-01/logs/summary.log
 steps:
   env-check    exit=0
   rtl-smoke    exit=0

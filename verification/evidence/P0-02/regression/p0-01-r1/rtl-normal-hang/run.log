@@ -12,4 +12,4 @@ P0-01_RTL_STEP_PASS: watchdog-rtl-probe (exit=124, expected message present)
 P0-01_RTL_STEP_PASS: assertion-probe (exit=134, expected message present)
 P0-01_RTL_SMOKE_ALL_FAIL
 outer_exit: 1
-elapsed_seconds: 14
+elapsed_seconds: 13

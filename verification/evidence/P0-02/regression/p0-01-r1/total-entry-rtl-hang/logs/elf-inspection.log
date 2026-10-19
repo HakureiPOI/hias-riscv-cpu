@@ -102,4 +102,4 @@ Disassembly of section .text:
 80000090:	00c12703          	lw	a4,12(sp)
 
 == sha256 ==
-ddb947f88ddee2270a98ddd7a751ff03fa50ad27dc6c6da835a2e711e07d23a5  /workspace/hias-riscv-cpu/build/ref-smoke/ok.elf
+2046b8e28536fb387f67a945a1bfee104ea55451f024bd7a92ca3a2e09887c4f  /workspace/hias-riscv-cpu/build/ref-smoke/ok.elf

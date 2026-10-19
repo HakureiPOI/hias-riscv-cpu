@@ -6,7 +6,7 @@
 | 执行日期/时区 | 2026-10-19，容器本地 HKT +0800 |
 | 任务基线 | `b89be08da8fe7dc45697e13c0900548d8cafc783`（含 P0-01 验收与 P0-02 任务单的最新 main） |
 | 分支 | `codex/p0-02-spec-interfaces` |
-| 被测试实现 Commit | `cec5af9d7c367d4579779988ad66347b2dcc0df1` |
+| 被测试实现 Commit | `ae3784f45996cd2400ad88a380dc8ec764bbb012` |
 | 最终交付 Commit | 由交付消息给出（报告与证据的提交） |
 | 报告路径 | `docs/progress/P0-02-report.md` |
 | 证据目录 | `verification/evidence/P0-02/`（106 项，`SHA256SUMS`） |
@@ -155,10 +155,10 @@ P0-02_TYPE_SELFCHECK_PASS bits: fetch_slot=152 decoded_slot=284
 命令：`make check-p0-02`，退出码 `0`，汇总 `verification/evidence/P0-02/logs/summary.log`：
 
 ```text
-git_head: cec5af9d7c367d4579779988ad66347b2dcc0df1
+git_head: ae3784f45996cd2400ad88a380dc8ec764bbb012
 git_branch: codex/p0-02-spec-interfaces
 git_status:
-  ?? verification/evidence/P0-02/
+  (only regenerated verification/evidence/P0-02 files; no implementation changes)
 result: PASS
 ```
 
@@ -187,9 +187,9 @@ make r1-probes regression
 
 ## 8 证据对应（S07）
 
-- 被测试实现 Commit：`cec5af9d7c367d4579779988ad66347b2dcc0df1`。
-- 先提交实现（`aae064d` 与 `cec5af9`），再删除 `build/` 与 `verification/evidence/P0-02/`，在该 Commit 上运行 `make check-p0-02`；测试后未修改实现。
-- 证据 106 个文件，清单 `verification/evidence/P0-02/SHA256SUMS`，SHA-256 为 `1f07a1068e6f22eeec1f880186929b1081020989226b940f5d40999a6d97a7ed`。
+- 被测试实现 Commit：`ae3784f45996cd2400ad88a380dc8ec764bbb012`。
+- 先提交实现（`aae064d`、`cec5af9`、`ae3784f`），再删除 `build/` 与 `verification/evidence/P0-02/`，在 `ae3784f` 上运行 `make check-p0-02`；测试后未修改实现。
+- 证据 106 个文件，清单 `verification/evidence/P0-02/SHA256SUMS`，SHA-256 为 `9e0542c097177b654fa7e90fa431b3ee1286d322deedec0dc04e94d6f8ea02af`。
 - 产物 `build/` 未入库；生成文件已提交并由 `--check` 验证无漂移。
 - `platform_check.elf` 未入库；哈希与布局在日志中。
 
@@ -236,7 +236,7 @@ make r1-probes regression
 任务：P0-02
 任务基线 Commit：b89be08da8fe7dc45697e13c0900548d8cafc783
 分支：codex/p0-02-spec-interfaces
-被测试实现 Commit：cec5af9d7c367d4579779988ad66347b2dcc0df1
+被测试实现 Commit：ae3784f45996cd2400ad88a380dc8ec764bbb012
 最终交付 Commit：由交付消息给出
 报告路径：docs/progress/P0-02-report.md
 证据目录：verification/evidence/P0-02/

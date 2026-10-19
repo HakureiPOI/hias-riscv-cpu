@@ -1,6 +1,7 @@
-command: env P0_01_R1_PROBE_DIR=/workspace/hias-riscv-cpu/verification/evidence/P0-02/regression/p0-01-r1 /workspace/hias-riscv-cpu/scripts/run_r1_probes.sh
-P0-01_R1_PROBE_PASS: rtl-normal-hang (outer_exit=1, elapsed=14s, pattern='P0-01_WATCHDOG_TIMEOUT')
-P0-01_R1_PROBE_PASS: total-entry-rtl-hang (outer_exit=1, elapsed=19s, pattern='result: FAIL')
+command: env P0_01_R1_PROBE_DIR=/workspace/hias-riscv-cpu/verification/evidence/P0-02/regression/p0-01-r1 make -C /workspace/hias-riscv-cpu r1-probes
+make[1]: Entering directory '/workspace/hias-riscv-cpu'
+P0-01_R1_PROBE_PASS: rtl-normal-hang (outer_exit=1, elapsed=13s, pattern='P0-01_WATCHDOG_TIMEOUT')
+P0-01_R1_PROBE_PASS: total-entry-rtl-hang (outer_exit=1, elapsed=20s, pattern='result: FAIL')
 P0-01_R1_PROBE_PASS: spike-normal-hang (outer_exit=1, elapsed=7s, pattern='P0-01_WATCHDOG_TIMEOUT')
 P0-01_R1_PROBE_PASS: observe-hang (outer_exit=1, elapsed=7s, pattern='P0-01_WATCHDOG_TIMEOUT')
 P0-01_R1_PROBE_PASS: build-fault-runner (outer_exit=1, elapsed=10s, pattern='P0-01_BUILD_FAIL')
@@ -11,4 +12,5 @@ P0-01_R1_PROBE_PASS: total-entry-build-fault propagated rtl-smoke build failure
 P0-01_R1_PROBE_PASS: checker-scoreboard (outer_exit=1, elapsed=0s, pattern='P0-01_SCOREBOARD_MISMATCH: output got 0x1111 expected 0xeeee')
 P0-01_R1_PROBE_PASS: no leftover RTL child process
 P0-01_R1_PROBES_ALL_PASS
+make[1]: Leaving directory '/workspace/hias-riscv-cpu'
 exit: 0

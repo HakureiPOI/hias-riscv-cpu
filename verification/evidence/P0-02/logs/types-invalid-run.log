@@ -3,5 +3,5 @@ command: /workspace/hias-riscv-cpu/build/p0-02/invalid/obj/invalid_probe
 %Error: /workspace/hias-riscv-cpu/verification/spec/types/type_invalid_probe.sv:17: Verilog $stop
 Aborting...
 timeout: the monitored command dumped core
-./scripts/check_p0_02.sh: line 26: 723815 Aborted                 timeout -k 5s "${STEP_TIMEOUT}s" "$@" 2>&1
+./scripts/check_p0_02.sh: line 26: 731567 Aborted                 timeout -k 5s "${STEP_TIMEOUT}s" "$@" 2>&1
 exit: 134

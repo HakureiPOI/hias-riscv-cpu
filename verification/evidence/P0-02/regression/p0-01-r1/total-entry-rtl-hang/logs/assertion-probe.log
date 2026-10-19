@@ -3,6 +3,6 @@ command: timeout -k 5s 60s /workspace/hias-riscv-cpu/build/rtl-smoke/probe_sim/o
 %Error: /workspace/hias-riscv-cpu/verification/smoke/rtl/assert_probe.sv:8: Verilog $stop
 Aborting...
 timeout: the monitored command dumped core
-/workspace/hias-riscv-cpu/scripts/lib/watchdog.sh: line 22: 727304 Aborted                 timeout -k 5s "${tmo}s" "$@" 2>&1
-elapsed_seconds: 0
+/workspace/hias-riscv-cpu/scripts/lib/watchdog.sh: line 22: 734979 Aborted                 timeout -k 5s "${tmo}s" "$@" 2>&1
+elapsed_seconds: 1
 exit: 134
