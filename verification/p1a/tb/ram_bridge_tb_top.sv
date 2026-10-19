@@ -7,6 +7,7 @@ module ram_bridge_tb_top (
     input  logic [31:0] load_data,
     input  logic        flush_i,
     input  logic [1:0]  resp_delay_i,
+    input  logic        fault_mode,
 
     input  logic        req_valid,
     output logic        req_ready,
@@ -27,7 +28,8 @@ module ram_bridge_tb_top (
     output logic [7:0]  resp_gen,
     output logic [31:0] resp_rdata,
     output logic        resp_error,
-    output logic [4:0]  resp_cause
+    output logic [4:0]  resp_cause,
+    output logic        ram_write_o
 );
 
   import core_types_pkg::*;
@@ -50,6 +52,15 @@ module ram_bridge_tb_top (
     req.gen = req_gen;
   end
 
+  logic fault_toggle;
+  logic [31:0] resp_data_visible;
+
+  always_ff @(posedge clk) begin
+    if (reset) fault_toggle <= 1'b0;
+    else if (fault_mode && resp.valid && !resp_ready)
+      fault_toggle <= ~fault_toggle;
+  end
+
   ram_bridge dut (
       .clk(clk), .reset(reset),
       .load_valid(load_valid), .load_word_addr(load_word_addr),
@@ -57,12 +68,14 @@ module ram_bridge_tb_top (
       .flush_i(flush_i),
       .req_i(req), .req_ready_o(req_ready),
       .resp_o(resp), .resp_ready_i(resp_ready),
-      .resp_delay_i(resp_delay_i));
+      .resp_delay_i(resp_delay_i), .ram_write_o(ram_write_o));
 
+  assign resp_data_visible = (fault_mode && resp.valid && !resp_ready)
+                             ? (resp.rdata ^ {31'b0, fault_toggle}) : resp.rdata;
   assign resp_valid = resp.valid;
   assign resp_id = resp.req_id;
   assign resp_gen = resp.gen;
-  assign resp_rdata = resp.rdata;
+  assign resp_rdata = resp_data_visible;
   assign resp_error = resp.error;
   assign resp_cause = resp.error_cause;
 

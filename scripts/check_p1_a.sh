@@ -8,7 +8,13 @@ BASE="${P1_A_EVIDENCE:-$ROOT/verification/evidence/P1-A}"
 LOG_DIR="$BASE/logs"
 BUILD="$ROOT/build/p1-a"
 VERILATOR="${VERILATOR:-verilator}"
-STEP_TIMEOUT="${P1_A_STEP_TIMEOUT:-120}"
+HOST_TIMEOUT="${P1_A_HOST_TIMEOUT:-120}"
+KILL_AFTER="${P1_A_KILL_AFTER:-5}"
+
+if ! [[ "$HOST_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || ! [[ "$KILL_AFTER" =~ ^[1-9][0-9]*$ ]]; then
+  printf 'P1-A_CONFIG_ERROR: invalid host timeout/kill-after\n' >&2
+  exit 2
+fi
 
 # shellcheck source=lib/watchdog.sh
 . "$ROOT/scripts/lib/watchdog.sh"
@@ -27,14 +33,14 @@ run_logged() {
   local log="$LOG_DIR/$name.log"
   local rc
   {
-    printf 'command: timeout -k 5s %ss %s\n' "$STEP_TIMEOUT" "$*"
-    timeout -k 5s "${STEP_TIMEOUT}s" "$@" 2>&1
+    printf 'command: timeout -k %ss %ss %s\n' "$KILL_AFTER" "$HOST_TIMEOUT" "$*"
+    timeout -k "${KILL_AFTER}s" "${HOST_TIMEOUT}s" "$@" 2>&1
     rc=$?
     printf 'exit: %s\n' "$rc"
   } >"$log" 2>&1
   if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
     printf 'P1-A_WATCHDOG_TIMEOUT: %s exceeded %ss (exit=%s)\n' \
-      "$name" "$STEP_TIMEOUT" "$rc"
+      "$name" "$HOST_TIMEOUT" "$rc"
   fi
   return "$rc"
 }
@@ -42,11 +48,15 @@ run_logged() {
 run_expected() {
   local name="$1" want_rc="$2" pattern="$3"; shift 3
   local log="$LOG_DIR/$name.log"
-  local rc
+  local rc start end elapsed
+  start="$(date +%s)"
   {
-    printf 'command: %s\n' "$*"
-    "$@" 2>&1
+    printf 'command: timeout -k %ss %ss %s\n' "$KILL_AFTER" "$HOST_TIMEOUT" "$*"
+    timeout -k "${KILL_AFTER}s" "${HOST_TIMEOUT}s" "$@" 2>&1
     rc=$?
+    end="$(date +%s)"
+    elapsed=$((end - start))
+    printf 'elapsed_seconds: %s\n' "$elapsed"
     printf 'exit: %s\n' "$rc"
   } >"$log" 2>&1
   if [ "$rc" != "$want_rc" ]; then
@@ -57,7 +67,7 @@ run_expected() {
     bad "$name missing expected message '$pattern' (see ${log#"$ROOT"/})"
     return
   fi
-  pass "$name (exit=$rc, expected message present)"
+  pass "$name (exit=$rc, elapsed=${elapsed}s, expected message present)"
 }
 
 # V01: lint the complete P1-A file list.
@@ -116,7 +126,13 @@ if run_logged ram-build "$VERILATOR" --cc --exe --build --assert \
   run_expected ram-mismatch-probe 1 "P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED" \
     "$BUILD/ram/obj/ram_tb" +mismatch
   run_expected ram-timeout-probe 124 "P1-A_RAM_TB_TIMEOUT_PROBE" \
-    timeout 5s "$BUILD/ram/obj/ram_tb" +hang
+    timeout -k 2s 5s "$BUILD/ram/obj/ram_tb" +hang
+  run_expected ram-timeout-ignore-term-probe 137 "P1-A_RAM_TB_TIMEOUT_IGNORE_TERM_PROBE" \
+    timeout -k 2s 5s "$BUILD/ram/obj/ram_tb" +hang_ignore_term
+  run_expected ram-comparison-hang-probe 124 "P1-A_RAM_TB_MISMATCH_HANG_PROBE" \
+    timeout -k 2s 5s "$BUILD/ram/obj/ram_tb" +mismatch_hang
+  run_expected ram-stability-probe 1 "P1-A_RAM_TB_STABILITY_DETECTED" \
+    "$BUILD/ram/obj/ram_tb" +stability_probe
 else
   bad "RAM/bridge build (see ${LOG_DIR#"$ROOT"/}/ram-build.log)"
 fi

@@ -19,7 +19,8 @@ module ram_bridge (
     output logic        req_ready_o,
     output core_types_pkg::mem_resp_t resp_o,
     input  logic        resp_ready_i,
-    input  logic [1:0]  resp_delay_i
+    input  logic [1:0]  resp_delay_i,
+    output logic        ram_write_o
 );
 
   import core_config_pkg::*;
@@ -46,6 +47,7 @@ module ram_bridge (
 
   // Validation (combinational) for the presented request.
   logic [2:0]  size_bytes;
+  logic        size_valid;
   logic        in_range;
   logic        aligned;
   logic        mask_ok;
@@ -62,12 +64,18 @@ module ram_bridge (
       default:  size_bytes = 3'd0;
     endcase
 
-    in_range = (req_i.pa >= RAM_BASE) &&
-               (req_i.pa + PA_BITS'(size_bytes) <= RAM_END);
+    size_valid = (size_bytes != 3'd0);
+    // Avoid a truncated 34-bit addition: first require the start address to
+    // be inside RAM, then check the remaining space against the access size.
+    in_range = size_valid &&
+               (req_i.pa >= RAM_BASE) &&
+               (req_i.pa < RAM_END) &&
+               ((RAM_END - req_i.pa) >= PA_BITS'(size_bytes));
     lane_q = req_i.pa[1:0];
-    aligned = (req_i.size == MEM_BYTE) ||
-              ((req_i.size == MEM_HALF) && (req_i.pa[0] == 1'b0)) ||
-              ((req_i.size == MEM_WORD) && (req_i.pa[1:0] == 2'b00));
+    aligned = size_valid &&
+              ((req_i.size == MEM_BYTE) ||
+               ((req_i.size == MEM_HALF) && (req_i.pa[0] == 1'b0)) ||
+               ((req_i.size == MEM_WORD) && (req_i.pa[1:0] == 2'b00)));
 
     case (req_i.size)
       MEM_BYTE: mask_ok = (req_i.byte_mask == (4'b0001 << lane_q));
@@ -83,10 +91,12 @@ module ram_bridge (
       default:  wdata_ok = 1'b0;
     endcase
 
-    legal = in_range && aligned && mask_ok &&
+    legal = size_valid && in_range && aligned && mask_ok &&
             (!req_i.is_store || wdata_ok);
 
-    if (!in_range) begin
+    // Invalid size/mask/data are interface-illegal access faults. Only a
+    // valid size with a valid range but bad alignment reports misaligned.
+    if (!size_valid || !in_range) begin
       err_cause = req_i.is_store ? EXC_STORE_ACCESS_FAULT : EXC_LOAD_ACCESS_FAULT;
     end else if (!aligned) begin
       err_cause = req_i.is_store ? EXC_STORE_MISALIGNED : EXC_LOAD_MISALIGNED;
@@ -112,6 +122,7 @@ module ram_bridge (
   assign ram_mask = req_i.byte_mask;
   assign ram_wdata = lane_wdata;
   assign resp_o = resp_q;
+  assign ram_write_o = ram_req && req_i.is_store;
   assign unused_req = ^req_i;
 
   ram_128k u_ram (

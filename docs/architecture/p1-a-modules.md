@@ -28,7 +28,7 @@
 | `commit_o` | out | 冻结 `commit_bundle_t`；`slot_valid=0`、`trap_valid=0` |
 | `idle_o` | out | 骨架恒 1 |
 
-P1-B 插入点：保留以上端口，替换 `p1_core_skeleton` 内部为 Fetch/Decode/Rename/Issue/Commit 最小顺序核；真正的取指和 Load/Store 通过 `mem_req_o`/`mem_resp_i` 接入桥；退休记录只在真实指令完成时置位。
+P1-B 插入点：保留以上端口，P1-B 只实现 Fetch/Decode；执行、访存、CSR、真实退休与差分分别由 P1-C—F 推进。真正的取指和后续 Load/Store 通过 `mem_req_o`/`mem_resp_i` 接入桥；退休记录只在真实指令完成时置位，P1-A 不产生。
 
 ## 2 存储请求/响应契约
 
@@ -44,7 +44,7 @@ P1-B 插入点：保留以上端口，替换 `p1_core_skeleton` 内部为 Fetch/
 
 - 地址范围严格 `[0x80000000, 0x80020000)`；高位 PA、低于基址、超过末地址、MMIO 地址均返回 access fault。
 - byte 任意 lane；half 必须 2 字节对齐；word 必须 4 字节对齐；非对齐返回 misaligned cause。
-- byte mask 必须与 size/lane 精确匹配；size/mask 不匹配、store 高位数据非零等非法请求在写 RAM 前拒绝。
+- byte mask 必须与 size/lane 精确匹配；size=3 等非法宽度、size/mask 不匹配、store 高位数据非零等非法请求在写 RAM 前拒绝，并报告 load/store access fault；只有有效宽度的自然对齐失败报告 misaligned。
 - 读错误 cause：load access fault(5) / load misaligned(4)；写错误：store access fault(7) / store misaligned(6)。错误响应 `rdata=0`，内存保持。
 - 自然对齐 byte/half/word、首末字节、四种 lane、两种 half lane、部分写保持邻接字节、连续同址读写均覆盖。
 - 错误请求不写内存；读/写响应都在 `resp_ready` 背压下保持。
@@ -55,9 +55,9 @@ P1-B 插入点：保留以上端口，替换 `p1_core_skeleton` 内部为 Fetch/
 
 1. `verilator --lint-only -Wall --assert` 检查 `rtl/p1_a.f`。
 2. 空闲骨架 TB：16 周期内 `mem_req_valid=0`、`slot_valid=0`、`trap_valid=0`、`idle=1`。
-3. RAM/桥 TB：定向边界 + 3 个固定种子（`0x1a2b3c4d`、`0x5e6f7a8b`、`0x9c0d1e2f`）各 450 笔合法/非法混合事务；独立字节数组记分板；总事务 1392。
-4. RAM 负向探针：真实比较路径注入一次错误期望，要求非零退出与 `P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED`。
-5. RAM 挂起探针：`timeout 5s` 下要求 124 与 `P1-A_RAM_TB_TIMEOUT_PROBE`。
+3. RAM/桥 TB：定向边界 + 3 个固定种子（`0x1a2b3c4d`、`0x5e6f7a8b`、`0x9c0d1e2f`）各 450 笔合法/非法混合事务；独立字节数组记分板；逐边沿检查请求/响应稳定、响应一次、实际 RAM 写事件与非法请求零写；统一时钟计数覆盖初始化和全部事务。修复后统计以实际日志为准。
+4. RAM 负向探针：真实比较路径注入一次错误期望，要求非零退出与 `P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED`；稳定性反例要求 held 响应改变被同一逐拍检查器检出。
+5. 挂起探针：比较负向入口、专用 timeout 入口以及忽略 TERM 的场景均由有限主机看门狗 + kill-after 执行，分别核对 124/137；超时不会被当成比较探针成功。
 6. Token 联合补测：缩小代次下，回绕前存在已取消匹配响应；新分配持续阻塞，真正收尾后恢复。
 7. `make check-p0-02` 回归（含 P0-01/R1），所有嵌套日志写入 `verification/evidence/P1-A/regression/`。
 
@@ -66,4 +66,4 @@ P1-B 插入点：保留以上端口，替换 `p1_core_skeleton` 内部为 Fetch/
 - 未实现取指/译码/ALU/LSU/CSR/ROB/Cache/MMU/FPU；没有真实退休或 DiffTest。
 - UART、结果寄存器、中断外设未实现；MMIO 地址当前由桥返回 access fault。
 - 未进行 FPGA 综合、时序、资源或上板；无板卡结论。
-- P1-B 才建立真实程序执行、退休记录与基本差分。
+- P1-B—F 才逐步建立真实程序执行、退休记录与基本差分；P1-B 本身只做取指/译码。

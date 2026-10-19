@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <csignal>
 #include <random>
 #include <vector>
 
@@ -40,6 +41,11 @@ struct Tb {
   uint64_t legal_count = 0;
   uint64_t illegal_count = 0;
   uint64_t cycles = 0;
+  uint64_t accepted_count = 0;
+  uint64_t completed_count = 0;
+  uint64_t write_events = 0;
+  uint64_t expected_writes = 0;
+  bool no_cycle_limit = false;
 
   explicit Tb(Vram_bridge_tb_top* d) : dut(d), mem(128 * 1024) {
     for (size_t i = 0; i < mem.size(); ++i)
@@ -59,7 +65,9 @@ struct Tb {
     if (!cond) fail(msg, value);
   }
 
-  static int size_bytes(int size) { return 1 << size; }
+  static bool size_valid(int size) { return size >= 0 && size <= 2; }
+
+  static int size_bytes(int size) { return size_valid(size) ? (1 << size) : 0; }
 
   static uint32_t lane_wdata(const Req& r) {
     unsigned lane = r.pa & 3;
@@ -89,15 +97,18 @@ struct Tb {
   }
 
   static bool in_range(const Req& r) {
-    return r.pa >= RAM_BASE && (r.pa + size_bytes(r.size)) <= RAM_END;
+    if (!size_valid(r.size)) return false;
+    return r.pa >= RAM_BASE && r.pa < RAM_END &&
+           (RAM_END - r.pa) >= static_cast<uint64_t>(size_bytes(r.size));
   }
 
   static bool legal(const Req& r) {
-    return in_range(r) && aligned(r) && mask_ok(r) && wdata_ok(r);
+    return size_valid(r.size) && in_range(r) && aligned(r) &&
+           mask_ok(r) && wdata_ok(r);
   }
 
   static uint8_t error_cause(const Req& r) {
-    if (!in_range(r)) return r.store ? 7 : 5;
+    if (!size_valid(r.size) || !in_range(r)) return r.store ? 7 : 5;
     if (!aligned(r)) return r.store ? 6 : 4;
     return r.store ? 7 : 5;
   }
@@ -128,11 +139,23 @@ struct Tb {
     }
   }
 
-  void tick() {
+  void low() {
     dut->clk = 0; dut->eval();
+  }
+
+  void edge() {
     dut->clk = 1; dut->eval();
-    dut->clk = 0; dut->eval();
     ++cycles;
+    dut->clk = 0; dut->eval();
+    if (!no_cycle_limit && cycles > 200000) {
+      std::fprintf(stderr, "P1-A_RAM_TB_FAIL: cycle budget exhausted\n");
+      std::exit(1);
+    }
+  }
+
+  void tick() {
+    low();
+    edge();
   }
 
   void reset() {
@@ -142,6 +165,7 @@ struct Tb {
     dut->load_data = 0;
     dut->flush_i = 0;
     dut->resp_delay_i = 0;
+    dut->fault_mode = 0;
     dut->req_valid = 0;
     dut->req_is_store = 0;
     dut->req_va = 0;
@@ -203,6 +227,12 @@ struct Tb {
     if (mismatch && is_legal && !r.store) want_rdata ^= 1u;
     const uint8_t want_cause = is_legal ? 0 : error_cause(r);
 
+    auto same_resp = [](const Resp& a, const Resp& b) {
+      return a.valid == b.valid && a.error == b.error &&
+             a.cause == b.cause && a.id == b.id && a.gen == b.gen &&
+             a.rdata == b.rdata;
+    };
+
     for (int i = 0; i < req_delay; ++i) {
       dut->req_valid = 0;
       tick();
@@ -212,25 +242,67 @@ struct Tb {
     dut->resp_ready = (resp_stall == 0);
     bool accepted = false;
     bool done = false;
+    bool held_valid = false;
+    bool req_held = false;
+    uint8_t held_id = 0, held_gen = 0;
+    uint64_t held_pa = 0;
+    uint8_t held_size = 0, held_mask = 0;
+    uint32_t held_wdata = 0;
+    Resp held;
     Resp got;
     int wait = 0;
     while (!done) {
-      dut->clk = 0; dut->eval();
+      low();
       const bool acc = dut->req_valid && dut->req_ready;
       const bool rv = dut->resp_valid;
       const bool rr = dut->resp_ready;
-      if (rv) {
-        got.valid = true;
-        got.error = dut->resp_error;
-        got.cause = dut->resp_cause;
-        got.id = dut->resp_id;
-        got.gen = dut->resp_gen;
-        got.rdata = dut->resp_rdata;
+      if (dut->req_valid && !dut->req_ready) {
+        if (!req_held) {
+          req_held = true;
+          held_id = dut->req_id; held_gen = dut->req_gen;
+          held_pa = dut->req_pa; held_size = dut->req_size;
+          held_mask = dut->req_byte_mask; held_wdata = dut->req_wdata;
+        } else if (dut->req_id != held_id || dut->req_gen != held_gen ||
+                   dut->req_pa != held_pa || dut->req_size != held_size ||
+                   dut->req_byte_mask != held_mask ||
+                   dut->req_wdata != held_wdata) {
+          check(false, "request payload changed while stalled");
+        }
+      } else {
+        req_held = false;
       }
-      dut->clk = 1; dut->eval();
+      if (rv) {
+        Resp cur;
+        cur.valid = true;
+        cur.error = dut->resp_error;
+        cur.cause = dut->resp_cause;
+        cur.id = dut->resp_id;
+        cur.gen = dut->resp_gen;
+        cur.rdata = dut->resp_rdata;
+        if (!rr) {
+          if (!held_valid) {
+            held = cur;
+            held_valid = true;
+          } else if (!same_resp(held, cur)) {
+            check(false, "held response changed while backpressured");
+          }
+        } else {
+          got = cur;
+        }
+      } else if (held_valid) {
+        check(false, "response valid dropped before handshake");
+      }
+      if (dut->ram_write_o) ++write_events;
+      if (dut->ram_write_o && !(is_legal && r.store))
+        check(false, "illegal request produced a RAM write");
+      edge();
       if (acc) {
         accepted = true;
-        if (is_legal && r.store) apply_store(r);
+        ++accepted_count;
+        if (is_legal && r.store) {
+          apply_store(r);
+          ++expected_writes;
+        }
         dut->req_valid = 0;
         if (flush_after_accept) {
           dut->flush_i = 1;
@@ -238,8 +310,10 @@ struct Tb {
           dut->flush_i = 0;
         }
       }
-      if (rv && rr) done = true;
-      dut->clk = 0; dut->eval();
+      if (rv && rr) {
+        done = true;
+        ++completed_count;
+      }
       if (!done) {
         if (resp_stall > 0 && rv) --resp_stall;
         dut->resp_ready = (resp_stall == 0);
@@ -248,6 +322,15 @@ struct Tb {
         fail("transaction timeout");
         break;
       }
+    }
+    // Idle observation: no stray or duplicate response may survive the
+    // handshake. This also catches a second response for the same request.
+    dut->req_valid = 0;
+    dut->resp_ready = 1;
+    for (int i = 0; i < 2; ++i) {
+      low();
+      if (dut->resp_valid) check(false, "stray/duplicate response in idle window");
+      edge();
     }
     check(accepted, "request was not accepted");
     check(got.valid, "response missing");
@@ -324,6 +407,26 @@ struct Tb {
       transact(mk(true, RAM_BASE + 0x30, 2, 0xf, 0xa0000000u + i, 20, 4));
     }
 
+    // Accepted Store + upstream Flush: the write must survive and respond once.
+    transact(mk(true, RAM_BASE + 0x60, 2, 0xf, 0x13579bdfu, 48, 1),
+             2, 0, 0, true);
+    transact(mk(false, RAM_BASE + 0x60, 2, 0xf, 0, 49, 1), 0, 0, 0, false);
+
+    // Top-of-34-bit PA must not wrap into the RAM tail. The model must not
+    // replicate RTL overflow; these are access faults and must not write.
+    const uint32_t tail_before = read_word(RAM_END - 4);
+    transact(mk(false, 0x3ffffffffull, 0, 0x8, 0, 40, 1));
+    transact(mk(false, 0x3fffffffeull, 1, 0xC, 0, 41, 1));
+    transact(mk(false, 0x3fffffffcull, 2, 0xF, 0, 42, 1));
+    transact(mk(true, 0x3ffffffffull, 0, 0x8, 0x5a, 43, 1));
+    transact(mk(true, 0x3fffffffeull, 1, 0xC, 0x1234, 44, 1));
+    transact(mk(true, 0x3fffffffcull, 2, 0xF, 0xdeadbeefu, 45, 1));
+    // size=3 is an interface-illegal request: access fault, not misaligned.
+    transact(mk(false, RAM_BASE, 3, 0xf, 0, 46, 1));
+    transact(mk(true, RAM_BASE, 3, 0xf, 0, 47, 1));
+    check(read_word(RAM_END - 4) == tail_before,
+          "top-PA/size3 illegal requests changed RAM tail");
+
     // Illegal address/alignment/mask/data. Memory must not change.
     transact(mk(false, 0x1'80000000ull, 2, 0xf, 0, 21, 1));
     transact(mk(true, 0x1'80000000ull, 2, 0xf, 0x12345678u, 21, 1));
@@ -335,6 +438,66 @@ struct Tb {
     transact(mk(true, RAM_BASE, 0, 0x3, 0xaa, 27, 1));
     transact(mk(true, RAM_BASE, 0, 0x1, 0x100, 28, 1));
     transact(mk(false, RAM_BASE, 2, 0xf, 0, 29, 1));
+  }
+
+  void pipeline_stall() {
+    // A response is held (resp_ready=0); a second request is presented and
+    // must remain stable while req_ready=0. Consuming A and accepting B happen
+    // at the same edge. Both responses are checked against the model.
+    Req a = mk(false, RAM_BASE + 0x70, 2, 0xf, 0, 60, 1);
+    Req b = mk(false, RAM_BASE + 0x74, 2, 0xf, 0, 61, 2);
+    const uint32_t want_a = expected_rdata(a);
+    const uint32_t want_b = expected_rdata(b);
+    auto load_resp = [&](Resp& r) {
+      r.valid = true; r.error = dut->resp_error; r.cause = dut->resp_cause;
+      r.id = dut->resp_id; r.gen = dut->resp_gen; r.rdata = dut->resp_rdata;
+    };
+
+    drive(a);
+    dut->resp_ready = 0;
+    low();
+    check(dut->req_ready, "pipeline: A not accepted");
+    edge();
+    ++accepted_count;
+    ++transactions;
+    dut->req_valid = 0;
+
+    int guard = 0;
+    while (!dut->resp_valid && guard++ < 200) { low(); edge(); }
+    check(dut->resp_valid, "pipeline: A response missing");
+    Resp held_a;
+    load_resp(held_a);
+    if (held_a.rdata != want_a) check(false, "pipeline: A data mismatch", held_a.rdata);
+
+    drive(b);
+    dut->req_valid = 1;
+    for (int i = 0; i < 3; ++i) {
+      low();
+      check(!dut->req_ready, "pipeline: B accepted while A response held");
+      check(dut->resp_valid && dut->resp_rdata == held_a.rdata,
+            "pipeline: A response changed");
+      edge();
+    }
+
+    dut->resp_ready = 1;
+    low();
+    check(dut->req_valid && dut->req_ready, "pipeline: B not ready at consume edge");
+    edge();
+    ++accepted_count;
+    ++transactions;
+    dut->req_valid = 0;
+    if (held_a.id != a.id || held_a.gen != a.gen) check(false, "pipeline: A ID/gen");
+
+    guard = 0;
+    while (!dut->resp_valid && guard++ < 200) { low(); edge(); }
+    low();
+    check(dut->resp_valid, "pipeline: B response missing");
+    check(dut->resp_rdata == want_b, "pipeline: B data mismatch", dut->resp_rdata);
+    check(dut->resp_id == b.id && dut->resp_gen == b.gen,
+          "pipeline: B ID/gen mismatch");
+    edge();
+    completed_count += 2;
+    dut->resp_ready = 1;
   }
 
   void random_run(unsigned seed, int count) {
@@ -374,9 +537,15 @@ struct Tb {
 int main(int argc, char** argv) {
   bool mismatch_probe = false;
   bool hang = false;
+  bool hang_ignore_term = false;
+  bool mismatch_hang = false;
+  bool stability_probe = false;
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "+mismatch") == 0) mismatch_probe = true;
     if (std::strcmp(argv[i], "+hang") == 0) hang = true;
+    if (std::strcmp(argv[i], "+hang_ignore_term") == 0) hang_ignore_term = true;
+    if (std::strcmp(argv[i], "+mismatch_hang") == 0) mismatch_hang = true;
+    if (std::strcmp(argv[i], "+stability_probe") == 0) stability_probe = true;
   }
   Verilated::commandArgs(argc, argv);
   Vram_bridge_tb_top* dut = new Vram_bridge_tb_top;
@@ -384,19 +553,55 @@ int main(int argc, char** argv) {
   tb.reset();
   tb.preload();
 
+  if (hang_ignore_term) {
+    std::signal(SIGTERM, SIG_IGN);
+    tb.no_cycle_limit = true;
+    std::printf("P1-A_RAM_TB_TIMEOUT_IGNORE_TERM_PROBE: entering intentional hang\n");
+    std::fflush(stdout);
+    for (;;) tb.tick();
+  }
   if (hang) {
+    tb.no_cycle_limit = true;
     std::printf("P1-A_RAM_TB_TIMEOUT_PROBE: entering intentional hang\n");
     std::fflush(stdout);
     for (;;) tb.tick();
   }
+  if (mismatch_hang) {
+    // Exercise the comparison path first, then hang in the same entry.
+    Req r = tb.mk(false, RAM_BASE, 2, 0xf, 0, 0x62, 0x12);
+    tb.transact(r, 0, 0, 0, false, false, true);
+    tb.no_cycle_limit = true;
+    std::printf("P1-A_RAM_TB_MISMATCH_HANG_PROBE: entering comparison-path hang\n");
+    std::fflush(stdout);
+    for (;;) tb.tick();
+  }
+  if (stability_probe) {
+    dut->fault_mode = 1;
+    Req r = tb.mk(false, RAM_BASE + 0x80, 2, 0xf, 0, 0x52, 0x11);
+    tb.transact(r, 3, 0);
+    if (tb.errors > 0) {
+      std::printf("P1-A_RAM_TB_STABILITY_DETECTED errors=%d\n", tb.errors);
+      delete dut;
+      return 1;
+    }
+    std::fprintf(stderr, "P1-A_RAM_TB_STABILITY_NOT_DETECTED\n");
+    delete dut;
+    return 1;
+  }
 
   tb.directed();
+  tb.pipeline_stall();
   tb.random_run(0x1a2b3c4du, 450);
   tb.random_run(0x5e6f7a8bu, 450);
   tb.random_run(0x9c0d1e2fu, 450);
 
   if (tb.transactions < 1000) tb.check(false, "transaction budget too small");
   if (tb.cycles > 200000) tb.check(false, "cycle budget exhausted");
+
+  if (tb.accepted_count != tb.completed_count)
+    tb.check(false, "accepted/completed count mismatch");
+  if (tb.write_events != tb.expected_writes)
+    tb.check(false, "RAM write event count mismatch");
 
   if (mismatch_probe) {
     Req r = tb.mk(false, RAM_BASE, 2, 0xf, 0, 0x3f, 0x7f);

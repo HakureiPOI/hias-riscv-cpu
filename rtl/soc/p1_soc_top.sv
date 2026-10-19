@@ -7,7 +7,8 @@ module p1_soc_top (
     output core_types_pkg::commit_bundle_t commit_o,
     output logic        core_idle_o,
     output logic        mem_req_valid_o,
-    output logic        mem_resp_ready_o
+    output logic        mem_resp_ready_o,
+    output logic        ram_write_o
 );
 
   import core_config_pkg::*;
@@ -33,7 +34,7 @@ module p1_soc_top (
       .flush_i(flush_i),
       .req_i(core_req), .req_ready_o(core_req_ready),
       .resp_o(bridge_resp), .resp_ready_i(bridge_resp_ready),
-      .resp_delay_i(resp_delay_i));
+      .resp_delay_i(resp_delay_i), .ram_write_o(ram_write_o));
 
   assign mem_req_valid_o = core_req.valid;
   assign mem_resp_ready_o = bridge_resp_ready;
