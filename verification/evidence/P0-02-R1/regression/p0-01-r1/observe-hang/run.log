@@ -1,0 +1,13 @@
+outer_command: timeout -k 5s 120s env P0_01_OBSERVE_HANG=1 P0_01_OBSERVE_TIMEOUT=2 P0_01_LOG_DIR=/workspace/hias-riscv-cpu/verification/evidence/P0-02-R1/regression/p0-01-r1/observe-hang/logs /workspace/hias-riscv-cpu/scripts/run_ref_smoke.sh
+P0-01_REF_STEP_PASS: build ok.elf
+P0-01_REF_STEP_PASS: build fail.elf
+P0-01_REF_STEP_PASS: build hang.elf
+P0-01_REF_STEP_PASS: ELF inspection (log: verification/evidence/P0-02-R1/regression/p0-01-r1/observe-hang/logs/elf-inspection.log)
+P0-01_REF_STEP_PASS: Spike normal run reached PASS signature
+P0-01_REF_STEP_PASS: Spike negative control detected wrong result (exit=1)
+P0-01_REF_STEP_PASS: Spike timeout control detected hang (exit=124)
+P0-01_WATCHDOG_TIMEOUT: Spike observation exceeded 2s (exit=124)
+P0-01_REF_STEP_FAIL: Spike observation interface (exit=124; see verification/evidence/P0-02-R1/regression/p0-01-r1/observe-hang/logs/spike-observe.log)
+P0-01_REF_SMOKE_ALL_FAIL
+outer_exit: 1
+elapsed_seconds: 7

@@ -1,0 +1,14 @@
+P0-01 check summary
+date_utc: 2026-10-19T10:50:43Z
+git_head: cdc6238417aaa8a069de9c2cae6dd50ea68145fd
+git_branch: codex/p0-02-spec-interfaces
+host_timeout_seconds: 60
+step_timeout_seconds: 60
+log_dir: verification/evidence/P0-02-R1/regression/p0-01-r1/total-entry-rtl-hang/logs
+git_status:
+  ?? verification/evidence/P0-02-R1/
+steps:
+  env-check    exit=0
+  rtl-smoke    exit=1
+  ref-smoke    exit=0
+result: FAIL

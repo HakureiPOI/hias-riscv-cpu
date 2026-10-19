@@ -1,0 +1,37 @@
+command: python3 /workspace/hias-riscv-cpu/scripts/check_retire_contract.py --self-test
+RETIRE_CONTRACT_POSITIVE_OK: csrrw rd=x0
+RETIRE_CONTRACT_POSITIVE_OK: csrrs rs1=x0
+RETIRE_CONTRACT_POSITIVE_OK: csrrs rs1=x1 value0
+RETIRE_CONTRACT_POSITIVE_OK: csrrwi zimm=0
+RETIRE_CONTRACT_POSITIVE_OK: csrrsi zimm=0
+RETIRE_CONTRACT_POSITIVE_OK: byte lane 0
+RETIRE_CONTRACT_POSITIVE_OK: byte lane 1
+RETIRE_CONTRACT_POSITIVE_OK: byte lane 2
+RETIRE_CONTRACT_POSITIVE_OK: byte lane 3
+RETIRE_CONTRACT_POSITIVE_OK: half offset 0
+RETIRE_CONTRACT_POSITIVE_OK: half offset 2
+RETIRE_CONTRACT_POSITIVE_OK: word
+RETIRE_CONTRACT_POSITIVE_OK: LBU
+RETIRE_CONTRACT_POSITIVE_OK: LHU
+RETIRE_CONTRACT_POSITIVE_OK: Spike-derived missing next_pc/token
+RETIRE_CONTRACT_POSITIVE_OK: load x0 missing rdata
+RETIRE_CONTRACT_NEGATIVE_OK: rd_we=false with rd_data (rd_we=false requires rd_data=null)
+RETIRE_CONTRACT_NEGATIVE_OK: x0 write (rd=x0 must not write)
+RETIRE_CONTRACT_NEGATIVE_OK: CSR read suppression wrong (csr_rd_valid does not match CSR read rule)
+RETIRE_CONTRACT_NEGATIVE_OK: CSR write suppression wrong (csr_wr_valid does not match CSR write rule)
+RETIRE_CONTRACT_NEGATIVE_OK: wrong byte mask (mem_mask 0x1 != expected 0x8 for byte at 0x80000003)
+RETIRE_CONTRACT_NEGATIVE_OK: unaligned half (unaligned half access at 0x80000001)
+RETIRE_CONTRACT_NEGATIVE_OK: word mask wrong (mem_mask 0x3 != expected 0xf for word at 0x80000000)
+RETIRE_CONTRACT_NEGATIVE_OK: missing load data unmarked (missing load data must be listed as not observed)
+RETIRE_CONTRACT_NEGATIVE_OK: token missing gen (token must be null or {idx, gen})
+RETIRE_CONTRACT_NEGATIVE_OK: token idx out of range (token.idx: expected integer in [0,31], got 32)
+RETIRE_CONTRACT_NEGATIVE_OK: unknown privilege (priv: 'H' not in ['M', 'S', 'U'])
+RETIRE_CONTRACT_NEGATIVE_OK: DUT missing next_pc (DUT record requires token and next_pc)
+RETIRE_CONTRACT_NEGATIVE_OK: Spike-derived fabricates token (Spike-derived record must not fabricate token/next_pc)
+RETIRE_CONTRACT_NEGATIVE_OK: seq duplicate (stream:2: seq not strictly increasing)
+RETIRE_CONTRACT_NEGATIVE_OK: seq backwards (stream:2: seq not strictly increasing)
+RETIRE_CONTRACT_NEGATIVE_OK: trap missing field (trap: missing fields ['epc_csr_after'])
+RETIRE_CONTRACT_NEGATIVE_OK: trap from spike-derived (source: 'spike-derived' not in ['dut', 'synthetic'])
+RETIRE_CONTRACT_NEGATIVE_OK: bundle trap plus retire (normal retirement and Trap must be mutually exclusive)
+RETIRE_CONTRACT_SELFTEST_PASS positives=16
+exit: 0

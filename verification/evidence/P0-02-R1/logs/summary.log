@@ -1,0 +1,8 @@
+P0-02 check summary
+date_utc: 2026-10-19T10:51:23Z
+git_head: cdc6238417aaa8a069de9c2cae6dd50ea68145fd
+git_branch: codex/p0-02-spec-interfaces
+log_dir: verification/evidence/P0-02-R1/logs
+git_status:
+  ?? verification/evidence/P0-02-R1/
+result: PASS

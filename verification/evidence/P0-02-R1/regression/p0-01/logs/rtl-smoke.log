@@ -1,0 +1,11 @@
+== lint ==
+P0-01_RTL_STEP_PASS: lint (log: verification/evidence/P0-02-R1/regression/p0-01/logs/lint-smoke.log)
+P0-01_RTL_STEP_PASS: build smoke_buffer simulator
+P0-01_RTL_STEP_PASS: build assertion probe simulator
+P0-01_RTL_STEP_PASS: normal-rtl (exit=0, expected message present)
+P0-01_RTL_STEP_PASS: checker-probe (exit=1, expected message present)
+P0-01_RTL_STEP_PASS: timeout-probe (exit=1, expected message present)
+P0-01_WATCHDOG_TIMEOUT: watchdog-rtl-probe exceeded 2s (exit=124)
+P0-01_RTL_STEP_PASS: watchdog-rtl-probe (exit=124, expected message present)
+P0-01_RTL_STEP_PASS: assertion-probe (exit=134, expected message present)
+P0-01_RTL_SMOKE_ALL_PASS
