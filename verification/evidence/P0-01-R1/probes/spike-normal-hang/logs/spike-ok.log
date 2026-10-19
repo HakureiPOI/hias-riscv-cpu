@@ -1,0 +1,4 @@
+command: timeout -k 5s 2s spike --isa=rv32i -m128 /workspace/hias-riscv-cpu/build/ref-smoke/hang.elf
+elapsed_seconds: 2
+exit: 124
+P0-01_WATCHDOG_TIMEOUT: host watchdog fired after 2s (exit=124); command=spike --isa=rv32i -m128 /workspace/hias-riscv-cpu/build/ref-smoke/hang.elf

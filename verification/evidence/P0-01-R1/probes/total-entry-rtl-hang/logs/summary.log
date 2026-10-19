@@ -1,0 +1,14 @@
+P0-01 check summary
+date_utc: 2026-10-19T09:30:55Z
+git_head: 251c151e5684dd2751cdb4fe27f557621b34e144
+git_branch: codex/p0-01-environment-smoke
+host_timeout_seconds: 60
+step_timeout_seconds: 60
+log_dir: verification/evidence/P0-01-R1/probes/total-entry-rtl-hang/logs
+git_status:
+  ?? verification/evidence/P0-01-R1/
+steps:
+  env-check    exit=0
+  rtl-smoke    exit=1
+  ref-smoke    exit=0
+result: FAIL
