@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <csignal>
 #include <random>
 #include <vector>
@@ -47,7 +48,15 @@ struct Tb {
   uint64_t expected_writes = 0;
   uint64_t stability_errors = 0;
   uint64_t comparison_errors = 0;
+  uint64_t reference_errors = 0;
   bool no_cycle_limit = false;
+  struct Expected {
+    Req req;
+    bool legal;
+    uint8_t cause;
+    uint32_t rdata;
+  };
+  std::deque<Expected> pending_resp;
 
   explicit Tb(Vram_bridge_tb_top* d) : dut(d), mem(128 * 1024) {
     for (size_t i = 0; i < mem.size(); ++i)
@@ -211,13 +220,41 @@ struct Tb {
 
   void note_accept(const Req& r) {
     ++accepted_count;
-    if (legal(r) && r.store) {
+    const bool is_legal = legal(r);
+    if (is_legal && r.store) {
       apply_store(r);
       ++expected_writes;
     }
+    Expected e;
+    e.req = r;
+    e.legal = is_legal;
+    e.cause = is_legal ? 0 : error_cause(r);
+    e.rdata = (is_legal && !r.store) ? expected_rdata(r) : 0;
+    pending_resp.push_back(e);
   }
 
-  void note_complete() { ++completed_count; }
+  void note_complete(const Resp& got) {
+    ++completed_count;
+    if (pending_resp.empty()) {
+      check(false, "response without accepted request");
+      return;
+    }
+    const Expected e = pending_resp.front();
+    pending_resp.pop_front();
+    if (got.id != e.req.id || got.gen != e.req.gen) ++reference_errors;
+    check(got.id == e.req.id && got.gen == e.req.gen,
+          "reference queue ID/generation mismatch");
+    if (e.legal) {
+      if (got.error || got.rdata != e.rdata) ++reference_errors;
+      check(!got.error, "reference queue: legal request error");
+      check(got.rdata == e.rdata, "reference queue: data mismatch", got.rdata);
+    } else {
+      if (!got.error || got.cause != e.cause || got.rdata != 0) ++reference_errors;
+      check(got.error, "reference queue: illegal request not error");
+      check(got.cause == e.cause, "reference queue: cause mismatch", got.cause);
+      check(got.rdata == 0, "reference queue: illegal request data");
+    }
+  }
 
   void stability_fail(const char* msg) {
     ++stability_errors;
@@ -345,7 +382,7 @@ struct Tb {
       }
       if (rv && rr) {
         done = true;
-        note_complete();
+        note_complete(got);
       }
       if (!done) {
         if (resp_stall > 0 && rv) --resp_stall;
@@ -546,7 +583,7 @@ struct Tb {
           "pipeline: B payload changed at final handshake");
     edge();
     note_accept(b);
-    note_complete();  // A response handshake at this edge
+    note_complete(held_a);  // A response handshake at this edge
     dut->req_valid = 0;
     if (held_a.id != a.id || held_a.gen != a.gen) check(false, "pipeline: A ID/gen");
 
@@ -557,8 +594,11 @@ struct Tb {
     check(dut->resp_rdata == want_b, "pipeline: B data mismatch", dut->resp_rdata);
     check(dut->resp_id == b.id && dut->resp_gen == b.gen,
           "pipeline: B ID/gen mismatch");
+    Resp got_b;
+    got_b.valid = true; got_b.error = dut->resp_error; got_b.cause = dut->resp_cause;
+    got_b.id = dut->resp_id; got_b.gen = dut->resp_gen; got_b.rdata = dut->resp_rdata;
+    note_complete(got_b);  // B response handshake
     edge();
-    note_complete();  // B response handshake
     dut->resp_ready = 1;
     // Same idle observation as the serial path.
     dut->req_valid = 0;
@@ -675,17 +715,19 @@ int main(int argc, char** argv) {
     Req r = tb.mk(false, RAM_BASE + 0x84, 2, 0xf, 0, 0x13, 0x11);
     tb.transact(r, 3, 0);
     if (tb.stability_errors > 0 &&
-        tb.errors == tb.stability_errors + tb.comparison_errors) {
+        tb.errors == tb.stability_errors + tb.comparison_errors +
+                     tb.reference_errors) {
       std::printf("P1-A_RAM_TB_FINAL_HANDSHAKE_DETECTED stability_errors=%llu comparison_errors=%llu\n",
                   static_cast<unsigned long long>(tb.stability_errors),
                   static_cast<unsigned long long>(tb.comparison_errors));
       delete dut;
       return 1;
     }
-    std::fprintf(stderr, "P1-A_RAM_TB_FINAL_HANDSHAKE_NOT_DETECTED errors=%llu stability=%llu comparison=%llu\n",
+    std::fprintf(stderr, "P1-A_RAM_TB_FINAL_HANDSHAKE_NOT_DETECTED errors=%llu stability=%llu comparison=%llu reference=%llu\n",
                  static_cast<unsigned long long>(tb.errors),
                  static_cast<unsigned long long>(tb.stability_errors),
-                 static_cast<unsigned long long>(tb.comparison_errors));
+                 static_cast<unsigned long long>(tb.comparison_errors),
+                 static_cast<unsigned long long>(tb.reference_errors));
     delete dut;
     return 1;
   }
@@ -705,6 +747,8 @@ int main(int argc, char** argv) {
     tb.check(false, "transaction classification count mismatch");
   if (tb.write_events != tb.expected_writes)
     tb.check(false, "RAM write event count mismatch");
+  if (!tb.pending_resp.empty())
+    tb.check(false, "reference response queue not empty");
 
   if (mismatch_probe) {
     Req r = tb.mk(false, RAM_BASE, 2, 0xf, 0, 0x3f, 0x7f);
@@ -728,10 +772,15 @@ int main(int argc, char** argv) {
     delete dut;
     return 1;
   }
-  std::printf("P1-A_RAM_TB_PASS transactions=%llu legal=%llu illegal=%llu cycles=%llu\n",
+  std::printf("P1-A_RAM_TB_PASS transactions=%llu legal=%llu illegal=%llu "
+              "accepted=%llu completed=%llu writes=%llu expected_writes=%llu cycles=%llu\n",
               static_cast<unsigned long long>(tb.transactions),
               static_cast<unsigned long long>(tb.legal_count),
               static_cast<unsigned long long>(tb.illegal_count),
+              static_cast<unsigned long long>(tb.accepted_count),
+              static_cast<unsigned long long>(tb.completed_count),
+              static_cast<unsigned long long>(tb.write_events),
+              static_cast<unsigned long long>(tb.expected_writes),
               static_cast<unsigned long long>(tb.cycles));
   delete dut;
   return 0;
