@@ -1,0 +1,11 @@
+P0-01 check summary
+date_utc: 2026-10-19T08:52:19Z
+git_head: d22b34a8945a08595cfc2a8cdbd5a1bb9e8024c8
+git_branch: codex/p0-01-environment-smoke
+git_status:
+  ?? verification/evidence/
+steps:
+  env-check    exit=0
+  rtl-smoke    exit=0
+  ref-smoke    exit=0
+result: PASS

@@ -1,0 +1,2 @@
+command: spike --isa=rv32i -m128 --log-commits --log=/workspace/hias-riscv-cpu/verification/evidence/P0-01/logs/spike-ok-commits.log /workspace/hias-riscv-cpu/build/ref-smoke/ok.elf
+exit: 0

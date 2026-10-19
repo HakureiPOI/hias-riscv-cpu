@@ -1,0 +1,4 @@
+command: timeout 5s /workspace/hias-riscv-cpu/build/rtl-smoke/smoke_sim/obj/smoke_sim +hang +no_cycle_limit
+P0-01_RTL_SMOKE: start seed=0x5eed1234 random_cycles=10000
+P0-01_TIMEOUT_PROBE: entering intentional hang
+exit: 124

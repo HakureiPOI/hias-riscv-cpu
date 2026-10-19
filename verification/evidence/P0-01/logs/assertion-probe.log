@@ -1,0 +1,6 @@
+command: /workspace/hias-riscv-cpu/build/rtl-smoke/probe_sim/obj/probe_sim
+[0] %Error: assert_probe.sv:8: Assertion failed in TOP.assert_probe: P0-01_NEGATIVE_PROBE_ASSERTION_FIRED
+%Error: /workspace/hias-riscv-cpu/verification/smoke/rtl/assert_probe.sv:8: Verilog $stop
+Aborting...
+./scripts/run_rtl_smoke.sh: line 54: 633163 Aborted                 (core dumped) "$@" 2>&1
+exit: 134

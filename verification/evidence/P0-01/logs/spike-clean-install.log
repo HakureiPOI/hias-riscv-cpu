@@ -1,0 +1,27 @@
+./scripts/mk-install-dirs.sh /usr/local/include
+for file in fesvr/byteorder.h fesvr/elf.h fesvr/elfloader.h fesvr/htif.h fesvr/dtm.h fesvr/memif.h fesvr/syscall.h fesvr/context.h fesvr/htif_pthread.h fesvr/htif_hexwriter.h fesvr/option_parser.h fesvr/term.h fesvr/device.h fesvr/rfb.h fesvr/tsi.h riscv/abstract_device.h riscv/abstract_interrupt_controller.h riscv/bloom_filter.h riscv/cachesim.h riscv/cfg.h riscv/common.h riscv/csrs.h riscv/debug_defines.h riscv/debug_module.h riscv/debug_rom_defines.h riscv/decode.h riscv/devices.h riscv/dtb_discovery.h riscv/disasm.h riscv/dts.h riscv/encoding.h riscv/entropy_source.h riscv/extension.h riscv/imsic.h riscv/isa_parser.h riscv/jtag_dtm.h riscv/log_file.h riscv/memtracer.h riscv/mmu.h riscv/platform.h riscv/processor.h riscv/remote_bitbang.h riscv/rocc.h riscv/sim.h riscv/simif.h riscv/trap.h riscv/triggers.h riscv/vector_unit.h fdt/libfdt.h fdt/fdt.h fdt/libfdt_env.h softfloat/softfloat.h softfloat/softfloat_types.h; \
+  do \
+	./scripts/mk-install-dirs.sh /usr/local/include/`dirname $file`; \
+    /usr/bin/install -c -m 644 ./$file /usr/local/include/`dirname $file`; \
+  done
+./scripts/mk-install-dirs.sh /usr/local/include
+for dir in fesvr       ; \
+  do \
+	./scripts/mk-install-dirs.sh /usr/local/include/$dir; \
+    /usr/bin/install -c -m 644 config.h /usr/local/include/$dir; \
+  done
+./scripts/mk-install-dirs.sh /usr/local/lib
+for file in libfesvr.a libriscv.so libdisasm.a libcustomext.so libsoftfloat.so; \
+  do \
+    /usr/bin/install -c -m 644 $file /usr/local/lib; \
+  done
+./scripts/mk-install-dirs.sh /usr/local/bin
+for file in elf2hex spike spike-log-parser xspike termios-xspike spike-dasm; \
+  do \
+    /usr/bin/install -c -m 755 $file /usr/local/bin; \
+  done
+./scripts/mk-install-dirs.sh /usr/local/lib/pkgconfig/
+for file in riscv-fesvr.pc riscv-riscv.pc riscv-disasm.pc; \
+  do \
+    /usr/bin/install -c -m 644 $file /usr/local/lib/pkgconfig/; \
+  done

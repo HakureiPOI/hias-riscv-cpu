@@ -1,0 +1,4 @@
+command: verilator --lint-only -Wall --assert --top-module smoke_buffer verification/smoke/rtl/smoke_buffer.sv
+exit: 0
+command: verilator --lint-only -Wall --assert --top-module assert_probe verification/smoke/rtl/assert_probe.sv
+exit: 0

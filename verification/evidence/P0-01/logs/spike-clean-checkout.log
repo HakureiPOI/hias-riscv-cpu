@@ -1,0 +1,18 @@
+Note: switching to '5a760667bf0d0ab893173b9eeff9c109c8d7dd9a'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+HEAD is now at 5a76066 Merge pull request #2475 from hirooih/fix-ci-part-2

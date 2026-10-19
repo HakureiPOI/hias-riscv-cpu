@@ -1,0 +1,6 @@
+command: /workspace/hias-riscv-cpu/build/rtl-smoke/smoke_sim/obj/smoke_sim +checker_probe
+P0-01_RTL_SMOKE: start seed=0x5eed1234 random_cycles=10000
+P0-01_RTL_SMOKE_FAIL: pop_one data mismatch (cycle=70)
+P0-01_CHECKER_PROBE: expecting deliberate mismatch
+P0-01_CHECKER_PROBE_DETECTED errors=1
+exit: 1

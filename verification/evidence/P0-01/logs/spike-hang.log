@@ -1,0 +1,2 @@
+command: timeout 5s spike --isa=rv32i -m128 /workspace/hias-riscv-cpu/build/ref-smoke/hang.elf
+exit: 124
