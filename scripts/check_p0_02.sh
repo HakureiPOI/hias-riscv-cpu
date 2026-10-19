@@ -139,7 +139,7 @@ fi
 # S06: existing regression, with logs redirected so history is not overwritten.
 if run_logged regression-p0-01 env \
      P0_01_LOG_DIR="$BASE/regression/p0-01/logs" \
-     "$ROOT/scripts/check_p0_01.sh"; then
+     make -C "$ROOT" check-p0-01; then
   pass "make check-p0-01 regression"
 else
   bad "make check-p0-01 regression (see ${LOG_DIR#"$ROOT"/}/regression-p0-01.log)"
@@ -147,7 +147,7 @@ fi
 
 if run_logged regression-r1-probes env \
      P0_01_R1_PROBE_DIR="$BASE/regression/p0-01-r1" \
-     "$ROOT/scripts/run_r1_probes.sh"; then
+     make -C "$ROOT" r1-probes; then
   pass "make r1-probes regression"
 else
   bad "make r1-probes regression (see ${LOG_DIR#"$ROOT"/}/regression-r1-probes.log)"
