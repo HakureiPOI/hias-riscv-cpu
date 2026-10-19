@@ -1,0 +1,14 @@
+P0-01 check summary
+date_utc: 2026-10-19T13:55:32Z
+git_head: cacf71aaa2e3f80bd53ba1be9ae8d4ab67f66e1b
+git_branch: codex/p1-a-foundation
+host_timeout_seconds: 60
+step_timeout_seconds: 600
+log_dir: verification/evidence/P1-A-R2/injected/regression/p0-02/regression/p0-01/logs
+git_status:
+  ?? verification/evidence/P1-A-R2/
+steps:
+  env-check    exit=0
+  rtl-smoke    exit=0
+  ref-smoke    exit=0
+result: PASS

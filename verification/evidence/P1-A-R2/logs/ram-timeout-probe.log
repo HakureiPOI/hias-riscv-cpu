@@ -1,0 +1,4 @@
+command: timeout -k 5s 120s timeout -k 2s 5s /workspace/hias-riscv-cpu/build/p1-a/ram/obj/ram_tb +hang
+P1-A_RAM_TB_TIMEOUT_PROBE: entering intentional hang
+elapsed_seconds: 5
+exit: 124

@@ -1,0 +1,5 @@
+command: timeout -k 5s 120s /workspace/hias-riscv-cpu/build/p1-a/ram/obj/ram_tb
+P1-A_RAM_DUT_READBACK tail_after_illegal pa=0x8001fffc got=0x01020304 expected=0x01020304 result=PASS
+P1-A_RAM_DUT_READBACK guard_after_illegal pa=0x8001fff8 got=0x522d08e3 expected=0x522d08e3 result=PASS
+P1-A_RAM_TB_PASS transactions=1406 legal=633 illegal=773 accepted=1406 completed=1406 writes=319 expected_writes=319 cycles=43847
+exit: 0

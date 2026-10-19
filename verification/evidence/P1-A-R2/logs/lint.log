@@ -1,0 +1,2 @@
+command: timeout -k 5s 120s verilator --lint-only -Wall --assert -I/workspace/hias-riscv-cpu/rtl/include --top-module p1_soc_top -f /workspace/hias-riscv-cpu/rtl/p1_a.f
+exit: 0

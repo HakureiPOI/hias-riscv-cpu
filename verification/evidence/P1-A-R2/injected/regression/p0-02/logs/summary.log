@@ -1,0 +1,8 @@
+P0-02 check summary
+date_utc: 2026-10-19T13:56:44Z
+git_head: cacf71aaa2e3f80bd53ba1be9ae8d4ab67f66e1b
+git_branch: codex/p1-a-foundation
+log_dir: verification/evidence/P1-A-R2/injected/regression/p0-02/logs
+git_status:
+  ?? verification/evidence/P1-A-R2/
+result: PASS

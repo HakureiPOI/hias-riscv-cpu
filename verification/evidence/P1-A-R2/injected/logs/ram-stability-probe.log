@@ -1,0 +1,5 @@
+command: timeout -k 5s 120s /workspace/hias-riscv-cpu/build/p1-a/ram/obj/ram_tb +stability_probe
+P1-A_RAM_TB_FAIL: held response changed at final handshake
+P1-A_RAM_TB_STABILITY_DETECTED stability_errors=1
+elapsed_seconds: 0
+exit: 1
