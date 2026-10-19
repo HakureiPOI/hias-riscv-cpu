@@ -1,0 +1,3 @@
+command: timeout -k 5s 120s /workspace/hias-riscv-cpu/build/p1-a/ram/obj/ram_tb
+P1-A_RAM_TB_PASS transactions=1392 legal=627 illegal=765 cycles=34124
+exit: 0

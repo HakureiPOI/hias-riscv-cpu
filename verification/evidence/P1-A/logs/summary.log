@@ -1,0 +1,8 @@
+P1-A check summary
+date_utc: 2026-10-19T12:21:20Z
+git_head: afbb11d15094e234c1c9c1eda78d40dacf83cc2a
+git_branch: codex/p1-a-foundation
+log_dir: verification/evidence/P1-A/logs
+git_status:
+  ?? verification/evidence/P1-A/
+result: PASS
