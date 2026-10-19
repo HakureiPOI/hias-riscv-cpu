@@ -5,7 +5,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help env-check lint-smoke rtl-smoke ref-smoke check-p0-01 clean
+.PHONY: help env-check lint-smoke rtl-smoke ref-smoke check-p0-01 r1-probes clean
 
 help:
 	@printf '%s\n' \
@@ -15,6 +15,7 @@ help:
 	  '  make rtl-smoke     build/run fixture, assertion, checker, timeout probes' \
 	  '  make ref-smoke     build RV32I ELF variants and run them under Spike' \
 	  '  make check-p0-01   run env-check, lint-smoke, rtl-smoke, ref-smoke' \
+	  '  make r1-probes     run controlled fault-injection probes (P0-01-R1)' \
 	  '  make clean         remove build/ (not evidence)'
 
 env-check:
@@ -32,6 +33,10 @@ ref-smoke:
 check-p0-01:
 	@set -o pipefail; \
 	./scripts/check_p0_01.sh
+
+r1-probes:
+	@set -o pipefail; \
+	./scripts/run_r1_probes.sh
 
 clean:
 	rm -rf build

@@ -34,6 +34,7 @@ struct Tb {
   uint64_t cycles = 0;
   uint64_t max_cycles = 50000;
   bool no_cycle_limit = false;
+  bool corrupt_next_expected = false;
   int errors = 0;
 
   explicit Tb(Vsmoke_buffer* d) : dut(d) {}
@@ -87,12 +88,19 @@ struct Tb {
       if (expected.empty()) {
         error("output transfer with empty scoreboard");
       } else {
-        const uint16_t want = expected.front();
+        uint16_t want = expected.front();
         expected.pop_front();
+        if (corrupt_next_expected) {
+          // Controlled fault for the negative probe: alter exactly one
+          // reference expectation so the normal queue comparison below is
+          // the code path that detects the mismatch.
+          want = static_cast<uint16_t>(want ^ 0xFFFFu);
+          corrupt_next_expected = false;
+        }
         if (want != out.out_data) {
-          char buf[128];
+          char buf[160];
           std::snprintf(buf, sizeof(buf),
-                        "output mismatch: got 0x%04x expected 0x%04x",
+                        "P0-01_SCOREBOARD_MISMATCH: output got 0x%04x expected 0x%04x",
                         static_cast<unsigned>(out.out_data),
                         static_cast<unsigned>(want));
           error(buf);
@@ -357,11 +365,14 @@ int main(int argc, char** argv) {
   directed_tests(tb);
 
   if (checker_probe) {
-    // Negative control for the scoreboard: deliberately compare against a
-    // wrong expected value. The checker must report an error and exit 1.
-    std::printf("P0-01_CHECKER_PROBE: expecting deliberate mismatch\n");
+    // Negative control for the scoreboard: corrupt exactly one expected value
+    // and use the normal output-transfer path, so the independent queue
+    // comparison (not pop_one's extra check) reports got/expected.
+    std::printf("P0-01_CHECKER_PROBE: injecting one wrong expected value\n");
+    std::fflush(stdout);
     push_one(tb, 0x1111);
-    pop_one(tb, 0x2222);
+    tb.corrupt_next_expected = true;
+    pop_one(tb, 0x1111);
     if (tb.errors > 0) {
       std::printf("P0-01_CHECKER_PROBE_DETECTED errors=%d\n", tb.errors);
       delete dut;

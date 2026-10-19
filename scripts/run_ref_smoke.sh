@@ -7,12 +7,19 @@ export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD="$ROOT/build/ref-smoke"
-LOG_DIR="$ROOT/verification/evidence/P0-01/logs"
+LOG_DIR="${P0_01_LOG_DIR:-$ROOT/verification/evidence/P0-01-R1/logs}"
 CROSS="${CROSS_PREFIX:-riscv64-unknown-elf-}"
 SPIKE="${SPIKE:-spike}"
 SPIKE_ISA="${SPIKE_ISA:-rv32i}"
 SPIKE_MEM="${SPIKE_MEM:-128}"
-mkdir -p "$BUILD" "$LOG_DIR"
+
+# shellcheck source=lib/watchdog.sh
+. "$ROOT/scripts/lib/watchdog.sh"
+
+if ! mkdir -p "$BUILD" "$LOG_DIR"; then
+  printf 'P0-01_REF_STEP_FAIL: cannot create build/log directories\n' >&2
+  exit 1
+fi
 
 CC_FLAGS=(-march=rv32i -mabi=ilp32 -mcmodel=medany -mno-relax
           -nostdlib -nostartfiles -ffreestanding -fno-builtin -O2
@@ -26,16 +33,23 @@ bad() { printf 'P0-01_REF_STEP_FAIL: %s\n' "$*" >&2; fail=1; }
 build_elf() {
   local name="$1"; shift
   local log="$LOG_DIR/build-$name.log"
+  local rc
   {
-    printf 'command: %s %s %s -o build/ref-smoke/%s.elf\n' \
-      "${CROSS}gcc" "${CC_FLAGS[*]}" "$*" "$name"
-    "${CROSS}gcc" "${CC_FLAGS[@]}" "$@" -o "$BUILD/$name.elf" 2>&1
-    printf 'exit: %s\n' "$?"
+    printf 'command: timeout -k 5s %ss %s %s %s -o build/ref-smoke/%s.elf\n' \
+      "$P0_01_HOST_TIMEOUT" "${CROSS}gcc" "${CC_FLAGS[*]}" "$*" "$name"
+    timeout -k 5s "${P0_01_HOST_TIMEOUT}s" "${CROSS}gcc" "${CC_FLAGS[@]}" "$@" \
+      -o "$BUILD/$name.elf" 2>&1
+    rc=$?
+    printf 'exit: %s\n' "$rc"
+    if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+      printf 'P0-01_WATCHDOG_TIMEOUT: host watchdog fired during build of %s.elf (exit=%s)\n' \
+        "$name" "$rc"
+    fi
   } >"$log" 2>&1
-  if grep -q '^exit: 0$' "$log" && [ -f "$BUILD/$name.elf" ]; then
+  if [ "$rc" -eq 0 ] && [ -f "$BUILD/$name.elf" ]; then
     pass "build $name.elf"
   else
-    bad "build $name.elf (see verification/evidence/P0-01/logs/build-$name.log)"
+    bad "build $name.elf (exit=$rc; see ${log#"$ROOT"/})"
   fi
 }
 
@@ -64,9 +78,9 @@ inspect() {
      grep -q 'Machine:.*RISC-V' "$log" &&
      grep -q 'Entry point address:.*0x80000000' "$log" &&
      grep -q 'Tag_RISCV_arch:.*rv32i2p1' "$log"; then
-    pass "ELF inspection (log: verification/evidence/P0-01/logs/elf-inspection.log)"
+    pass "ELF inspection (log: ${log#"$ROOT"/})"
   else
-    bad "ELF inspection (see verification/evidence/P0-01/logs/elf-inspection.log)"
+    bad "ELF inspection (see ${log#"$ROOT"/})"
   fi
 }
 
@@ -75,52 +89,52 @@ inspect
 run_ok() {
   local log="$LOG_DIR/spike-ok.log"
   local commit="$LOG_DIR/spike-ok-commits.log"
-  {
-    printf 'command: %s --isa=%s -m%s --log-commits --log=%s %s\n' \
-      "$SPIKE" "$SPIKE_ISA" "$SPIKE_MEM" "$commit" "$BUILD/ok.elf"
-    "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" --log-commits --log="$commit" \
-      "$BUILD/ok.elf" 2>&1
-    printf 'exit: %s\n' "$?"
-  } >"$log" 2>&1
-  if grep -q '^exit: 0$' "$log" &&
+  local elf="$BUILD/ok.elf"
+  local rc
+  if [ "${P0_01_SPIKE_NORMAL_HANG:-0}" = "1" ]; then
+    elf="$BUILD/hang.elf"
+  fi
+  P0_01_HOST_TIMEOUT="${P0_01_SPIKE_NORMAL_TIMEOUT:-$P0_01_HOST_TIMEOUT}" run_guarded "$log" \
+    "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" --log-commits \
+    --log="$commit" "$elf"
+  rc=$?
+  if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+    printf 'P0-01_WATCHDOG_TIMEOUT: Spike normal run exceeded %ss (exit=%s)\n' \
+      "${P0_01_SPIKE_NORMAL_TIMEOUT:-$P0_01_HOST_TIMEOUT}" "$rc"
+  fi
+  if [ "$rc" -eq 0 ] &&
      grep -qE 'mem 0x[0-9a-f]+ 0x50415353' "$commit"; then
     pass "Spike normal run reached PASS signature"
   else
-    bad "Spike normal run (see verification/evidence/P0-01/logs/spike-ok.log)"
+    bad "Spike normal run (exit=$rc; see ${log#"$ROOT"/})"
   fi
 }
 
 run_fail() {
   local log="$LOG_DIR/spike-fail.log"
-  {
-    printf 'command: %s --isa=%s -m%s %s\n' \
-      "$SPIKE" "$SPIKE_ISA" "$SPIKE_MEM" "$BUILD/fail.elf"
-    "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" "$BUILD/fail.elf" 2>&1
-    printf 'exit: %s\n' "$?"
-  } >"$log" 2>&1
   local rc
-  rc="$(awk -F': ' '/^exit: / {v=$2} END {print v}' "$log")"
+  run_guarded "$log" "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" "$BUILD/fail.elf"
+  rc=$?
+  if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+    printf 'P0-01_WATCHDOG_TIMEOUT: Spike negative control exceeded host timeout (exit=%s)\n' "$rc"
+  fi
   if [ "$rc" = "1" ] && grep -qF '*** FAILED ***' "$log"; then
     pass "Spike negative control detected wrong result (exit=$rc)"
   else
-    bad "Spike negative control (exit=$rc; see verification/evidence/P0-01/logs/spike-fail.log)"
+    bad "Spike negative control (exit=$rc; see ${log#"$ROOT"/})"
   fi
 }
 
 run_hang() {
   local log="$LOG_DIR/spike-hang.log"
-  {
-    printf 'command: timeout 5s %s --isa=%s -m%s %s\n' \
-      "$SPIKE" "$SPIKE_ISA" "$SPIKE_MEM" "$BUILD/hang.elf"
-    timeout 5s "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" "$BUILD/hang.elf" 2>&1
-    printf 'exit: %s\n' "$?"
-  } >"$log" 2>&1
   local rc
-  rc="$(awk -F': ' '/^exit: / {v=$2} END {print v}' "$log")"
-  if [ "$rc" = "124" ]; then
+  P0_01_HOST_TIMEOUT="${P0_01_SPIKE_HANG_TIMEOUT:-5}" run_guarded "$log" \
+    "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" "$BUILD/hang.elf"
+  rc=$?
+  if [ "$rc" = "124" ] && grep -qF 'P0-01_WATCHDOG_TIMEOUT' "$log"; then
     pass "Spike timeout control detected hang (exit=$rc)"
   else
-    bad "Spike timeout control (exit=$rc; see verification/evidence/P0-01/logs/spike-hang.log)"
+    bad "Spike timeout control (exit=$rc; see ${log#"$ROOT"/})"
   fi
 }
 
@@ -132,11 +146,19 @@ observe() {
   local log="$LOG_DIR/spike-observe.log"
   local cmds="$BUILD/debug-cmds.txt"
   local main_addr
+  local rc
+  local observe_elf="$BUILD/ok.elf"
   main_addr="$("${CROSS}nm" "$BUILD/ok.elf" 2>/dev/null |
     awk '$3 == "main" {print $1}')"
   if [ -z "$main_addr" ]; then
     bad "cannot resolve main symbol for Spike observation"
     return
+  fi
+  if [ "${P0_01_OBSERVE_HANG:-0}" = "1" ]; then
+    # Controlled fault: run a program that never reaches the target address,
+    # so `until pc` cannot complete and the host watchdog must intervene.
+    observe_elf="$BUILD/hang.elf"
+    main_addr="deadbeef"
   fi
   cat >"$cmds" <<EOF
 reg 0
@@ -145,17 +167,18 @@ until pc 0 0x$main_addr
 reg 0
 quit
 EOF
-  {
-    printf 'command: %s --isa=%s -m%s -d --debug-cmd=%s %s\n' \
-      "$SPIKE" "$SPIKE_ISA" "$SPIKE_MEM" "$cmds" "$BUILD/ok.elf"
+  P0_01_HOST_TIMEOUT="${P0_01_OBSERVE_TIMEOUT:-5}" run_guarded "$log" \
     "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" -d --debug-cmd="$cmds" \
-      "$BUILD/ok.elf" 2>&1
-    printf 'exit: %s\n' "$?"
-  } >"$log" 2>&1
-  if grep -q '^exit: 0$' "$log" && grep -q 'zero:' "$log"; then
+    "$observe_elf"
+  rc=$?
+  if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+    printf 'P0-01_WATCHDOG_TIMEOUT: Spike observation exceeded %ss (exit=%s)\n' \
+      "${P0_01_OBSERVE_TIMEOUT:-5}" "$rc"
+  fi
+  if [ "$rc" -eq 0 ] && grep -q 'zero:' "$log"; then
     pass "Spike observation interface (-d reg/until, --log-commits)"
   else
-    bad "Spike observation interface (see verification/evidence/P0-01/logs/spike-observe.log)"
+    bad "Spike observation interface (exit=$rc; see ${log#"$ROOT"/})"
   fi
 }
 

@@ -1,4 +1,4 @@
-# 验证入口（P0-01 实测）
+# 验证入口（P0-01 / P0-01-R1 实测）
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
@@ -17,7 +17,7 @@
 make check-p0-01
 ```
 
-依次执行 `env-check`、`rtl-smoke`、`ref-smoke`；任一步骤缺少工具、未运行或出现非预期失败时整体非零返回。预期失败探针由步骤脚本按“退出码 + 指定消息”双重判定，不吞掉任意非零退出码。
+依次执行 `env-check`、`rtl-smoke`、`ref-smoke`；任一步骤缺少工具、超时、未运行或出现非预期失败时整体非零返回。每个步骤另有 `P0_01_STEP_TIMEOUT`（默认 600 秒）主机级时限。预期失败探针由步骤脚本按“退出码 + 指定消息”双重判定，不吞掉任意非零退出码。
 
 ## 分项入口
 
@@ -25,22 +25,39 @@ make check-p0-01
 | --- | --- |
 | `make env-check` | OS/内核/资源、工具路径与版本、RV32I/ILP32 编译探针、ELF 属性 |
 | `make lint-smoke` | `verilator --lint-only -Wall --assert` 检查夹具与断言探针 |
-| `make rtl-smoke` | 构建并运行 valid/ready 夹具；正常、记分板错误、周期超时、主机超时、断言负向探针 |
+| `make rtl-smoke` | 构建并运行 valid/ready 夹具；正常、记分板错误、周期超时、看门狗、断言负向探针 |
 | `make ref-smoke` | 构建 RV32I ELF 三个变体，检查 ELF/反汇编，Spike 正常/错误/超时运行及观察接口 |
+| `make r1-probes` | P0-01-R1 受控故障注入：正常路径挂起、观察挂起、构建非零、记分板比较 |
 | `make clean` | 删除 `build/`，不删除证据 |
+
+## 主机看门狗与可配置变量
+
+`scripts/lib/watchdog.sh` 的 `run_guarded` 为每次 RTL 仿真、断言探针、构建、Spike 正常/错误/观察运行加 `timeout -k 5s`。超时返回 124/137，日志写入 `P0-01_WATCHDOG_TIMEOUT` 和实际退出码，并明确判为失败。
+
+| 变量 | 默认 | 用途 |
+| --- | --- | --- |
+| `P0_01_HOST_TIMEOUT` | 60 | 通用主机时限（秒） |
+| `P0_01_STEP_TIMEOUT` | 600 | 总入口每个步骤的时限 |
+| `P0_01_NORMAL_TIMEOUT` | 继承通用值 | RTL 正常仿真 |
+| `P0_01_SPIKE_NORMAL_TIMEOUT` | 继承通用值 | Spike 正常运行 |
+| `P0_01_SPIKE_HANG_TIMEOUT` | 5 | 专用 Spike 超时探针 |
+| `P0_01_OBSERVE_TIMEOUT` | 5 | Spike 观察命令 |
+| `P0_01_LOG_DIR` | `verification/evidence/P0-01-R1/logs` | 日志输出目录 |
+
+故障注入开关仅用于探针：`P0_01_NORMAL_HANG`、`P0_01_SPIKE_NORMAL_HANG`、`P0_01_OBSERVE_HANG`、`P0_01_BUILD_FAULT`。`P0_01_BUILD_FAULT=1` 时通过 `scripts/probes/verilator_build_fail.sh` 调用真实 Verilator，并在其返回 0 后强制返回 3，用来证明“二进制存在但构建非零”不会被当成成功。
 
 ## RTL 夹具
 
-`verification/smoke/rtl/smoke_buffer.sv` 是 4 项、16 位的同步 valid/ready FIFO，仅用于验证构建、复位、握手、Flush、断言与退出机制。定向测试后使用固定种子 `0x5eed1234` 运行 10,000 周期随机激励，并以独立 `std::deque` 记分板核对接收、输出、Flush/复位丢弃与守恒。
+`verification/smoke/rtl/smoke_buffer.sv` 是 4 项、16 位的同步 valid/ready FIFO，仅用于验证构建、复位、握手、Flush、断言与退出机制。管理审查已接受“四项 FIFO 而非一项深度缓存”的范围偏离；该夹具不是 CPU 公共模块，也不代表 CPU 已验收。
 
-断言负向探针位于 `verification/smoke/rtl/assert_probe.sv`，必须产生 `P0-01_NEGATIVE_PROBE_ASSERTION_FIRED` 且非零退出。
+定向测试后使用固定种子 `0x5eed1234` 运行 10,000 周期随机激励，并以独立 `std::deque` 记分板核对接收、输出、Flush/复位丢弃与守恒。断言负向探针位于 `verification/smoke/rtl/assert_probe.sv`，必须产生 `P0-01_NEGATIVE_PROBE_ASSERTION_FIRED` 且非零退出。记分板负向模式只改写一次期望值，由正常输出比较路径报告 `P0-01_SCOREBOARD_MISMATCH`。
 
 ## 软件与参考执行
 
-`software/smoke/` 提供 freestanding RV32I 程序：启动汇编清零 `.bss`、建立栈、调用 C 函数，通过 `tohost` 的 `(code << 1) | 1` 编码结束。链接脚本使用 `0x80000000`、128 KiB RAM，未使用 libc、pk 或 OS。
+`software/smoke/` 提供 freestanding RV32I 程序：启动汇编清零 `.bss`、建立栈、调用 C 函数，通过 `tohost` 的 `(code << 1) | 1` 编码结束。链接脚本使用 `0x80000000`、128 KiB RAM，未使用 libc、pk 或 OS。Spike 使用 `-m128`，即 128 MiB 参考内存；两者容量不同，当前程序只访问链接区域内地址。P0-02 必须统一 DUT 与参考模型的内存/PMA 约定。
 
 `SMOKE_FAIL=1` 反转判定作为错误结果负向用例；`SMOKE_HANG=1` 进入死循环作为超时负向用例。Spike 观察接口使用 `--log-commits` 与 `-d --debug-cmd`（`reg`/`until pc`），为后续退休差分提供基础；本轮不实现 DiffTest。
 
 ## 证据
 
-原始小型日志位于 `verification/evidence/P0-01/`，与 `docs/progress/P0-01-report.md` 中的命令、退出码和 Commit 对应。`build/` 产物不入库。
+原始小型日志位于 `verification/evidence/P0-01/`（首轮）与 `verification/evidence/P0-01-R1/`（修复轮），与对应报告的 Commit、命令和退出码对应。`build/` 产物不入库。
