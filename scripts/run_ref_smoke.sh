@@ -91,12 +91,17 @@ run_ok() {
   local commit="$LOG_DIR/spike-ok-commits.log"
   local elf="$BUILD/ok.elf"
   local rc
+  local -a cmd=("$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM")
   if [ "${P0_01_SPIKE_NORMAL_HANG:-0}" = "1" ]; then
+    # Controlled fault: do not enable --log-commits here, otherwise a 2 s
+    # hanging run can emit a very large trace. The watchdog message is the
+    # evidence for this probe.
     elf="$BUILD/hang.elf"
+  else
+    cmd+=(--log-commits --log="$commit")
   fi
-  P0_01_HOST_TIMEOUT="${P0_01_SPIKE_NORMAL_TIMEOUT:-$P0_01_HOST_TIMEOUT}" run_guarded "$log" \
-    "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" --log-commits \
-    --log="$commit" "$elf"
+  P0_01_HOST_TIMEOUT="${P0_01_SPIKE_NORMAL_TIMEOUT:-$P0_01_HOST_TIMEOUT}" \
+    run_guarded "$log" "${cmd[@]}" "$elf"
   rc=$?
   if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
     printf 'P0-01_WATCHDOG_TIMEOUT: Spike normal run exceeded %ss (exit=%s)\n' \
