@@ -1,4 +1,4 @@
-# 验证入口（P0-01 / P0-01-R1 / P0-02 / P0-02-R1 / P0-02-R2 实测）
+# 验证入口（P0-01 ... P0-02-R2 / P1-A 实测）
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
@@ -31,6 +31,7 @@ make check-p0-01
 | `make platform-generate` | 从 `config/platform.json` 生成平台头文件、链接片段、Spike 参数 |
 | `make platform-check` | 校验配置、生成文件漂移、链接/ELF 布局与 Spike 参数一致 |
 | `make check-p0-02` | 平台正/负向/漂移、共享类型、接口/事件夹具、退休契约检查 + P0-01/R1 回归（R2 默认日志写入 P0-02-R2 目录） |
+| `make check-p1-a` | P1-A RTL Lint、空闲骨架、RAM/桥定向+随机、错误/超时探针、Token 联合补测，并回归 `check-p0-02` |
 | `make clean` | 删除 `build/`，不删除证据 |
 
 ## P0-02 平台配置
@@ -77,4 +78,4 @@ make check-p0-01
 
 ## 证据
 
-原始小型日志位于 `verification/evidence/P0-01/`、`P0-01-R1/`、`P0-02/`、`P0-02-R1/`、`P0-02-R2/`，与对应报告的 Commit、命令和退出码对应。`build/` 产物不入库。R2 运行使用 `P0_02_EVIDENCE=verification/evidence/P0-02-R2`，回归的 `P0_01_LOG_DIR`/`P0_01_R1_PROBE_DIR` 指向其 `regression/` 子目录。
+原始小型日志位于 `verification/evidence/P0-01/`、`P0-01-R1/`、`P0-02/`、`P0-02-R1/`、`P0-02-R2/`、`P1-A/`，与对应报告的 Commit、命令和退出码对应。P1-A 入口使用 `P1_A_EVIDENCE=verification/evidence/P1-A`，P0 回归的嵌套日志写入其 `regression/` 子目录。`build/` 产物不入库。R2 运行使用 `P0_02_EVIDENCE=verification/evidence/P0-02-R2`，回归的 `P0_01_LOG_DIR`/`P0_01_R1_PROBE_DIR` 指向其 `regression/` 子目录。

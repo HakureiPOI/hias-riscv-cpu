@@ -168,3 +168,17 @@ Token 身份 = `{idx, gen}`。代次在 ROB 项重新分配时递增；回绕前
 - Token 为 5 位 index + 8 位 generation；回绕前禁止新分配，排空 ROB/IQ/FU/访存/取指/翻译/外部事务；取消请求也必须收尾。
 
 仍需管理方在冻结时确认的次要问题：`wb_msg_t.actual_next_pc` 是否也用于异常路径（当前由 Trap 事件携带 target）；FPU 事务与 ROB 提交的时序在 P6 前细化。
+
+
+## 12 P1-A 模块映射
+
+P1-A 在冻结接口之上新增：
+
+| 模块 | 文件 | 说明 |
+| --- | --- | --- |
+| `p1_core_skeleton` | `rtl/core/p1_core_skeleton.sv` | 端口骨架，不发起事务、不产生退休/Trap |
+| `ram_128k` | `rtl/soc/ram_128k.sv` | 128 KiB 小端 RAM，复位不清数据 |
+| `ram_bridge` | `rtl/soc/ram_bridge.sv` | 单事务桥、范围/对齐/掩码检查、错误响应 |
+| `p1_soc_top` | `rtl/soc/p1_soc_top.sv` | 骨架与 RAM/桥连接 |
+
+详细端口、验证契约和 P1-B 插入点见 [P1-A 模块说明](architecture/p1-a-modules.md)。
