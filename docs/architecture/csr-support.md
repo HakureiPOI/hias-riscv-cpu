@@ -1,6 +1,6 @@
-# CSR 支持表（P0-02-R1 修订基线）
+# CSR 支持表（P0-02 冻结基线）
 
-状态：**规格候选，待管理复审冻结；当前 CPU 未实现任何 CSR。** 本文落实 P0-02 管理审查的 D01—D11，规范依据为锁定的 `v20260120`：
+状态：**P1 CSR 基线已冻结，见 [管理验收](../progress/P0-02-R2-review.md)；当前 CPU 未实现任何 CSR。** 本文落实 D01—D11；最终 S/U 项为阶段规划，P5 前继续细化审查。规范依据为锁定的 `v20260120`：
 
 - [Zicsr 2.0](https://docs.riscv.org/reference/isa/v20260120/unpriv/zicsr.html)
 - [CSR 权限与地址表](https://docs.riscv.org/reference/isa/priv/priv-csrs.html)
@@ -50,9 +50,9 @@ P1 = RV32I（40 条，含 FENCE/ECALL/EBREAK）+ 六种 Zicsr + 保守 Zifencei 
 | `0x343` | mtval | RW | `0x0000_0000` | 32 位；按异常规则写 | 是 | 是 |
 | `0x340` | mscratch | RW | `0x0000_0000` | 32 位读写 | 是 | 是 |
 | `0x304` | mie | RW | `0x0000_0000` | MSIE(3)、MTIE(7)、MEIE(11)；未实现位只读 0 | 是 | 是 |
-| `0x344` | mip | RW | `0x0000_0000` | MSIP(3) 可写；MTIP(7)/MEIP(11) 由平台输入驱动，软件写忽略 | 是 | 是 |
+| `0x344` | mip | RW，当前实现位固定只读 | `0x0000_0000` | MSIP(3)、MTIP(7)、MEIP(11) 由平台输入/机制驱动，CSR 写忽略；P1 未接中断源时绑零 | 是 | 是 |
 | `0x320` | mcountinhibit | RW | `0x0000_0000` | CY(0)、IR(2) 可写；TM(1) 只读 0；写在下一条指令生效 | 是 | 是 |
-| `0x306` | mcounteren | RW | `0x0000_0000` | CY(0)、TM(1)、IR(2)；P1 无 S/U，仅保存值 | 是 | 是 |
+| `0x306` | mcounteren | P1 不存在；P5 RW/WARL | P1 无 | P1 只有 M，访问按未实现 CSR 策略非法指令；P5 加 U 后提供权限控制 | 否 | 是 |
 | `0xb00` | mcycle | RW | `0x0000_0000` | 64 位计数器低半；可读写；正常每周期加 1 | 是 | 是 |
 | `0xb80` | mcycleh | RW | `0x0000_0000` | 64 位高半；可读写 | 是 | 是 |
 | `0xb02` | minstret | RW | `0x0000_0000` | 64 位退休指令计数低半；可读写；异常指令不计 | 是 | 是 |
@@ -98,6 +98,7 @@ P1 = RV32I（40 条，含 FENCE/ECALL/EBREAK）+ 六种 Zicsr + 保守 Zifencei 
 | `0x180` | satp | RW | 0 | MODE Bare/Sv32；ASIDLEN=0，ASID 回读 0；PPN[21:0] |
 | `0x302` | medeleg | RW | 0 | 仅可委托异常位；未实现位只读 0 |
 | `0x303` | mideleg | RW | 0 | 仅可委托中断位；未实现位只读 0 |
+| `0x306` | mcounteren | RW/WARL | 0 | 加 U 时实现；CY/TM/IR 控制下一低权限级计数器访问，未实现字段零 |
 | `0x30a` | menvcfg | RW | 0 | ADUE=0（Svade）、PBMT=0；不承诺 Svpbmt/Svadu |
 | `0x31a` | menvcfgh | RW | 0 | RV32 高半 |
 | `0x3a0` | pmpcfg0 | RW | 0 | 零项；读 0、写忽略 |
@@ -122,7 +123,7 @@ P1 = RV32I（40 条，含 FENCE/ECALL/EBREAK）+ 六种 Zicsr + 保守 Zifencei 
 - 中断判据（与 `docs/architecture/isa-support.md` 一致）：
   1. 先由 `mideleg` 决定目标级；
   2. 目标级 pending 与 individual enable 满足；
-  3. 当前权限低于目标级时响应，不受当前级 xIE 限制；
+  3. 当前权限低于目标级时响应，不受目标级全局 xIE 限制；
   4. 当前权限等于目标级时还需该级 `xIE=1`；
   5. 当前权限高于目标级时不响应。
 - 已委托给 S 的中断在 M-mode 被屏蔽，不能因 MIE/SIE 开启而转入 S；同步异常委托也不能使 M-mode 异常进入 S。

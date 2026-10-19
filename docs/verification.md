@@ -71,7 +71,7 @@ make check-p0-01
 
 ## 软件与参考执行
 
-`software/smoke/` 提供 freestanding RV32I 程序：启动汇编清零 `.bss`、建立栈、调用 C 函数，通过 `tohost` 的 `(code << 1) | 1` 编码结束。链接脚本使用 `0x80000000`、128 KiB RAM，未使用 libc、pk 或 OS。Spike 使用 `-m128`，即 128 MiB 参考内存；两者容量不同，当前程序只访问链接区域内地址。P0-02 必须统一 DUT 与参考模型的内存/PMA 约定。
+`software/smoke/` 提供 freestanding RV32I 程序：启动汇编清零 `.bss`、建立栈、调用 C 函数，通过 `tohost` 的 `(code << 1) | 1` 编码结束。当前链接和 Spike RAM 同为 `0x80000000` 起、128 KiB，Spike 参数由 `config/platform.spike.args` 提供 `-m0x80000000:0x20000`，未使用 libc、pk 或 OS。P0-01 历史日志的 `-m128` 为 128 MiB，只作为当时配置保留；P0-02 已统一当前 RAM，完整 PMA/设备差分仍需后续集成。
 
 `SMOKE_FAIL=1` 反转判定作为错误结果负向用例；`SMOKE_HANG=1` 进入死循环作为超时负向用例。Spike 观察接口使用 `--log-commits` 与 `-d --debug-cmd`（`reg`/`until pc`），为后续退休差分提供基础；本轮不实现 DiffTest。
 

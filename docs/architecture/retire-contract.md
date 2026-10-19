@@ -1,6 +1,6 @@
-# 退休 / Trap 契约（P0-02-R1 修订基线）
+# 退休 / Trap 契约（P0-02 冻结基线）
 
-状态：**修订候选，待管理复审。** 当前没有 DUT 退休记录，也没有 DiffTest。协议版本 `hias-retire/2`；DUT、Spike 派生、合成三种来源边界严格区分。
+状态：**规格已冻结，见 [管理验收](../progress/P0-02-R2-review.md)。** 当前没有 DUT 退休记录，也没有 DiffTest。协议版本 `hias-retire/2`；DUT、Spike 派生、合成三种来源边界严格区分。
 
 ## 1 正常退休记录
 
@@ -96,7 +96,7 @@ core   0: 3 0x800000a4 (0x00c12503) x10 0x00000091 mem 0x8001ffdc
 | csr_addr/wdata/rdata | 否 | 需额外接口或反汇编 CSR 指令 | 否（P1 不比较 CSR 值） |
 | token idx/gen | 否 | DUT 内部状态 | 否（仅 DUT 侧断言） |
 | seq | 否 | Spy 日志行号可作替代 | 仅格式夹具 |
-| Trap 事件 | 否 | Spike `-d` 可读 CSR；提交日志不含 Trap 记录 | P1 不比较 Trap；P5 需新增接口 |
+| Trap 事件 | 否 | Spike `-d` 可读 CSR；提交日志不含 Trap 记录 | P1 用快照/独立参考补充，不整类推迟到 P5 |
 
 已实现观察方式：
 
@@ -128,7 +128,7 @@ core   0: 3 0x800000a4 (0x00c12503) x10 0x00000091 mem 0x8001ffdc
 - `--self-test`：合法正例与单项非法反例成对，包括 CSR 读/写抑制、四字节 lane、半字位置、LBU/LHU、缺失观测、Token 范围、Trap 字段/来源、seq 重复/倒序、未知权限、bundle 互斥。每条错误必须由预期原因拒绝。
 - `--convert-spike FILE`：逐行解析；未知权限、无法解析的行或缺失 rd 值直接报错，不静默丢弃。转换结果明确标记推导字段和未观测字段。
 
-运行证据保存在 `verification/evidence/P0-02/`。合成记录不能作为 DUT 退休或 DiffTest 通过证据。
+各轮运行证据保存在 `verification/evidence/P0-02/`、`P0-02-R1/`、`P0-02-R2/`，以对应 Commit 和报告为准。合成记录不能作为 DUT 退休或 DiffTest 通过证据。
 
 ## 5 P1 可比较范围
 
@@ -149,4 +149,6 @@ core   0: 3 0x800000a4 (0x00c12503) x10 0x00000091 mem 0x8001ffdc
 
 仍待 P5 确认：Spike `--log-commits` 的 `mem` 地址在 Sv32 下表示 VA 还是 PA，需要在 P5 前用实验确认并同步转换器。
 
-访存 trace 数据语义（本轮冻结）：`mem_wdata` 是待写字节按访问 lane 对齐后的架构值，未使用的高位为零（SB 使用低 8 位，SH 使用低 16 位）；`mem_rdata` 是 load 结果经符号/零扩展后的 32 位架构值。`mem_mask` 指示四字节字内 lane；到 `mem_req_t` 时保持 `pa/va/size/byte_mask/wdata` 的同一映射，不重新打包成原始总线字。
+访存 trace 数据语义：`mem_wdata` 是低位对齐、按访问宽度截取后零扩展的标量，SB/SH/SW 分别使用低 8/16/32 位；它不随地址左移。`mem_mask` 单独指示四字节字内 lane。例如 `SB 0xAB` 到地址偏移 3：`mem_wdata=0x000000AB`、`mem_mask=0b1000`。存储桥把低字节写入该地址，而不是读取 wdata 的高字节；原始总线若要求 lane 对齐，由桥打包。
+
+`mem_req_t.wdata` 使用同一低位标量规则。`mem_resp_t.rdata` 为按访问宽度提取、低位对齐且零扩展的原始读值；LSU 根据 LB/LH/LBU/LHU 再作符号/零扩展。退休 `mem_rdata` 为这个 32 位架构结果；例如读取字节 0x80，LB 退休值为 0xFFFFFF80，LBU 为 0x00000080，桥的原始响应都为 0x00000080。

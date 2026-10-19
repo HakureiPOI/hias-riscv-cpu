@@ -1,6 +1,6 @@
-# 共享类型与模块接口（P0-02 候选基线）
+# 共享类型与模块接口（P0-02 冻结基线）
 
-状态：**候选冻结版本，待管理审查。** 对应 RTL 类型包：
+状态：**共享接口基线已冻结，见 [管理验收](progress/P0-02-R2-review.md)；功能模块待实施。** 对应 RTL 类型包：
 
 - `rtl/include/core_config_pkg.sv`：参数与位宽。
 - `rtl/include/core_types_pkg.sv`：packed struct/枚举。
@@ -27,6 +27,8 @@
 - FU→WB 使用带保持的结果端口；两路完成仲裁，结果保持到被接收。
 - Commit/Trap 是单向事件（无 ready），由验证环境按序采样。
 - FPU 独立接口使用 valid/ready，一次一个运算在途。
+
+双槽接口在上升沿使用 `valid && ready` 接收反向 `accept_count` 指定的前缀；`ready = (accept_count != 0)`，`valid=0`、无有效槽或 Flush 禁止接收时 count=0。count 不超过有效前缀和资源数量。count=0 时完整有效载荷保持；部分接收后只移除已接收前缀，未接收后缀下一拍成为新前缀，相关数据保持。单个 FU/存储端口仍为常规整条 valid/ready。槽 payload 的重复 valid 与 bundle 位图必须一致；无效槽的其他字段不参与事件判断。
 
 ## 2 位宽与标识
 
@@ -134,6 +136,7 @@ Token 身份 = `{idx, gen}`。代次在 ROB 项重新分配时递增；回绕前
 - PTW 通过 DCache 物理访问入口读 PTE，不绕过到旧外部 RAM。
 - 存储请求 `mem_req_t` 携带 34 位 PA、读写、大小、字节使能、数据、`cacheable`、请求 ID 与代次。
 - 响应 `mem_resp_t` 携带请求 ID、代次、数据、错误；错误映射到 access fault。
+- 请求 wdata 为按 byte/half/word 截取后零扩展的低位标量，不随地址左移；byte_mask 单独标明字内 lane，桥负责实际字节选择。响应 rdata 是按访问宽度提取的低位零扩展原始值，LSU 再作架构符号扩展；完整示例见退休契约。读错误由请求的上层类型映射，Fetch 将其报告为 instruction access fault。
 - MMIO 请求必须标记 `cacheable=0`，且只在提交头发出。
 - 仲裁只在真正可服务的请求间进行，避免“PTW 等待被 Load 占住的端口”形成循环等待。
 
