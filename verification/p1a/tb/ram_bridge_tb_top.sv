@@ -7,7 +7,7 @@ module ram_bridge_tb_top (
     input  logic [31:0] load_data,
     input  logic        flush_i,
     input  logic [1:0]  resp_delay_i,
-    input  logic        fault_mode,
+    input  logic [1:0]  fault_mode,
 
     input  logic        req_valid,
     output logic        req_ready,
@@ -57,7 +57,7 @@ module ram_bridge_tb_top (
 
   always_ff @(posedge clk) begin
     if (reset) fault_toggle <= 1'b0;
-    else if (fault_mode && resp.valid && !resp_ready)
+    else if (fault_mode == 1 && resp.valid && !resp_ready)
       fault_toggle <= ~fault_toggle;
   end
 
@@ -70,8 +70,11 @@ module ram_bridge_tb_top (
       .resp_o(resp), .resp_ready_i(resp_ready),
       .resp_delay_i(resp_delay_i), .ram_write_o(ram_write_o));
 
-  assign resp_data_visible = (fault_mode && resp.valid && !resp_ready)
-                             ? (resp.rdata ^ {31'b0, fault_toggle}) : resp.rdata;
+  assign resp_data_visible =
+      (fault_mode == 1 && resp.valid && !resp_ready)
+        ? (resp.rdata ^ {31'b0, fault_toggle}) :
+      (fault_mode == 2 && resp.valid && resp_ready)
+        ? (resp.rdata ^ 32'h1) : resp.rdata;
   assign resp_valid = resp.valid;
   assign resp_id = resp.req_id;
   assign resp_gen = resp.gen;

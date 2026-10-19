@@ -31,7 +31,7 @@ make check-p0-01
 | `make platform-generate` | 从 `config/platform.json` 生成平台头文件、链接片段、Spike 参数 |
 | `make platform-check` | 校验配置、生成文件漂移、链接/ELF 布局与 Spike 参数一致 |
 | `make check-p0-02` | 平台正/负向/漂移、共享类型、接口/事件夹具、退休契约检查 + P0-01/R1 回归（R2 默认日志写入 P0-02-R2 目录） |
-| `make check-p1-a` | P1-A RTL Lint、空闲骨架、RAM/桥定向+随机、稳定性/错误/超时/忽略 TERM 探针、Token 联合补测，并回归 `check-p0-02` |
+| `make check-p1-a` | P1-A RTL Lint、空闲骨架、RAM/桥定向+随机、DUT 物理回读、稳定性/final-handshake/错误/超时/忽略 TERM 探针、Token 联合补测，并回归 `check-p0-02`；`P1_A_INJECT_MISMATCH_HANG=1` 用于证明意外比较挂起会使总入口 FAIL |
 | `make clean` | 删除 `build/`，不删除证据 |
 
 ## P0-02 平台配置

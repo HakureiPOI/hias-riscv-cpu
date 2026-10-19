@@ -123,8 +123,13 @@ if run_logged ram-build "$VERILATOR" --cc --exe --build --assert \
   else
     bad "RAM/bridge run (see ${LOG_DIR#"$ROOT"/}/ram-run.log)"
   fi
-  run_expected ram-mismatch-probe 1 "P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED" \
-    "$BUILD/ram/obj/ram_tb" +mismatch
+  if [ "${P1_A_INJECT_MISMATCH_HANG:-0}" = "1" ]; then
+    run_expected ram-mismatch-probe 1 "P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED" \
+      timeout -k 2s 3s "$BUILD/ram/obj/ram_tb" +mismatch_hang
+  else
+    run_expected ram-mismatch-probe 1 "P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED" \
+      "$BUILD/ram/obj/ram_tb" +mismatch
+  fi
   run_expected ram-timeout-probe 124 "P1-A_RAM_TB_TIMEOUT_PROBE" \
     timeout -k 2s 5s "$BUILD/ram/obj/ram_tb" +hang
   run_expected ram-timeout-ignore-term-probe 137 "P1-A_RAM_TB_TIMEOUT_IGNORE_TERM_PROBE" \
@@ -133,6 +138,8 @@ if run_logged ram-build "$VERILATOR" --cc --exe --build --assert \
     timeout -k 2s 5s "$BUILD/ram/obj/ram_tb" +mismatch_hang
   run_expected ram-stability-probe 1 "P1-A_RAM_TB_STABILITY_DETECTED" \
     "$BUILD/ram/obj/ram_tb" +stability_probe
+  run_expected ram-final-handshake-probe 1 "P1-A_RAM_TB_FINAL_HANDSHAKE_DETECTED" \
+    "$BUILD/ram/obj/ram_tb" +final_handshake_probe
 else
   bad "RAM/bridge build (see ${LOG_DIR#"$ROOT"/}/ram-build.log)"
 fi

@@ -45,6 +45,8 @@ struct Tb {
   uint64_t completed_count = 0;
   uint64_t write_events = 0;
   uint64_t expected_writes = 0;
+  uint64_t stability_errors = 0;
+  uint64_t comparison_errors = 0;
   bool no_cycle_limit = false;
 
   explicit Tb(Vram_bridge_tb_top* d) : dut(d), mem(128 * 1024) {
@@ -202,6 +204,26 @@ struct Tb {
     tick();
   }
 
+  void note_request(const Req& r) {
+    ++transactions;
+    if (legal(r)) ++legal_count; else ++illegal_count;
+  }
+
+  void note_accept(const Req& r) {
+    ++accepted_count;
+    if (legal(r) && r.store) {
+      apply_store(r);
+      ++expected_writes;
+    }
+  }
+
+  void note_complete() { ++completed_count; }
+
+  void stability_fail(const char* msg) {
+    ++stability_errors;
+    check(false, msg);
+  }
+
   void drive(const Req& r) {
     dut->req_valid = 1;
     dut->req_is_store = r.store;
@@ -220,9 +242,8 @@ struct Tb {
   Resp transact(Req r, int resp_stall = 0, int delay = 0,
                 int req_delay = 0, bool flush_after_accept = false,
                 bool force_error = false, bool mismatch = false) {
-    ++transactions;
+    note_request(r);
     const bool is_legal = legal(r);
-    if (is_legal) ++legal_count; else ++illegal_count;
     uint32_t want_rdata = is_legal && !r.store ? expected_rdata(r) : 0;
     if (mismatch && is_legal && !r.store) want_rdata ^= 1u;
     const uint8_t want_cause = is_legal ? 0 : error_cause(r);
@@ -231,6 +252,11 @@ struct Tb {
       return a.valid == b.valid && a.error == b.error &&
              a.cause == b.cause && a.id == b.id && a.gen == b.gen &&
              a.rdata == b.rdata;
+    };
+    auto same_req = [](const Req& a, const Req& b) {
+      return a.store == b.store && a.pa == b.pa && a.size == b.size &&
+             a.mask == b.mask && a.wdata == b.wdata && a.id == b.id &&
+             a.gen == b.gen;
     };
 
     for (int i = 0; i < req_delay; ++i) {
@@ -266,9 +292,18 @@ struct Tb {
                    dut->req_pa != held_pa || dut->req_size != held_size ||
                    dut->req_byte_mask != held_mask ||
                    dut->req_wdata != held_wdata) {
-          check(false, "request payload changed while stalled");
+          stability_fail("request payload changed while stalled");
         }
-      } else {
+      } else if (req_held) {
+        // The final handshake cycle must also preserve the stalled payload.
+        if (!dut->req_valid) {
+          stability_fail("request valid dropped before final handshake");
+        } else if (dut->req_id != held_id || dut->req_gen != held_gen ||
+                   dut->req_pa != held_pa || dut->req_size != held_size ||
+                   dut->req_byte_mask != held_mask ||
+                   dut->req_wdata != held_wdata) {
+          stability_fail("request payload changed at final handshake");
+        }
         req_held = false;
       }
       if (rv) {
@@ -279,18 +314,20 @@ struct Tb {
         cur.id = dut->resp_id;
         cur.gen = dut->resp_gen;
         cur.rdata = dut->resp_rdata;
+        if (held_valid && !same_resp(held, cur)) {
+          stability_fail("held response changed at final handshake");
+        }
         if (!rr) {
           if (!held_valid) {
             held = cur;
             held_valid = true;
-          } else if (!same_resp(held, cur)) {
-            check(false, "held response changed while backpressured");
           }
         } else {
           got = cur;
+          held_valid = false;
         }
       } else if (held_valid) {
-        check(false, "response valid dropped before handshake");
+        stability_fail("response valid dropped before handshake");
       }
       if (dut->ram_write_o) ++write_events;
       if (dut->ram_write_o && !(is_legal && r.store))
@@ -298,11 +335,7 @@ struct Tb {
       edge();
       if (acc) {
         accepted = true;
-        ++accepted_count;
-        if (is_legal && r.store) {
-          apply_store(r);
-          ++expected_writes;
-        }
+        note_accept(r);
         dut->req_valid = 0;
         if (flush_after_accept) {
           dut->flush_i = 1;
@@ -312,7 +345,7 @@ struct Tb {
       }
       if (rv && rr) {
         done = true;
-        ++completed_count;
+        note_complete();
       }
       if (!done) {
         if (resp_stall > 0 && rv) --resp_stall;
@@ -341,6 +374,8 @@ struct Tb {
     }
     if (is_legal) {
       check(!got.error, "legal request returned error");
+      if (!r.store && got.rdata != want_rdata)
+        ++comparison_errors;
       if (got.rdata != want_rdata)
         std::fprintf(stderr, "  expect=0x%x got=0x%x pa=0x%llx size=%d\n",
                      want_rdata, got.rdata,
@@ -358,6 +393,7 @@ struct Tb {
 
   Req mk(bool store, uint64_t pa, int size, uint8_t mask, uint32_t wdata,
          uint8_t id = 1, uint8_t gen = 1) {
+    if (id > 0x3f) check(false, "request ID exceeds 6 bits");
     Req r;
     r.store = store;
     r.va = static_cast<uint32_t>(pa);
@@ -426,6 +462,8 @@ struct Tb {
     transact(mk(true, RAM_BASE, 3, 0xf, 0, 47, 1));
     check(read_word(RAM_END - 4) == tail_before,
           "top-PA/size3 illegal requests changed RAM tail");
+    dut_readback(RAM_END - 4, "tail_after_illegal", 0x30);
+    dut_readback(RAM_END - 8, "guard_after_illegal", 0x31);
 
     // Illegal address/alignment/mask/data. Memory must not change.
     transact(mk(false, 0x1'80000000ull, 2, 0xf, 0, 21, 1));
@@ -440,12 +478,25 @@ struct Tb {
     transact(mk(false, RAM_BASE, 2, 0xf, 0, 29, 1));
   }
 
+  void dut_readback(uint64_t pa, const char* name, uint8_t id) {
+    Req r = mk(false, pa, 2, 0xf, 0, id, 0x33);
+    const uint32_t want = expected_rdata(r);
+    Resp got = transact(r, 0, 0, 0, false, false, false);
+    const bool ok = !got.error && got.rdata == want;
+    std::printf("P1-A_RAM_DUT_READBACK %s pa=0x%llx got=0x%08x expected=0x%08x result=%s\n",
+                name, static_cast<unsigned long long>(pa), got.rdata, want,
+                ok ? "PASS" : "FAIL");
+    if (!ok) check(false, "DUT physical readback mismatch");
+  }
+
   void pipeline_stall() {
     // A response is held (resp_ready=0); a second request is presented and
     // must remain stable while req_ready=0. Consuming A and accepting B happen
     // at the same edge. Both responses are checked against the model.
     Req a = mk(false, RAM_BASE + 0x70, 2, 0xf, 0, 60, 1);
     Req b = mk(false, RAM_BASE + 0x74, 2, 0xf, 0, 61, 2);
+    note_request(a);
+    note_request(b);
     const uint32_t want_a = expected_rdata(a);
     const uint32_t want_b = expected_rdata(b);
     auto load_resp = [&](Resp& r) {
@@ -458,8 +509,7 @@ struct Tb {
     low();
     check(dut->req_ready, "pipeline: A not accepted");
     edge();
-    ++accepted_count;
-    ++transactions;
+    note_accept(a);
     dut->req_valid = 0;
 
     int guard = 0;
@@ -476,15 +526,27 @@ struct Tb {
       check(!dut->req_ready, "pipeline: B accepted while A response held");
       check(dut->resp_valid && dut->resp_rdata == held_a.rdata,
             "pipeline: A response changed");
+      if (i > 0) {
+        check(dut->req_id == b.id && dut->req_gen == b.gen &&
+              dut->req_pa == b.pa && dut->req_size == b.size &&
+              dut->req_byte_mask == b.mask && dut->req_wdata == b.wdata,
+              "pipeline: B payload changed while stalled");
+      }
       edge();
     }
 
     dut->resp_ready = 1;
     low();
     check(dut->req_valid && dut->req_ready, "pipeline: B not ready at consume edge");
+    check(dut->resp_valid && dut->resp_rdata == held_a.rdata,
+          "pipeline: A payload changed at final handshake");
+    check(dut->req_id == b.id && dut->req_gen == b.gen &&
+          dut->req_pa == b.pa && dut->req_size == b.size &&
+          dut->req_byte_mask == b.mask && dut->req_wdata == b.wdata,
+          "pipeline: B payload changed at final handshake");
     edge();
-    ++accepted_count;
-    ++transactions;
+    note_accept(b);
+    note_complete();  // A response handshake at this edge
     dut->req_valid = 0;
     if (held_a.id != a.id || held_a.gen != a.gen) check(false, "pipeline: A ID/gen");
 
@@ -496,8 +558,15 @@ struct Tb {
     check(dut->resp_id == b.id && dut->resp_gen == b.gen,
           "pipeline: B ID/gen mismatch");
     edge();
-    completed_count += 2;
+    note_complete();  // B response handshake
     dut->resp_ready = 1;
+    // Same idle observation as the serial path.
+    dut->req_valid = 0;
+    for (int i = 0; i < 2; ++i) {
+      low();
+      if (dut->resp_valid) check(false, "pipeline: stray/duplicate response");
+      edge();
+    }
   }
 
   void random_run(unsigned seed, int count) {
@@ -540,12 +609,14 @@ int main(int argc, char** argv) {
   bool hang_ignore_term = false;
   bool mismatch_hang = false;
   bool stability_probe = false;
+  bool final_handshake_probe = false;
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "+mismatch") == 0) mismatch_probe = true;
     if (std::strcmp(argv[i], "+hang") == 0) hang = true;
     if (std::strcmp(argv[i], "+hang_ignore_term") == 0) hang_ignore_term = true;
     if (std::strcmp(argv[i], "+mismatch_hang") == 0) mismatch_hang = true;
     if (std::strcmp(argv[i], "+stability_probe") == 0) stability_probe = true;
+    if (std::strcmp(argv[i], "+final_handshake_probe") == 0) final_handshake_probe = true;
   }
   Verilated::commandArgs(argc, argv);
   Vram_bridge_tb_top* dut = new Vram_bridge_tb_top;
@@ -568,23 +639,53 @@ int main(int argc, char** argv) {
   }
   if (mismatch_hang) {
     // Exercise the comparison path first, then hang in the same entry.
-    Req r = tb.mk(false, RAM_BASE, 2, 0xf, 0, 0x62, 0x12);
+    Req r = tb.mk(false, RAM_BASE, 2, 0xf, 0, 0x22, 0x12);
     tb.transact(r, 0, 0, 0, false, false, true);
+    std::printf("P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED\n");
     tb.no_cycle_limit = true;
     std::printf("P1-A_RAM_TB_MISMATCH_HANG_PROBE: entering comparison-path hang\n");
     std::fflush(stdout);
     for (;;) tb.tick();
   }
   if (stability_probe) {
-    dut->fault_mode = 1;
-    Req r = tb.mk(false, RAM_BASE + 0x80, 2, 0xf, 0, 0x52, 0x11);
-    tb.transact(r, 3, 0);
-    if (tb.errors > 0) {
-      std::printf("P1-A_RAM_TB_STABILITY_DETECTED errors=%d\n", tb.errors);
+    Req r = tb.mk(false, RAM_BASE + 0x80, 2, 0xf, 0, 0x12, 0x11);
+    tb.transact(r, 3, 0);  // normal control
+    if (tb.errors != 0) {
+      std::fprintf(stderr, "P1-A_RAM_TB_STABILITY_CONTROL_FAIL errors=%llu\n",
+                   static_cast<unsigned long long>(tb.errors));
       delete dut;
       return 1;
     }
-    std::fprintf(stderr, "P1-A_RAM_TB_STABILITY_NOT_DETECTED\n");
+    dut->fault_mode = 1;
+    tb.transact(r, 3, 0);
+    if (tb.stability_errors > 0 && tb.errors == tb.stability_errors) {
+      std::printf("P1-A_RAM_TB_STABILITY_DETECTED stability_errors=%llu\n",
+                  static_cast<unsigned long long>(tb.stability_errors));
+      delete dut;
+      return 1;
+    }
+    std::fprintf(stderr, "P1-A_RAM_TB_STABILITY_NOT_DETECTED errors=%llu stability=%llu\n",
+                 static_cast<unsigned long long>(tb.errors),
+                 static_cast<unsigned long long>(tb.stability_errors));
+    delete dut;
+    return 1;
+  }
+  if (final_handshake_probe) {
+    dut->fault_mode = 2;
+    Req r = tb.mk(false, RAM_BASE + 0x84, 2, 0xf, 0, 0x13, 0x11);
+    tb.transact(r, 3, 0);
+    if (tb.stability_errors > 0 &&
+        tb.errors == tb.stability_errors + tb.comparison_errors) {
+      std::printf("P1-A_RAM_TB_FINAL_HANDSHAKE_DETECTED stability_errors=%llu comparison_errors=%llu\n",
+                  static_cast<unsigned long long>(tb.stability_errors),
+                  static_cast<unsigned long long>(tb.comparison_errors));
+      delete dut;
+      return 1;
+    }
+    std::fprintf(stderr, "P1-A_RAM_TB_FINAL_HANDSHAKE_NOT_DETECTED errors=%llu stability=%llu comparison=%llu\n",
+                 static_cast<unsigned long long>(tb.errors),
+                 static_cast<unsigned long long>(tb.stability_errors),
+                 static_cast<unsigned long long>(tb.comparison_errors));
     delete dut;
     return 1;
   }
@@ -600,18 +701,24 @@ int main(int argc, char** argv) {
 
   if (tb.accepted_count != tb.completed_count)
     tb.check(false, "accepted/completed count mismatch");
+  if (tb.legal_count + tb.illegal_count != tb.transactions)
+    tb.check(false, "transaction classification count mismatch");
   if (tb.write_events != tb.expected_writes)
     tb.check(false, "RAM write event count mismatch");
 
   if (mismatch_probe) {
     Req r = tb.mk(false, RAM_BASE, 2, 0xf, 0, 0x3f, 0x7f);
     tb.transact(r, 0, 0, 0, false, false, true);
-    if (tb.errors > 0) {
-      std::printf("P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED errors=%d\n", tb.errors);
+    if (tb.comparison_errors > 0 && tb.errors == tb.comparison_errors) {
+      std::printf("P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED comparison_errors=%llu\n",
+                  static_cast<unsigned long long>(tb.comparison_errors));
       delete dut;
       return 1;
     }
-    std::fprintf(stderr, "P1-A_RAM_TB_NEGATIVE_MISMATCH_NOT_DETECTED\n");
+    std::fprintf(stderr,
+                 "P1-A_RAM_TB_NEGATIVE_MISMATCH_NOT_DETECTED errors=%llu comparison=%llu\n",
+                 static_cast<unsigned long long>(tb.errors),
+                 static_cast<unsigned long long>(tb.comparison_errors));
     delete dut;
     return 1;
   }

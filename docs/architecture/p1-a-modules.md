@@ -55,10 +55,11 @@ P1-B 插入点：保留以上端口，P1-B 只实现 Fetch/Decode；执行、访
 
 1. `verilator --lint-only -Wall --assert` 检查 `rtl/p1_a.f`。
 2. 空闲骨架 TB：16 周期内 `mem_req_valid=0`、`slot_valid=0`、`trap_valid=0`、`idle=1`。
-3. RAM/桥 TB：定向边界 + 3 个固定种子（`0x1a2b3c4d`、`0x5e6f7a8b`、`0x9c0d1e2f`）各 450 笔合法/非法混合事务；独立字节数组记分板；逐边沿检查请求/响应稳定、响应一次、实际 RAM 写事件与非法请求零写；统一时钟计数覆盖初始化和全部事务。修复后统计以实际日志为准。
-4. RAM 负向探针：真实比较路径注入一次错误期望，要求非零退出与 `P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED`；稳定性反例要求 held 响应改变被同一逐拍检查器检出。
+3. RAM/桥 TB：定向边界 + 3 个固定种子（`0x1a2b3c4d`、`0x5e6f7a8b`、`0x9c0d1e2f`）各 450 笔合法/非法混合事务；独立字节数组记分板；逐边沿检查请求/响应稳定（含最终握手拍）、响应一次、实际 RAM 写事件与非法请求零写；串行与 pipeline 共用接受/完成计数；统一时钟计数覆盖初始化和全部事务。修复后统计以实际日志为准。
+4. RAM 负向探针：真实比较路径注入一次错误期望，要求非零退出与 `P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED`；稳定性反例先运行无故障正常对照，再用合法 6 位 ID 注入 held 响应变化，仅 `stability_errors` 能产生 `P1-A_RAM_TB_STABILITY_DETECTED`；final-handshake 反例在 ready=1 的最终握手拍改变载荷，由同一监视器报告 `P1-A_RAM_TB_FINAL_HANDSHAKE_DETECTED`。
 5. 挂起探针：比较负向入口、专用 timeout 入口以及忽略 TERM 的场景均由有限主机看门狗 + kill-after 执行，分别核对 124/137；超时不会被当成比较探针成功。
-6. Token 联合补测：缩小代次下，回绕前存在已取消匹配响应；新分配持续阻塞，真正收尾后恢复。
+6. Token 联合补测：缩小代次下，回绕前存在已取消匹配响应；新分配持续阻塞，真正收尾后恢复（R2 不重开）。
+7. 预期失败注入：`P1_A_INJECT_MISMATCH_HANG=1 make check-p1-a` 让原比较步骤在产生比较错误后挂起；其判据仍为 exit 1 + 比较错误，因此超时 124 使该步骤和总入口 FAIL，外层 `timeout` 只作最后保护。
 7. `make check-p0-02` 回归（含 P0-01/R1），所有嵌套日志写入 `verification/evidence/P1-A/regression/`。
 
 ## 5 未完成与边界
