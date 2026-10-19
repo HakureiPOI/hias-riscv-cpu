@@ -27,6 +27,7 @@ P0-01 环境与验证冒烟、P0-02 规格与接口已通过管理验收。P1-A 
 - [P0-02-R1 修订报告](docs/progress/P0-02-R1-report.md)：D01—D11 决策落地、F01—F04/V01—V06 结果。
 - [P0-02-R2 修订报告](docs/progress/P0-02-R2-report.md)：B01—B03 关闭、旧反例复现与 V01—V04 结果。
 - [P1-A 基础框架报告](docs/progress/P1-A-report.md)：核心/SoC 骨架、128 KiB RAM/桥、V01—V05 结果。
+- [P1-A-R1 修订报告](docs/progress/P1-A-R1-report.md)：顶端 PA/非法宽度、TB 时序/副作用与负向看门狗修复。
 - [P0-01 实施报告](docs/progress/P0-01-report.md)：首轮真实命令、退出码、证据与未完成项。
 - [P0-01-R1 实施报告](docs/progress/P0-01-R1-report.md)：修复后的正常与故障注入结果。
 - [课程实验要求](docs/course/实验要求.md)：依据课程原始文件整理，包含待澄清事项。

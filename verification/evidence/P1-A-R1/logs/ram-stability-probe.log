@@ -1,0 +1,6 @@
+command: timeout -k 5s 120s /workspace/hias-riscv-cpu/build/p1-a/ram/obj/ram_tb +stability_probe
+P1-A_RAM_TB_FAIL: held response changed while backpressured
+P1-A_RAM_TB_FAIL: response ID mismatch (0x12)
+P1-A_RAM_TB_STABILITY_DETECTED errors=2
+elapsed_seconds: 0
+exit: 1

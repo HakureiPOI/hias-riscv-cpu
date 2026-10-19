@@ -1,0 +1,10 @@
+tail_initial=0xa1b2c3d4 guard_initial=0x11223344
+TOP_BYTE_READ accepted=1 resp_valid=1 error=0 cause=1 rdata=0x000000a1
+TOP_HALF_READ accepted=1 resp_valid=1 error=0 cause=1 rdata=0x0000a1b2
+TOP_WORD_READ accepted=1 resp_valid=1 error=0 cause=1 rdata=0xa1b2c3d4
+SIZE3_READ accepted=1 resp_valid=1 error=1 cause=4 rdata=0x00000000
+TOP_BYTE_WRITE accepted=1 resp_valid=1 error=0 cause=1 rdata=0x00000000
+TAIL_READ_AFTER_BYTE accepted=1 resp_valid=1 error=0 cause=1 rdata=0x5ab2c3d4
+TOP_WORD_WRITE accepted=1 resp_valid=1 error=0 cause=1 rdata=0x00000000
+TAIL_READ_AFTER_WORD accepted=1 resp_valid=1 error=0 cause=1 rdata=0xdeadbeef
+GUARD_READ_AFTER_WORD accepted=1 resp_valid=1 error=0 cause=1 rdata=0x11223344

@@ -1,0 +1,29 @@
+command: timeout -k 5s 120s env P0_02_EVIDENCE=verification/evidence/P1-A-R1/regression/p0-02 make -C /workspace/hias-riscv-cpu check-p0-02
+make[1]: Entering directory '/workspace/hias-riscv-cpu'
+P0-02_STEP_PASS: platform config, generated files, linker, ELF and Spike agree
+P0-02_STEP_PASS: negative platform configs rejected
+P0-02_STEP_PASS: Spike accepts final ISA/Svade/priv and runs the smoke ELF
+P0-02_STEP_PASS: shared type lint
+P0-02_STEP_PASS: shared type build
+P0-02_STEP_PASS: shared type width/layout self-check
+P0-02_STEP_PASS: invalid shared parameters rejected
+P0-02_STEP_PASS: interface fixture build
+P0-02_STEP_PASS: dual-slot/resource/token interface fixture
+P0-02_STEP_PASS: retire event fixture build
+P0-02_STEP_PASS: S0 retire / S1 deferred Trap event fixture
+P0-02_STEP_PASS: retire contract validator rejects malformed records
+P0-02_STEP_PASS: Spike commit log converted with explicit derived/not-observed fields
+P0-02_STEP_PASS: retire contract examples validate
+P0-02_STEP_PASS: make check-p0-01 regression
+P0-02_STEP_PASS: make r1-probes regression
+P0-02 check summary
+date_utc: 2026-10-19T13:02:02Z
+git_head: 8e82d69036adbe9904c6aa55556236ad2e0ee4e3
+git_branch: codex/p1-a-foundation
+log_dir: verification/evidence/P1-A-R1/regression/p0-02/logs
+git_status:
+  ?? verification/evidence/P1-A-R1/
+result: PASS
+P0-02_CHECK_ALL_PASS
+make[1]: Leaving directory '/workspace/hias-riscv-cpu'
+exit: 0
