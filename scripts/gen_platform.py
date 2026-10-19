@@ -37,7 +37,7 @@ REQUIRED_SW = {
     "page_table_reserve", "tohost_symbol", "fromhost_symbol",
 }
 REQUIRED_MMIO = {"name", "base", "size", "p1", "final", "access", "cacheable"}
-OPTIONAL_MMIO = {"note"}
+OPTIONAL_MMIO = {"note", "registers"}
 REQUIRED_REF = {"model", "spike"}
 REQUIRED_SPIKE = {
     "isa", "priv", "memory_arg", "disable_dtb",
@@ -79,6 +79,15 @@ def require_keys(obj, keys, where: str) -> None:
 
 def is_pow2(value: int) -> bool:
     return value > 0 and (value & (value - 1)) == 0
+
+
+def require_keys_optional(obj, required, optional, where: str) -> None:
+    missing = sorted(set(required) - set(obj))
+    if missing:
+        fail(f"{where}: missing keys {missing}")
+    extra = sorted(set(obj) - set(required) - set(optional))
+    if extra:
+        fail(f"{where}: unknown keys {extra}")
 
 
 def check_range(name: str, base: int, size: int, alignment: int) -> tuple[int, int]:
@@ -155,10 +164,11 @@ def validate(cfg: dict) -> dict:
     signature = as_int(sw["signature_reserve"], "software.signature_reserve")
     page_tables = as_int(sw["page_table_reserve"], "software.page_table_reserve")
     for name, value in (("stack_reserve", stack),
-                        ("signature_reserve", signature),
-                        ("page_table_reserve", page_tables)):
+                        ("signature_reserve", signature)):
         if value <= 0 or value % 16 != 0:
             fail(f"software.{name} must be a positive multiple of 16")
+    if page_tables < 4096 or page_tables % 4096 != 0:
+        fail("software.page_table_reserve must be a positive multiple of 4096 (page granularity)")
     reserved = stack + signature + page_tables
     if reserved >= size:
         fail("software reserved regions consume the whole RAM")
@@ -177,7 +187,7 @@ def validate(cfg: dict) -> dict:
         where = f"mmio[{index}]"
         if not isinstance(entry, dict):
             fail(f"{where} must be an object")
-        require_keys(entry, REQUIRED_MMIO | OPTIONAL_MMIO, where)
+        require_keys_optional(entry, REQUIRED_MMIO, OPTIONAL_MMIO, where)
         name = entry["name"]
         if not isinstance(name, str) or not name.isidentifier():
             fail(f"{where}.name must be an identifier")
@@ -202,6 +212,35 @@ def validate(cfg: dict) -> dict:
             if mbase < rend and rbase < mbase + msize:
                 fail(f"{where}: range overlaps {rname}")
         ranges.append((name, mbase, mbase + msize))
+        regs = entry.get("registers", [])
+        if not isinstance(regs, list):
+            fail(f"{where}.registers must be a list")
+        seen_regs = set()
+        reg_ranges = []
+        for ridx, reg in enumerate(regs):
+            rwhere = f"{where}.registers[{ridx}]"
+            if not isinstance(reg, dict):
+                fail(f"{rwhere} must be an object")
+            rkeys = {"name", "offset", "width", "access", "reset", "note"}
+            require_keys(reg, rkeys, rwhere)
+            if reg["name"] in seen_regs:
+                fail(f"{rwhere}.name duplicate: {reg['name']}")
+            seen_regs.add(reg["name"])
+            off = as_int(reg["offset"], f"{rwhere}.offset")
+            width = reg["width"]
+            if not isinstance(width, int) or width not in (8, 16, 32):
+                fail(f"{rwhere}.width must be 8, 16 or 32")
+            if off < 0 or off % (width // 8) != 0:
+                fail(f"{rwhere}.offset must be naturally aligned")
+            rend = off + width // 8
+            if rend > msize:
+                fail(f"{rwhere} exceeds MMIO region")
+            if reg["access"] not in {"r", "w", "rw"}:
+                fail(f"{rwhere}.access must be r/w/rw")
+            for other, ob, oe in reg_ranges:
+                if off < oe and ob < rend:
+                    fail(f"{rwhere} overlaps register {other}")
+            reg_ranges.append((reg["name"], off, rend))
 
     ref = cfg["reference"]
     if not isinstance(ref, dict):
@@ -232,8 +271,12 @@ def validate(cfg: dict) -> dict:
     stack_limit = stack_top - stack
     page_table_end = stack_limit - (stack_limit % 4096)
     page_table_base = page_table_end - page_tables
+    if page_table_base < 0:
+        fail("page table reserve underflows")
     signature_end = page_table_base
     signature_base = signature_end - signature
+    layout_gap_start = page_table_end
+    layout_gap_end = stack_limit
     if signature_base < base:
         fail("software reserved regions exceed RAM below the program area")
 
@@ -251,6 +294,8 @@ def validate(cfg: dict) -> dict:
         "page_table_end": page_table_end,
         "signature_base": signature_base,
         "signature_end": signature_end,
+        "layout_gap_start": layout_gap_start,
+        "layout_gap_end": layout_gap_end,
         "mmio": [(e["name"], as_int(e["base"], e["name"]),
                   as_int(e["size"], e["name"]), e["p1"], e["access"])
                  for e in mmio],
@@ -265,7 +310,7 @@ def validate(cfg: dict) -> dict:
     }
 
 
-def write_header(path: Path, norm: dict) -> None:
+def write_header(path: Path, norm: dict, cfg: dict) -> None:
     lines = [
         "/* AUTO-GENERATED from config/platform.json by scripts/gen_platform.py.",
         " * Do not edit. Regenerate with: python3 scripts/gen_platform.py",
@@ -288,6 +333,9 @@ def write_header(path: Path, norm: dict) -> None:
         f"#define PLATFORM_STACK_LIMIT 0x{norm['stack_limit']:08x}u",
         f"#define PLATFORM_SIGNATURE_BASE 0x{norm['signature_base']:08x}u",
         f"#define PLATFORM_PAGE_TABLE_BASE 0x{norm['page_table_base']:08x}u",
+        f"#define PLATFORM_PAGE_TABLE_END 0x{norm['page_table_end']:08x}u",
+        f"#define PLATFORM_LAYOUT_GAP_START 0x{norm['layout_gap_start']:08x}u",
+        f"#define PLATFORM_LAYOUT_GAP_END 0x{norm['layout_gap_end']:08x}u",
         f"#define PLATFORM_PROGRAM_LIMIT 0x{norm['signature_base']:08x}u",
     ]
     for name, mbase, msize, p1, access in norm["mmio"]:
@@ -295,10 +343,22 @@ def write_header(path: Path, norm: dict) -> None:
         lines.append(f"#define PLATFORM_MMIO_{upper}_BASE 0x{mbase:08x}u")
         lines.append(f"#define PLATFORM_MMIO_{upper}_SIZE 0x{msize:08x}u")
         lines.append(f"#define PLATFORM_MMIO_{upper}_P1_{p1.upper()} 1")
+        for reg in _mmio_registers(cfg, name):
+            rupper = reg["name"].upper()
+            off = int(reg["offset"], 0)
+            lines.append(f"#define PLATFORM_MMIO_{upper}_{rupper}_OFFSET 0x{off:08x}u")
+            lines.append(f"#define PLATFORM_MMIO_{upper}_{rupper}_WIDTH {reg['width']}")
     lines.append("")
     lines.append("#endif /* HIAS_PLATFORM_H */")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+
+_REG_CACHE = {}
+def _mmio_registers(cfg: dict, name: str):
+    for entry in cfg.get("mmio", []):
+        if entry.get("name") == name:
+            return entry.get("registers", [])
+    return []
 
 def write_linker(path: Path, norm: dict) -> None:
     mmio_asserts = []
@@ -321,6 +381,9 @@ def write_linker(path: Path, norm: dict) -> None:
         f"PLATFORM_STACK_LIMIT = 0x{norm['stack_limit']:08x};",
         f"PLATFORM_SIGNATURE_BASE = 0x{norm['signature_base']:08x};",
         f"PLATFORM_PAGE_TABLE_BASE = 0x{norm['page_table_base']:08x};",
+        f"PLATFORM_PAGE_TABLE_END = 0x{norm['page_table_end']:08x};",
+        f"PLATFORM_LAYOUT_GAP_START = 0x{norm['layout_gap_start']:08x};",
+        f"PLATFORM_LAYOUT_GAP_END = 0x{norm['layout_gap_end']:08x};",
         f"PLATFORM_PROGRAM_LIMIT = 0x{norm['signature_base']:08x};",
         "ASSERT(PLATFORM_RAM_BASE == PLATFORM_RESET_VECTOR, \"platform config: reset vector must equal RAM base\")",
         "ASSERT((PLATFORM_RAM_BASE % 4096) == 0, \"platform config: RAM base not 4 KiB aligned\")",
@@ -346,6 +409,7 @@ def write_normalized(path: Path, norm: dict) -> None:
             "program_limit": f"0x{norm['signature_base']:08x}",
             "signature": [f"0x{norm['signature_base']:08x}", f"0x{norm['signature_end']:08x}"],
             "page_tables": [f"0x{norm['page_table_base']:08x}", f"0x{norm['page_table_end']:08x}"],
+            "layout_gap": [f"0x{norm['layout_gap_start']:08x}", f"0x{norm['layout_gap_end']:08x}"],
             "stack": [f"0x{norm['stack_limit']:08x}", f"0x{norm['stack_top']:08x}"],
         },
         "mmio": [
@@ -363,7 +427,9 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--config", default=str(DEFAULT_CONFIG))
     parser.add_argument("--out-dir", default=str(DEFAULT_OUT))
     parser.add_argument("--check", action="store_true",
-                        help="validate only; do not write generated files")
+                        help="validate and compare checked-in generated files; do not write")
+    parser.add_argument("--validate-only", action="store_true",
+                        help="validate config semantics only; never inspect generated files")
     args = parser.parse_args(argv)
 
     config_path = Path(args.config)
@@ -385,6 +451,10 @@ def main(argv: list[str]) -> int:
           f"ram=[0x{norm['base']:08x},0x{norm['end']:08x}) "
           f"spike='{norm['spike_args']}'")
 
+    if args.validate_only:
+        print("PLATFORM_VALIDATE_ONLY_OK")
+        return 0
+
     if args.check:
         # Regenerate into a temporary directory and compare with the checked-in
         # files, so hand edits and stale generated copies are rejected.
@@ -394,7 +464,7 @@ def main(argv: list[str]) -> int:
             cfg_out = tmp_root / "config"
             gen.mkdir(parents=True)
             cfg_out.mkdir(parents=True)
-            write_header(gen / "platform.h", norm)
+            write_header(gen / "platform.h", norm, cfg)
             write_linker(gen / "platform.ld", norm)
             write_spike_args(cfg_out / "platform.spike.args", norm)
             write_normalized(cfg_out / "platform.generated.json", norm)
@@ -416,7 +486,7 @@ def main(argv: list[str]) -> int:
     config_out = out / "config"
     generated.mkdir(parents=True, exist_ok=True)
     config_out.mkdir(parents=True, exist_ok=True)
-    write_header(generated / "platform.h", norm)
+    write_header(generated / "platform.h", norm, cfg)
     write_linker(generated / "platform.ld", norm)
     write_spike_args(config_out / "platform.spike.args", norm)
     write_normalized(config_out / "platform.generated.json", norm)

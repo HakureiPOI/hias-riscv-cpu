@@ -5,7 +5,7 @@ set -u
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="${P0_02_EVIDENCE:-$ROOT/verification/evidence/P0-02}"
+BASE="${P0_02_EVIDENCE:-$ROOT/verification/evidence/P0-02-R1}"
 LOG_DIR="$BASE/logs"
 BUILD="$ROOT/build/p0-02"
 VERILATOR="${VERILATOR:-verilator}"
@@ -123,11 +123,43 @@ else
   bad "invalid parameter probe build (see ${LOG_DIR#"$ROOT"/}/types-invalid-build.log)"
 fi
 
+# V02: small dual-slot/resource/token interface fixture.
+rm -rf "$BUILD/interface"
+mkdir -p "$BUILD/interface/obj"
+IF_SRC=(
+  "$ROOT/verification/spec/interface/interface_fixture.sv"
+  "$ROOT/verification/spec/interface/tb_interface.cpp"
+)
+if run_logged interface-build "$VERILATOR" --cc --exe --build --assert \
+     -I"$ROOT/rtl/include" --top-module interface_fixture \
+     -Mdir "$BUILD/interface/obj" -CFLAGS -std=c++17 "${IF_SRC[@]}" \
+     -o interface_fixture; then
+  pass "interface fixture build"
+  if run_logged interface-run "$BUILD/interface/obj/interface_fixture"; then
+    if grep -q 'P0-02_INTERFACE_FIXTURE_PASS' "$LOG_DIR/interface-run.log"; then
+      pass "dual-slot/resource/token interface fixture"
+    else
+      bad "interface fixture missing PASS marker"
+    fi
+  else
+    bad "interface fixture run (see ${LOG_DIR#"$ROOT"/}/interface-run.log)"
+  fi
+else
+  bad "interface fixture build (see ${LOG_DIR#"$ROOT"/}/interface-build.log)"
+fi
+
 # S04: retire contract format and negative self-test.
 if run_logged retire-selftest python3 "$ROOT/scripts/check_retire_contract.py" --self-test; then
   pass "retire contract validator rejects malformed records"
 else
   bad "retire contract self-test (see ${LOG_DIR#"$ROOT"/}/retire-selftest.log)"
+fi
+
+if run_logged retire-convert python3 "$ROOT/scripts/check_retire_contract.py" --convert-spike \
+     "$ROOT/verification/spec/retire/examples/spike_ok_excerpt.log"; then
+  pass "Spike commit log converted with explicit derived/not-observed fields"
+else
+  bad "Spike retire conversion (see ${LOG_DIR#"$ROOT"/}/retire-convert.log)"
 fi
 
 if run_logged retire-validate python3 "$ROOT/scripts/check_retire_contract.py" --validate-examples; then

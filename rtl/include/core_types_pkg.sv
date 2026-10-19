@@ -50,6 +50,65 @@ package core_types_pkg;
     OP_WFI    = 5'd17
   } op_class_e;
 
+  // Detailed operation consumed by an execution unit. op_class_e is only a
+  // coarse decode class and cannot distinguish ADD/SUB, branch kinds or
+  // LB/LBU by itself.
+  typedef enum logic [5:0] {
+    EXEC_ADD    = 6'd0,
+    EXEC_SUB    = 6'd1,
+    EXEC_SLL    = 6'd2,
+    EXEC_SLT    = 6'd3,
+    EXEC_SLTU   = 6'd4,
+    EXEC_XOR    = 6'd5,
+    EXEC_SRL    = 6'd6,
+    EXEC_SRA    = 6'd7,
+    EXEC_OR     = 6'd8,
+    EXEC_AND    = 6'd9,
+    EXEC_ADDI   = 6'd10,
+    EXEC_SLTI   = 6'd11,
+    EXEC_SLTIU  = 6'd12,
+    EXEC_XORI   = 6'd13,
+    EXEC_ORI    = 6'd14,
+    EXEC_ANDI   = 6'd15,
+    EXEC_SLLI   = 6'd16,
+    EXEC_SRLI   = 6'd17,
+    EXEC_SRAI   = 6'd18,
+    EXEC_LUI    = 6'd19,
+    EXEC_AUIPC  = 6'd20,
+    EXEC_JAL    = 6'd21,
+    EXEC_JALR   = 6'd22,
+    EXEC_BEQ    = 6'd23,
+    EXEC_BNE    = 6'd24,
+    EXEC_BLT    = 6'd25,
+    EXEC_BGE    = 6'd26,
+    EXEC_BLTU   = 6'd27,
+    EXEC_BGEU   = 6'd28,
+    EXEC_LB     = 6'd29,
+    EXEC_LH     = 6'd30,
+    EXEC_LW     = 6'd31,
+    EXEC_LBU    = 6'd32,
+    EXEC_LHU    = 6'd33,
+    EXEC_SB     = 6'd34,
+    EXEC_SH     = 6'd35,
+    EXEC_SW     = 6'd36,
+    EXEC_MUL    = 6'd37,
+    EXEC_MULH   = 6'd38,
+    EXEC_MULHSU = 6'd39,
+    EXEC_MULHU  = 6'd40,
+    EXEC_DIV    = 6'd41,
+    EXEC_DIVU   = 6'd42,
+    EXEC_REM    = 6'd43,
+    EXEC_REMU   = 6'd44,
+    EXEC_CSR    = 6'd45,
+    EXEC_FENCE  = 6'd46,
+    EXEC_FENCEI = 6'd47,
+    EXEC_ECALL  = 6'd48,
+    EXEC_EBREAK = 6'd49,
+    EXEC_MRET   = 6'd50,
+    EXEC_SRET   = 6'd51,
+    EXEC_WFI    = 6'd52
+  } exec_op_e;
+
   typedef enum logic [1:0] {
     MEM_BYTE = 2'd0,
     MEM_HALF = 2'd1,
@@ -158,6 +217,7 @@ package core_types_pkg;
     logic [VA_BITS-1:0]      pc;
     logic [31:0]             instr;
     op_class_e               op;
+    exec_op_e                exec_op;
     logic [REG_ADDR_W-1:0]   rd;
     logic [REG_ADDR_W-1:0]   rs1;
     logic [REG_ADDR_W-1:0]   rs2;
@@ -181,10 +241,12 @@ package core_types_pkg;
     mem_size_e               mem_size;
     csr_op_e                 csr_op;
     logic [CSR_ADDR_W-1:0]   csr_addr;
-    logic [XLEN-1:0]         csr_wdata;
-    logic [XLEN-1:0]         csr_imm;
-    logic [1:0]              csr_uimm;
+    logic [4:0]              csr_uimm;
     logic                    csr_uimm_valid;
+    logic [7:0]              pred_index;
+    logic                    fetch_exc_valid;
+    exception_cause_e        fetch_exc_cause;
+    logic [VA_BITS-1:0]      fetch_exc_tval;
     logic                    pred_taken;
     logic [VA_BITS-1:0]      pred_target;
   } decoded_slot_t;
@@ -202,6 +264,7 @@ package core_types_pkg;
     logic                    valid;
     rob_token_t              token;
     op_class_e               op;
+    exec_op_e                exec_op;
     logic [REG_ADDR_W-1:0]   rd;
     logic [REG_ADDR_W-1:0]   rs1;
     logic [REG_ADDR_W-1:0]   rs2;
@@ -219,6 +282,15 @@ package core_types_pkg;
     csr_op_e                 csr_op;
     logic [CSR_ADDR_W-1:0]   csr_addr;
     logic [XLEN-1:0]         csr_wdata;
+    logic [4:0]              csr_uimm;
+    logic                    csr_uimm_valid;
+    logic [7:0]              pred_index;
+    logic                    fetch_exc_valid;
+    exception_cause_e        fetch_exc_cause;
+    logic [VA_BITS-1:0]      fetch_exc_tval;
+    logic                    illegal;
+    exception_cause_e        illegal_cause;
+    logic [XLEN-1:0]         illegal_tval;
     logic                    pred_taken;
     logic [VA_BITS-1:0]      pred_target;
     logic [XLEN-1:0]         next_pc;
@@ -232,11 +304,19 @@ package core_types_pkg;
     logic                    is_wfi;
   } renamed_slot_t;
 
-  // Dispatch is atomic over a contiguous prefix. accept_count is the number
-  // of leading slots actually allocated (0, 1, or 2).
+  // Reverse prefix-accept response. The sender keeps the complete bundle
+  // stable until the consumer returns accept_count; the consumer accepts only
+  // the leading 0/1/2 slots in program order.
+  typedef struct packed {
+    logic [1:0] accept_count;
+  } prefix_accept_t;
+
+  typedef prefix_accept_t fetch_accept_t;
+  typedef prefix_accept_t decode_accept_t;
+  typedef prefix_accept_t dispatch_accept_t;
+
   typedef struct packed {
     logic [NUM_SLOTS-1:0]       slot_valid;
-    logic [1:0]                 accept_count;
     renamed_slot_t [NUM_SLOTS-1:0] slot;
   } dispatch_bundle_t;
 
@@ -249,6 +329,8 @@ package core_types_pkg;
     rob_token_t              token;
     fu_type_e                fu;
     op_class_e               op;
+    exec_op_e                exec_op;
+    logic [31:0]             instr;
     logic [XLEN-1:0]         src1;
     logic [XLEN-1:0]         src2;
     logic [XLEN-1:0]         imm;
@@ -259,6 +341,15 @@ package core_types_pkg;
     csr_op_e                 csr_op;
     logic [CSR_ADDR_W-1:0]   csr_addr;
     logic [XLEN-1:0]         csr_wdata;
+    logic [4:0]              csr_uimm;
+    logic                    csr_uimm_valid;
+    logic [7:0]              pred_index;
+    logic                    fetch_exc_valid;
+    exception_cause_e        fetch_exc_cause;
+    logic [VA_BITS-1:0]      fetch_exc_tval;
+    logic                    illegal;
+    exception_cause_e        illegal_cause;
+    logic [XLEN-1:0]         illegal_tval;
     logic                    pred_taken;
     logic [VA_BITS-1:0]      pred_target;
     logic [XLEN-1:0]         next_pc;
@@ -296,7 +387,6 @@ package core_types_pkg;
   // a zero value is never used to mean "not observed".
   typedef struct packed {
     logic                    valid;
-    logic [63:0]             seq;        // simulation/trace only
     rob_token_t              token;
     logic [VA_BITS-1:0]      pc;
     logic [31:0]             instr;
@@ -305,7 +395,8 @@ package core_types_pkg;
     logic                    rd_we;
     logic [REG_ADDR_W-1:0]   rd;
     logic [XLEN-1:0]         rd_data;
-    logic                    csr_we;
+    logic                    csr_rd_valid;
+    logic                    csr_wr_valid;
     logic [CSR_ADDR_W-1:0]   csr_addr;
     logic [XLEN-1:0]         csr_wdata;
     logic [XLEN-1:0]         csr_rdata;

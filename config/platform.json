@@ -62,7 +62,25 @@
       "final": "implemented",
       "access": "rw",
       "cacheable": false,
-      "note": "8-bit MMIO UART; byte accesses only in P1."
+      "note": "8-bit MMIO UART; byte accesses only in P1.",
+      "registers": [
+        {
+          "name": "DATA",
+          "offset": "0x0",
+          "width": 8,
+          "access": "rw",
+          "reset": "0x0",
+          "note": "THR/RBR; byte access only"
+        },
+        {
+          "name": "STATUS",
+          "offset": "0x4",
+          "width": 8,
+          "access": "r",
+          "reset": "0x1",
+          "note": "bit0 tx_ready, bit1 rx_valid; read-only"
+        }
+      ]
     },
     {
       "name": "test_result",
@@ -72,7 +90,17 @@
       "final": "implemented",
       "access": "rw",
       "cacheable": false,
-      "note": "32-bit write-only result register; write before halt."
+      "note": "32-bit RW result register; read returns last written value, reset 0; only aligned word accesses.",
+      "registers": [
+        {
+          "name": "RESULT",
+          "offset": "0x0",
+          "width": 32,
+          "access": "rw",
+          "reset": "0x0",
+          "note": "read returns last written value; no read side effect"
+        }
+      ]
     },
     {
       "name": "fpu_mmio",

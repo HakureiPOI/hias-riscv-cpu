@@ -1,109 +1,129 @@
-# CSR 支持表（P0-02 候选基线）
+# CSR 支持表（P0-02-R1 修订基线）
 
-状态：**规格候选，未冻结；当前 CPU 未实现任何 CSR。** 本表覆盖 P1 最小核与最终 M/S/U + Sv32 目标。规范依据为技术调研记录锁定的 `v20260120` 文档集合：
+状态：**规格候选，待管理复审冻结；当前 CPU 未实现任何 CSR。** 本文落实 P0-02 管理审查的 D01—D11，规范依据为锁定的 `v20260120`：
 
+- [Zicsr 2.0](https://docs.riscv.org/reference/isa/v20260120/unpriv/zicsr.html)
+- [CSR 权限与地址表](https://docs.riscv.org/reference/isa/priv/priv-csrs.html)
 - [Machine 1.13](https://docs.riscv.org/reference/isa/v20260120/priv/machine.html)
 - [Supervisor 1.13](https://docs.riscv.org/reference/isa/v20260120/priv/supervisor.html)
-- [Zicsr 2.0](https://docs.riscv.org/reference/isa/v20260120/unpriv/zicsr.html)
 
 ## 1 通用规则
 
-- 地址为 12 位。未列出的地址按“未实现 CSR”处理：读返回 0、写忽略，或按实现选择产生非法指令；本基线统一为**读返回 0、写忽略**，但不得伪装成已支持功能。
-- 读写权限由 `[11:10]` 编码：`11` 只读、`01`/`10`/`00` 读写。P1 只在 M-mode 运行；S/U 访问越权 CSR 产生非法指令。
-- WARL 字段写入非法值后必须读回合法值；WPRI 位读 0、写忽略；只读位写忽略。
-- `misa` 的扩展位只反映实际实现；P1 只置 I，P3 加 M，P5 视实现加 S/U。
-- CSR 指令的读写抑制规则按 Zicsr：`csrrw` 总是写；`csrrs/csrrc` 在 `rs1=x0` 时不写；立即数形式 `zimm=0` 时不写。读抑制在 `rd=x0` 时仍允许发生副作用，但实现可以选择不读；本基线规定 **rd=x0 时不读 CSR，但写仍发生**。
-- CSR/Trap/返回/Fence 在提交头串行执行，完成架构更新后清除年轻指令并重取。
-- 计数器在 P1 为只读零或按平台实现的确定性递增；若实现递增，必须提供 `mcycle`/`minstret` 及 `mcycleh`/`minstreth`。本基线 P1 固定为**只读零**，避免不确定值进入差分；P3 再决定是否启用真实计数。
+- 地址 12 位；权限编码 `[11:10]`，最低特权编码 `[9:8]`。M-mode 访问已实现、低权限的 CSR 不构成越权；S/U 访问更高权限 CSR 才产生非法指令。
+- 整只只读 CSR：读允许，任何写尝试（CSRRW/CSRRWI 总是写；CSRRS/CSRRC/CSRRSI/CSRRCI 仅在 rs1≠x0/zimm≠0 时写）产生非法指令。
+- 可写 CSR 内的只读位/WPRI：写入被忽略，读回固定值；不产生异常。
+- 未实现且未列为本项目零项 CSR 的地址：**非法指令**（D04）。明确列出的零项 CSR 按其规则读 0、写忽略。
+- WARL 字段写入非法值后必须读回合法值；实现不得只写“忽略或保留”而不固定行为。
+- CSR 指令在提交头串行执行；完成架构更新后清除年轻指令并重取。
 
-## 2 P1 最小集合
+## 2 六种 CSR 指令的读写条件（修正版）
 
-| 地址 | 名称 | 权限 | 复位值 | 实现位 | WARL/WPRI/只读 | P1 | 最终 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `0x300` | mstatus | RW | `0x0000_0000` | MIE(3)、MPIE(7)、MPP[12:11]、MPRV(17)、SUM(18)、MXR(19)、FS[14:13]、SD(31) 见下 | MPP WARL 仅 M（P1）；FS 只读 0（无 F）；SD 由 FS/XS 决定 | 是 | 是 |
-| `0x301` | misa | RW | `0x4000_0000`（MXL=1, I） | MXL[31:30]、扩展位 I/M/S/U | 扩展位只读实际支持；写只能清除允许清除的位 | 是 | 是 |
-| `0x305` | mtvec | RW | `0x0000_0000` | BASE[31:2]、MODE[1:0] | MODE WARL：仅 Direct(0)；其他值回读 0 | 是 | 是 |
-| `0x341` | mepc | RW | `0x0000_0000` | [31:0] | 低 2 位读 0（无 C）；写入忽略低 2 位 | 是 | 是 |
-| `0x342` | mcause | RW | `0x0000_0000` | Interrupt(31)、Exception Code[30:0] | 只实现已列 cause；写入其他值按 WARL 保留或回读合法值 | 是 | 是 |
-| `0x343` | mtval | RW | `0x0000_0000` | [31:0] | 无 C 时低 2 位对地址类异常有效 | 是 | 是 |
-| `0x340` | mscratch | RW | `0x0000_0000` | [31:0] | — | 是 | 是 |
-| `0x304` | mie | RW | `0x0000_0000` | MSIE(3)、MTIE(7)、MEIE(11) | 未实现位只读 0；P1 可写但无中断源 | 是 | 是 |
-| `0x344` | mip | RW | `0x0000_0000` | MSIP(3)、MTIP(7)、MEIP(11) | 只读或由硬件置位；软件写按规范 | 是 | 是 |
-| `0x30a` | menvcfg | RW | `0x0000_0000` | 见下 | P1 无 U 模式，保持 0 | 否（P5） | 是 |
-| `0x31a` | menvcfgh | RW | `0x0000_0000` | 高 32 位 | RV32 别名 | 否（P5） | 是 |
-| `0x747` | mhpmevent3 | RW | `0x0000_0000` | 事件选择 | 未实现计数时为 0 | 否 | 是 |
-| `0xb00` | mcycle | RW | `0x0000_0000` | [31:0] | P1 只读零；P3 决定 | 是（只读零） | 是 |
-| `0xb02` | minstret | RW | `0x0000_0000` | [31:0] | 同上 | 是（只读零） | 是 |
-| `0xb80` | mcycleh | RW | `0x0000_0000` | [63:32] | 同上 | 是（只读零） | 是 |
-| `0xb82` | minstreth | RW | `0x0000_0000` | [63:32] | 同上 | 是（只读零） | 是 |
-| `0xf11` | mvendorid | RO | `0x0000_0000` | [31:0] | 只读；0 表示非商业实现 | 是 | 是 |
-| `0xf12` | marchid | RO | `0x0000_0000` | [31:0] | 只读 | 是 | 是 |
-| `0xf13` | mimpid | RO | `0x0000_0000` | [31:0] | 只读 | 是 | 是 |
-| `0xf14` | mhartid | RO | `0x0000_0000` | [31:0] | 只读；单核恒 0 | 是 | 是 |
-| `0x306` | mcounteren | RW | `0x0000_0000` | CY(0)、TM(1)、IR(2) | P1 无 S/U，保持 0 | 是 | 是 |
+`rd` 抑制读、`rs1` 抑制写；两者不能混用“值是否为零”。
 
-P1 说明：
+| 指令 | 读 CSR？ | 写 CSR？ | 说明 |
+| --- | --- | --- | --- |
+| CSRRW rd, csr, rs1 | `rd != x0` | 总是写 | rd=x0 时抑制读（含读副作用），但写仍发生 |
+| CSRRS rd, csr, rs1 | 总是读 | `rs1 != x0` | rs1=x0 抑制写；rs1 编号非零但值为零仍写 |
+| CSRRC rd, csr, rs1 | 总是读 | `rs1 != x0` | 同上 |
+| CSRRWI rd, csr, zimm | `rd != x0` | 总是写 | zimm=0 也执行写（写入 0） |
+| CSRRSI rd, csr, zimm | 总是读 | `zimm != 0` | zimm=0 抑制写 |
+| CSRRCI rd, csr, zimm | 总是读 | `zimm != 0` | zimm=0 抑制写 |
 
-- `mstatus` 在 P1 只使用 MIE/MPIE/MPP。MPP 写入非 M 值按 WARL 回读 M 或 0，实现需固定并在测试中记录。本基线选择 **MPP 只支持 M(11)，其他写入回读 11**。
-- `misa` 的 `MXL` 必须为 1（32 位）；I 位固定 1；M 位 P3 置位。
-- `menvcfg`/`menvcfgh` 在 P1 未实现，读 0、写忽略；P5 引入 Sv32 时按规范实现 PBMT/ADUE 等必要位，`ADUE` 固定 0（Svade）。
-- `mip` 的 MSIP/MTIP/MEIP 由平台输入驱动；P1 无 CLINT/PLIC，软件可读，硬件保持 0。
-- `mhpmevent3` 及 `mhpmcounter*` 在 P1 读 0、写忽略；不宣称性能计数器。
+补充：
 
-## 3 最终（P5 起）M/S/U 集合
+- `CSRRW rd=x0, csr, rs1` 不读 CSR；若该 CSR 读有副作用，不得触发。
+- `CSRRWI rd=x0, csr, 0` 仍然写 0。
+- `CSRRS/CSRRC rd=x0` 仍读 CSR（因为指令需要读值来计算写值），但写抑制由 rs1 决定。
+- `csr_uimm` 为完整 5 位，范围 0—31，不得截断。
 
-| 地址 | 名称 | 权限 | 复位值 | 关键实现位 | 阶段 |
-| --- | --- | --- | --- | --- | --- |
-| `0x100` | sstatus | RW | 见 mstatus 别名 | SIE(1)、SPIE(5)、SPP(8)、SUM(18)、MXR(19)、FS/SD | P5 |
-| `0x104` | sie | RW | 0 | SSIE(1)、STIE(5)、SEIE(9) | P5 |
-| `0x105` | stvec | RW | 0 | BASE、MODE（Direct） | P5 |
-| `0x106` | scounteren | RW | 0 | CY/TM/IR | P5 |
-| `0x10a` | senvcfg | RW | 0 | 必要位 | P5 |
-| `0x140` | sscratch | RW | 0 | [31:0] | P5 |
-| `0x141` | sepc | RW | 0 | 低 2 位读 0 | P5 |
-| `0x142` | scause | RW | 0 | 与 mcause 相同编码 | P5 |
-| `0x143` | stval | RW | 0 | [31:0] | P5 |
-| `0x144` | sip | RW | 0 | SSIP(1)、STIP(5)、SEIP(9) | P5 |
-| `0x180` | satp | RW | 0 | MODE(31) WARL：Bare(0)/Sv32(1)；ASID[30:22] 只读 0；PPN[21:0] | P5 |
-| `0x200` | vsstatus | — | — | 不实现 H | — |
-| `0x300` | mstatus | RW | 见上 | 增加 SPP、SIE、MPRV 等 | 是 |
-| `0x302` | medeleg | RW | 0 | 可委托异常位 | P5 |
-| `0x303` | mideleg | RW | 0 | 可委托中断位 | P5 |
-| `0x310` | mstatush | RW | 0 | RV32 高位别名（MPRV 等） | P5 |
-| `0x30a` | menvcfg | RW | 0 | ADUE=0（Svade）、PBMT=0 | P5 |
-| `0x31a` | menvcfgh | RW | 0 | RV32 高位 | P5 |
-| `0x3a0` | pmpcfg0 | RW | 0 | P1—P5 零项；读 0、写忽略 | 是（零项） |
-| `0x3b0`–`0x3bf` | pmpaddr0–15 | RW | 0 | 零项；读 0、写忽略 | 是（零项） |
+## 3 P1 最小集合（D01/D03/D04）
 
-别名与掩码：
+P1 = RV32I（40 条，含 FENCE/ECALL/EBREAK）+ 六种 Zicsr + 保守 Zifencei + 最小 M-mode Trap/CSR。M 扩展仍在 P3。
 
-- `sstatus` 是 `mstatus` 的受限视图：可写位由规范固定；P5 实现时列出准确掩码并测试。
-- `sie/sip` 是 `mie/mip` 的受限视图；委托后 S 级可见。
-- `mstatush` 在 RV32 只包含 mstatus 高半部分字段（如 MPRV 的高位不存在时读 0）。
-- `satp` ASIDLEN=0：ASID 写入按 WARL 读回 0；MODE 仅 Bare/Sv32；PPN 在 Bare 时忽略。
-- `medeleg/mideleg` 对未实现异常/中断位只读 0。
-- `mcounteren/scounteren` 在无 S/U 时保持 0；P5 按计数器是否启用决定。
+| 地址 | 名称 | 权限 | 复位值 | 实现与写规则 | P1 | 最终 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `0x300` | mstatus | RW | **`0x0000_1800`** | MIE(3)、MPIE(7)、MPP[12:11] 可写；MPP 仅 M(11)，其他写入回读 11；MIE/MPIE 复位 0；其余位读 0、写忽略 | 是 | 是 |
+| `0x301` | misa | RO（本项目） | **`0x4000_0100`** | MXL=1、I=1；P1 固定报告 RV32I，写不改变能力；P3/P5 若启用 M/S/U 再更新只读值 | 是 | 是 |
+| `0x305` | mtvec | RW | `0x0000_0000` | BASE[31:2]；MODE 仅 Direct(0)，其他写入回读 0 | 是 | 是 |
+| `0x341` | mepc | RW | `0x0000_0000` | 低 2 位读 0（无 C）；写入忽略低 2 位 | 是 | 是 |
+| `0x342` | mcause | RW | `0x0000_0000` | Interrupt(31)+Code；只接受已实现 cause，其他 WARL 回读 0 | 是 | 是 |
+| `0x343` | mtval | RW | `0x0000_0000` | 32 位；按异常规则写 | 是 | 是 |
+| `0x340` | mscratch | RW | `0x0000_0000` | 32 位读写 | 是 | 是 |
+| `0x304` | mie | RW | `0x0000_0000` | MSIE(3)、MTIE(7)、MEIE(11)；未实现位只读 0 | 是 | 是 |
+| `0x344` | mip | RW | `0x0000_0000` | MSIP(3) 可写；MTIP(7)/MEIP(11) 由平台输入驱动，软件写忽略 | 是 | 是 |
+| `0x320` | mcountinhibit | RW | `0x0000_0000` | CY(0)、IR(2) 可写；TM(1) 只读 0；写在下一条指令生效 | 是 | 是 |
+| `0x306` | mcounteren | RW | `0x0000_0000` | CY(0)、TM(1)、IR(2)；P1 无 S/U，仅保存值 | 是 | 是 |
+| `0xb00` | mcycle | RW | `0x0000_0000` | 64 位计数器低半；可读写；正常每周期加 1 | 是 | 是 |
+| `0xb80` | mcycleh | RW | `0x0000_0000` | 64 位高半；可读写 | 是 | 是 |
+| `0xb02` | minstret | RW | `0x0000_0000` | 64 位退休指令计数低半；可读写；异常指令不计 | 是 | 是 |
+| `0xb82` | minstreth | RW | `0x0000_0000` | 高半；可读写 | 是 | 是 |
+| `0xf11` | mvendorid | RO | `0x0000_0000` | 只读零 | 是 | 是 |
+| `0xf12` | marchid | RO | `0x0000_0000` | 只读零 | 是 | 是 |
+| `0xf13` | mimpid | RO | `0x0000_0000` | 只读零 | 是 | 是 |
+| `0xf14` | mhartid | RO | `0x0000_0000` | 只读零；单核 | 是 | 是 |
+| `0x310` | mstatush | RO | `0x0000_0000` | RV32 高半实现位均为 0；写忽略。MPRV 不在高半 | 是 | 是 |
 
-## 4 读写抑制与副作用
+计数器规则（D03）：
 
-| 指令 | rd=x0 | rs1=x0 / zimm=0 | 写 | 读 |
+- `mcycle`/`minstret` 为 64 位，RV32 通过低/高半 CSR 访问；复位为 0，允许软件写。
+- CSR 写在提交头生效；同一周期“写 vs 自增”冲突时，**写优先**，该周期不自增。`mcycle` 写入值从下一周期继续递增。
+- 写入 `minstret` 的指令本身不增加计数（写优先）；后续退休指令恢复计数。
+- 异常指令、被 Flush 的年轻指令不计入 `minstret`。
+- `mcountinhibit.CY/IR` 分别停止 `mcycle`/`minstret` 自增；软件写 CSR 仍可修改计数值。
+- 不与 Spike 的周期数直接比较；P1 用受控计数/相对关系自检。
+
+其他 P1 规则：
+
+- `misa` 固定 `0x40000100`；写不改变能力（整只只读）。
+- `mstatus` 复位 `0x00001800`；MPP=3，MIE/MPIE=0；未实现位读 0。
+- P1 没有 U/S，M-mode 访问已实现 CSR 不越权。
+- 未实现地址（如 `satp`、`medeleg`、`mideleg`、`mhpmevent3=0x323`、`mseccfg=0x747`、PMP 等）在 P1 产生非法指令；若未来定义为零项，必须在本表明确。
+- `mhpmevent3` 地址是 `0x323`；`0x747` 是 `mseccfg`，当前不实现。
+- MPRV 位于 `mstatus[17]`；`mstatush` 不含 MPRV。
+
+## 4 最终 M/S/U 集合（P5 起）
+
+| 地址 | 名称 | 权限 | 复位 | 关键规则 |
 | --- | --- | --- | --- | --- |
-| csrrw rd, csr, rs1 | 允许 | — | 总是 | rd≠x0 时读 |
-| csrrs rd, csr, rs1 | 允许 | 不写 | rs1≠x0 时写 | rd≠x0 时读 |
-| csrrc rd, csr, rs1 | 允许 | 不写 | rs1≠x0 时写 | rd≠x0 时读 |
-| csrrwi rd, csr, zimm | 允许 | zimm=0 不写 | zimm≠0 时写 | rd≠x0 时读 |
-| csrrsi rd, csr, zimm | 允许 | zimm=0 不写 | zimm≠0 时写 | rd≠x0 时读 |
-| csrrci rd, csr, zimm | 允许 | zimm=0 不写 | zimm≠0 时写 | rd≠x0 时读 |
+| `0x100` | sstatus | RW | `0x0000_0000` | mstatus 受限视图；SIE(1)、SPIE(5)、SPP(8)、SUM(18)、MXR(19) |
+| `0x104` | sie | RW | 0 | SSIE(1)、STIE(5)、SEIE(9)；mie 视图 |
+| `0x105` | stvec | RW | 0 | 同 mtvec，Direct |
+| `0x106` | scounteren | RW | 0 | CY/TM/IR |
+| `0x10a` | senvcfg | RW | 0 | 实现位按最终配置 |
+| `0x140` | sscratch | RW | 0 | 32 位 |
+| `0x141` | sepc | RW | 0 | 低 2 位读 0 |
+| `0x142` | scause | RW | 0 | 同 mcause 编码 |
+| `0x143` | stval | RW | 0 | 32 位 |
+| `0x144` | sip | RW | 0 | SSIP(1) 可写；STIP/SEIP 由平台/委托驱动 |
+| `0x180` | satp | RW | 0 | MODE Bare/Sv32；ASIDLEN=0，ASID 回读 0；PPN[21:0] |
+| `0x302` | medeleg | RW | 0 | 仅可委托异常位；未实现位只读 0 |
+| `0x303` | mideleg | RW | 0 | 仅可委托中断位；未实现位只读 0 |
+| `0x30a` | menvcfg | RW | 0 | ADUE=0（Svade）、PBMT=0；不承诺 Svpbmt/Svadu |
+| `0x31a` | menvcfgh | RW | 0 | RV32 高半 |
+| `0x3a0` | pmpcfg0 | RW | 0 | 零项；读 0、写忽略 |
+| `0x3b0`–`0x3bf` | pmpaddr0–15 | RW | 0 | 零项；读 0、写忽略 |
 
-- 非法/只读 CSR 写入产生非法指令，且不改变 CSR 状态。
-- 越权访问（P1 在 M-mode 访问 S/U CSR）产生非法指令。
-- CSR 指令在 ROB 头串行执行；结果与 CSR 状态共同提交。完成架构更新后清除年轻指令并重取，避免旧权限/旧 satp 下的年轻访存继续提交。
-- `FENCE` 保守等待先前访存完成；`FENCE.I` 按 Zifencei 全流程同步。
-- `MRET`/`SRET` 恢复 MPP/SPP、MPIE/SPIE、MIE/SIE 与特权，目标 PC 为 mepc/sepc；返回后年轻指令全部重取。
+`misa` 在最终配置启用 M/S/U 后只读报告相应位；写仍不改变能力。`medeleg/mideleg` 的有效位随已实现异常/中断集合固定。
 
-## 5 待审问题
+## 5 Trap 与返回规则
 
-1. `mstatus.MPP` 的 WARL 行为（本基线只支持 M）需与 P1 测试对齐。
-2. P1 计数器固定只读零是否影响课程 Benchmark 口径；P3 需重新决定。
-3. `menvcfg` 的 PBMT/ADUE 位在 P5 的确切取值需与 Svade 配置一致。
-4. 课程是否要求 `misa` 反映 S/U（取决于是否要求用户态演示）。
+| 事件 | cause | tval | EPC | 说明 |
+| --- | --- | --- | --- | --- |
+| ECALL U/S/M | 8/9/11 | 0 | ECALL 指令 PC | P1 仅 M |
+| EBREAK | 3 | **0** | EBREAK 指令 PC | 正文与表统一为 0 |
+| 非法指令 | 2 | 指令编码（32 位） | 指令 PC | 不写 rd/CSR |
+| 取指/跳转目标非对齐 | 0 | 错误目标地址 | 跳转/分支指令 PC | 分支仅在实际跳转时检查 |
+| 非对齐 load/store | 4/6 | 有效地址 | 指令 PC | — |
+| 访问故障 | 1/5/7 | 出错地址 | 指令 PC | PMA 拒绝 |
+| Page Fault | 12/13/15 | 出错 VA | 指令 PC | P5/Svade |
+
+- JALR 先清 `target[0]`，再要求 `target[1]==0`；JAL/branch 目标必须 4 字节对齐。
+- MRET 从 mepc 返回；P1 只返回 M。SRET 与 SFENCE.VMA 在 P1 产生非法指令（D02）。
+- 中断：当前权限低于目标权限时不响应；等于或高于目标权限时按委托规则决定；不能一律要求目标级全局使能位为 1。M-mode 下响应 M 中断需 `mstatus.MIE`；S 中断在 M 下需委托且 `mstatus.MIE`/相应条件按规范。
+- 中断优先级 MEI > MSI > MTI > SEI > SSI > STI；在提交边界评估，异常指令不退休，EPC 指向首条未退休指令。
+
+## 6 依据与阶段
+
+- 六种 CSR 读写条件、CSR 地址/权限、mstatus/misa 字段依据 Zicsr/Machine 规范；本项目选择非法指令/零项策略处已标为项目决策（D04）。
+- P1 计数器/Trap/返回/精确副作用列入 P1 验证（D10）；Spike 提交日志不能表达 CSR 快照时，使用调试 CSR 快照或独立参考测试。
+- M 扩展在 P3；P1 软件构建不得隐含 M/A/F 运行库依赖。

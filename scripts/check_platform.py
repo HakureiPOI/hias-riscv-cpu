@@ -85,6 +85,11 @@ def check_header() -> None:
         "PLATFORM_RAM_BASE": int(cfg["memory"]["base"], 0),
         "PLATFORM_RAM_SIZE": int(cfg["memory"]["size"], 0),
         "PLATFORM_RESET_VECTOR": int(cfg["software"]["reset_vector"], 0),
+        "PLATFORM_PAGE_TABLE_BASE": 0x8001a000,
+        "PLATFORM_PAGE_TABLE_END": 0x8001e000,
+        "PLATFORM_PAGE_TABLE_RESERVE": int(cfg["software"]["page_table_reserve"], 0),
+        "PLATFORM_LAYOUT_GAP_START": 0x8001e000,
+        "PLATFORM_LAYOUT_GAP_END": 0x8001eff0,
     }
     for name, value in expected.items():
         if name not in macros:
@@ -163,8 +168,8 @@ def check_elf_layout() -> None:
             symbols[parts[2]] = int(parts[0], 16)
     required = [
         "_start", "__bss_end", "__signature_start", "__signature_end",
-        "__page_table_start", "__page_table_end", "__stack_limit", "_stack_top",
-        "tohost", "fromhost",
+        "__page_table_start", "__page_table_end", "__layout_gap_start",
+        "__layout_gap_end", "__stack_limit", "_stack_top", "tohost", "fromhost",
     ]
     for name in required:
         if name not in symbols:
@@ -176,8 +181,18 @@ def check_elf_layout() -> None:
             <= symbols["__page_table_end"] <= symbols["__stack_limit"]
             <= symbols["_stack_top"] < end):
         raise CheckError("reserved region ordering is invalid")
-    if symbols["__page_table_start"] % 4096 != 0:
-        raise CheckError("page table reserve is not 4 KiB aligned")
+    if symbols["__page_table_start"] != 0x8001a000:
+        raise CheckError(f"page table base 0x{symbols['__page_table_start']:x} != 0x8001a000")
+    if symbols["__page_table_end"] != 0x8001e000:
+        raise CheckError(f"page table end 0x{symbols['__page_table_end']:x} != 0x8001e000")
+    if symbols["__page_table_end"] - symbols["__page_table_start"] != 0x4000:
+        raise CheckError("page table size is not 0x4000")
+    if symbols["__signature_end"] != symbols["__page_table_start"]:
+        raise CheckError("signature end does not meet page table base")
+    if symbols["__layout_gap_start"] != symbols["__page_table_end"]:
+        raise CheckError("layout gap start does not meet page table end")
+    if symbols["__layout_gap_end"] != symbols["__stack_limit"]:
+        raise CheckError("layout gap end does not meet stack limit")
     if symbols["_stack_top"] >= end:
         raise CheckError("stack top outside RAM")
 
@@ -199,6 +214,8 @@ def check_elf_layout() -> None:
           f"0x{symbols['__signature_end']:08x}) "
           f"page_tables=[0x{symbols['__page_table_start']:08x},"
           f"0x{symbols['__page_table_end']:08x}) "
+          f"gap=[0x{symbols['__layout_gap_start']:08x},"
+          f"0x{symbols['__layout_gap_end']:08x}) "
           f"stack_limit=0x{symbols['__stack_limit']:08x} "
           f"stack_top=0x{symbols['_stack_top']:08x}")
 
@@ -245,8 +262,12 @@ def check_spike_features() -> None:
           f"memory={mem} mmu=sv32 (ISA string accepted; not full verification)")
 
 
-def negative_probe(name: str, mutate) -> None:
-    """Write a mutated config copy, validate it, and require rejection."""
+def negative_probe(name: str, mutate, reason: str) -> None:
+    """Validate a mutated config and require the semantic config error.
+
+    Uses --validate-only so generated-file drift cannot masquerade as a
+    semantic rejection. Exit 2 is the config error code.
+    """
     import tempfile
 
     cfg = load_config()
@@ -256,13 +277,47 @@ def negative_probe(name: str, mutate) -> None:
         path = handle.name
     try:
         result = run([sys.executable, str(ROOT / "scripts" / "gen_platform.py"),
-                      "--config", path, "--check"])
+                      "--config", path, "--validate-only"])
     finally:
         Path(path).unlink(missing_ok=True)
-    if result.returncode == 0:
-        raise CheckError(f"negative config '{name}' was accepted")
-    first = (result.stderr or result.stdout).strip().splitlines()
-    print(f"PLATFORM_CHECK_NEGATIVE_OK: {name} ({first[0] if first else 'rejected'})")
+    if result.returncode != 2:
+        raise CheckError(
+            f"negative config '{name}' did not return semantic error 2 "
+            f"(got {result.returncode}): {result.stderr or result.stdout}")
+    if reason not in (result.stderr or result.stdout):
+        raise CheckError(f"negative config '{name}' missing reason '{reason}': "
+                         f"{result.stderr or result.stdout}")
+    print(f"PLATFORM_CHECK_NEGATIVE_OK: {name} (exit=2, reason='{reason}')")
+
+
+def drift_probe() -> None:
+    """Prove generated-file drift is a distinct failure (exit 3)."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp)
+        gen = out / "software" / "generated"
+        cfg_out = out / "config"
+        gen.mkdir(parents=True)
+        cfg_out.mkdir(parents=True)
+        for src, dst in (
+            (GEN_H, gen / "platform.h"),
+            (GEN_LD, gen / "platform.ld"),
+            (SPIKE_ARGS, cfg_out / "platform.spike.args"),
+            (ROOT / "config" / "platform.generated.json",
+             cfg_out / "platform.generated.json"),
+        ):
+            dst.write_bytes(src.read_bytes())
+        # Mutate only the copied header; the config itself stays valid.
+        with (gen / "platform.h").open("a", encoding="utf-8") as handle:
+            handle.write("\n/* drift */\n")
+        result = run([sys.executable, str(ROOT / "scripts" / "gen_platform.py"),
+                      "--check", "--out-dir", tmp])
+        if result.returncode != 3:
+            raise CheckError(
+                f"generated drift was not rejected with exit 3 "
+                f"(got {result.returncode}): {result.stderr or result.stdout}")
+        print("PLATFORM_CHECK_DRIFT_OK: generated drift rejected with exit=3")
 
 
 def run_negative_probes() -> None:
@@ -291,13 +346,19 @@ def run_negative_probes() -> None:
     def mmio_duplicate(cfg):
         cfg["mmio"].append(dict(cfg["mmio"][2]))
 
-    negative_probe("mmio_overlaps_ram", overlap_mmio)
-    negative_probe("wrong_ram_size", wrong_size)
-    negative_probe("misaligned_mmio", misaligned_mmio)
-    negative_probe("spike_memory_mismatch", spike_mismatch)
-    negative_probe("wrong_pa_bits", bad_pa)
-    negative_probe("stack_exceeds_ram", stack_overflow)
-    negative_probe("duplicate_mmio_name", mmio_duplicate)
+    def non_page_granular(cfg):
+        cfg["software"]["page_table_reserve"] = "0x2800"
+
+    negative_probe("mmio_overlaps_ram", overlap_mmio, "range overlaps ram")
+    negative_probe("wrong_ram_size", wrong_size, "memory.size must be 0x20000")
+    negative_probe("misaligned_mmio", misaligned_mmio, "4 KiB aligned")
+    negative_probe("spike_memory_mismatch", spike_mismatch, "memory_arg must be")
+    negative_probe("wrong_pa_bits", bad_pa, "pa_bits must be 34")
+    negative_probe("stack_exceeds_ram", stack_overflow, "reserved regions")
+    negative_probe("duplicate_mmio_name", mmio_duplicate, "duplicate")
+    negative_probe("page_table_not_page_granular", non_page_granular,
+                   "page_table_reserve must be")
+    drift_probe()
 
 
 def main(argv: list[str]) -> int:

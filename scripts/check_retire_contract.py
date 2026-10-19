@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
-"""Check the P0-02 retirement/trap contract and example records.
+"""P0-02-R1 retirement/trap contract checker and Spike converter.
 
-Modes:
-  --validate-examples   validate every JSONL record against retire_schema.json
-  --self-test           run the validator against deliberately bad records and
-                        require each one to be rejected
-  --convert-spike FILE  convert selected real Spike --log-commits lines to
-                        contract-shaped records (source=spike-derived)
-
-The validator enforces explicit valid bits and rejects zero/null used to
-pretend an observation exists. It never claims these examples are DUT output.
+Protocol version: hias-retire/2.
+- DUT records must carry all hardware observations (token/next_pc valid).
+- Spike-derived records must mark unavailable fields null and list them in
+  not_observed_fields; derived values are listed in derived_fields.
+- Synthetic records are format fixtures and are never DUT evidence.
 """
 
 from __future__ import annotations
@@ -24,6 +20,27 @@ ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = ROOT / "verification" / "spec" / "retire" / "retire_schema.json"
 EXAMPLES = ROOT / "verification" / "spec" / "retire" / "examples"
 
+NORMAL_REQUIRED = {
+    "schema", "kind", "source", "seq", "token", "token_valid",
+    "pc", "instr", "next_pc", "next_pc_valid", "priv",
+    "rd_we", "rd", "rd_data",
+    "csr_valid", "csr_rd_valid", "csr_wr_valid", "csr_addr",
+    "csr_wdata", "csr_rdata",
+    "mem_valid", "mem_we", "mem_va", "mem_pa", "mem_size", "mem_mask",
+    "mem_wdata", "mem_rdata", "derived_fields", "not_observed_fields",
+}
+TRAP_REQUIRED = {
+    "schema", "kind", "source", "seq", "pc", "epc", "target_pc",
+    "cause", "is_interrupt", "tval", "from_priv", "to_priv",
+    "mstatus_before", "mstatus_after", "cause_csr_before", "cause_csr_after",
+    "epc_csr_before", "epc_csr_after",
+}
+BUNDLE_REQUIRED = {"schema", "kind", "slots", "trap", "seq_base"}
+SOURCES = {"dut", "spike-derived", "synthetic"}
+PRIVS = {"U", "S", "M"}
+SIZES = {"none", "byte", "half", "word"}
+SIZE_BYTES = {"byte": 1, "half": 2, "word": 4}
+
 
 class RecordError(Exception):
     pass
@@ -33,129 +50,275 @@ def load_schema() -> dict:
     return json.loads(SCHEMA.read_text(encoding="utf-8"))
 
 
-def check_type(value, spec, field: str) -> None:
-    types = spec.get("type")
-    if types is None:
-        return
-    allowed = types if isinstance(types, list) else [types]
-    ok = False
-    for t in allowed:
-        if t == "integer" and isinstance(value, int) and not isinstance(value, bool):
-            ok = True
-        elif t == "boolean" and isinstance(value, bool):
-            ok = True
-        elif t == "string" and isinstance(value, str):
-            ok = True
-        elif t == "null" and value is None:
-            ok = True
-        elif t == "object" and isinstance(value, dict):
-            ok = True
-    if not ok:
-        raise RecordError(f"{field}: expected {allowed}, got {type(value).__name__}")
+def is_int(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
-def check_field(value, spec, field: str) -> None:
-    check_type(value, spec, field)
-    if value is None:
-        return
-    if "const" in spec and value != spec["const"]:
-        raise RecordError(f"{field}: must equal {spec['const']!r}")
-    if "enum" in spec and value not in spec["enum"]:
-        raise RecordError(f"{field}: {value!r} not in {spec['enum']}")
-    if "min" in spec and isinstance(value, int) and value < spec["min"]:
-        raise RecordError(f"{field}: {value} < {spec['min']}")
-    if "max" in spec and isinstance(value, int) and value > spec["max"]:
-        raise RecordError(f"{field}: {value} > {spec['max']}")
+def need_range(value, name: str, lo: int, hi: int) -> None:
+    if not is_int(value) or value < lo or value > hi:
+        raise RecordError(f"{name}: expected integer in [{lo},{hi}], got {value!r}")
 
 
-def validate_normal(record: dict, schema: dict) -> None:
-    for field in schema["required"]:
-        if field not in record:
-            raise RecordError(f"missing field {field}")
-    extra = set(record) - set(schema["required"])
+def need_bool(value, name: str) -> None:
+    if not isinstance(value, bool):
+        raise RecordError(f"{name}: expected boolean, got {type(value).__name__}")
+
+
+def need_str(value, name: str, allowed: set[str] | None = None) -> None:
+    if not isinstance(value, str):
+        raise RecordError(f"{name}: expected string")
+    if allowed is not None and value not in allowed:
+        raise RecordError(f"{name}: {value!r} not in {sorted(allowed)}")
+
+
+def check_keys(record: dict, required: set[str], where: str) -> None:
+    missing = sorted(required - set(record))
+    if missing:
+        raise RecordError(f"{where}: missing fields {missing}")
+    extra = sorted(set(record) - required)
     if extra:
-        raise RecordError(f"unknown fields {sorted(extra)}")
-    fields = schema["fields"]
-    for name, spec in fields.items():
-        if name in record:
-            check_field(record[name], spec, name)
+        raise RecordError(f"{where}: unknown fields {extra}")
+
+
+def csr_expected(instr: int) -> dict | None:
+    """Derive CSR read/write validity from the instruction encoding."""
+    if (instr & 0x7f) != 0x73:
+        return None
+    funct3 = (instr >> 12) & 0x7
+    if funct3 not in (1, 2, 3, 5, 6, 7):
+        return None
+    rd = (instr >> 7) & 0x1f
+    rs1 = (instr >> 15) & 0x1f
+    addr = (instr >> 20) & 0xfff
+    if funct3 == 1:      # CSRRW
+        read, write = rd != 0, True
+    elif funct3 == 2:    # CSRRS
+        read, write = True, rs1 != 0
+    elif funct3 == 3:    # CSRRC
+        read, write = True, rs1 != 0
+    elif funct3 == 5:    # CSRRWI
+        read, write = rd != 0, True
+    elif funct3 == 6:    # CSRRSI
+        read, write = True, rs1 != 0
+    else:                # CSRRCI
+        read, write = True, rs1 != 0
+    return {"addr": addr, "read": read, "write": write}
+
+
+def check_csr(record: dict) -> None:
+    expected = csr_expected(record["instr"])
+    if expected is None:
+        if record["csr_valid"]:
+            raise RecordError("csr_valid set on a non-CSR instruction")
+        return
+    if not record["csr_valid"]:
+        raise RecordError("CSR instruction missing csr_valid")
+    if record["csr_addr"] != expected["addr"]:
+        raise RecordError("csr_addr does not match instruction")
+    if record["csr_rd_valid"] != expected["read"]:
+        raise RecordError("csr_rd_valid does not match CSR read rule")
+    if record["csr_wr_valid"] != expected["write"]:
+        raise RecordError("csr_wr_valid does not match CSR write rule")
+
+
+def expected_mask(size: str, addr: int) -> int:
+    width = SIZE_BYTES[size]
+    if size in ("half", "word") and addr % width != 0:
+        raise RecordError(f"unaligned {size} access at 0x{addr:x}")
+    return ((1 << width) - 1) << (addr & 3)
+
+
+def validate_normal(record: dict) -> None:
+    check_keys(record, NORMAL_REQUIRED, "normal")
+    if record["schema"] != "hias-retire/2":
+        raise RecordError("unsupported schema")
     if record["kind"] != "normal":
-        raise RecordError("normal validator called with kind != normal")
+        raise RecordError("kind must be normal")
+    need_str(record["source"], "source", SOURCES)
+    need_range(record["seq"], "seq", 0, 1 << 62)
+    need_str(record["priv"], "priv", PRIVS)
 
-    token = record["token"]
-    if not isinstance(token, dict) or set(token) != {"idx", "gen"}:
-        raise RecordError("token must be {idx, gen}")
+    if record["token_valid"]:
+        token = record["token"]
+        if not isinstance(token, dict) or set(token) != {"idx", "gen"}:
+            raise RecordError("token must be null or {idx, gen}")
+        need_range(token["idx"], "token.idx", 0, 31)
+        need_range(token["gen"], "token.gen", 0, 255)
+        if "token" in record["not_observed_fields"]:
+            raise RecordError("token is both valid and not observed")
+    else:
+        if record["token"] is not None:
+            raise RecordError("token_valid=false requires token=null")
+        if "token" not in record["not_observed_fields"]:
+            raise RecordError("missing token must be listed in not_observed_fields")
 
+    need_range(record["pc"], "pc", 0, 0xffffffff)
+    need_range(record["instr"], "instr", 0, 0xffffffff)
+    if record["next_pc_valid"]:
+        need_range(record["next_pc"], "next_pc", 0, 0xffffffff)
+        if "next_pc" in record["not_observed_fields"]:
+            raise RecordError("next_pc is both valid and not observed")
+    else:
+        if record["next_pc"] is not None:
+            raise RecordError("next_pc_valid=false requires next_pc=null")
+        if "next_pc" not in record["not_observed_fields"]:
+            raise RecordError("missing next_pc must be listed in not_observed_fields")
+
+    need_bool(record["rd_we"], "rd_we")
+    need_range(record["rd"], "rd", 0, 31)
     if record["rd"] == 0 and record["rd_we"]:
         raise RecordError("rd=x0 must not write")
-    if record["rd_we"] and record["rd_data"] is None:
-        raise RecordError("rd_we=true requires rd_data")
-    if not record["rd_we"] and record["rd_data"] is not None:
+    if record["rd_we"]:
+        need_range(record["rd_data"], "rd_data", 0, 0xffffffff)
+        if "rd_data" in record["not_observed_fields"]:
+            raise RecordError("rd_data is both written and not observed")
+    elif record["rd_data"] is not None:
         raise RecordError("rd_we=false requires rd_data=null")
 
-    if record["csr_we"]:
-        for field in ("csr_addr", "csr_wdata", "csr_rdata"):
-            if record[field] is None:
-                raise RecordError(f"csr_we=true requires {field}")
+    for name in ("csr_valid", "csr_rd_valid", "csr_wr_valid", "mem_valid", "mem_we"):
+        need_bool(record[name], name)
+    if not record["csr_valid"]:
+        if record["csr_rd_valid"] or record["csr_wr_valid"]:
+            raise RecordError("csr_valid=false requires rd/wr valid=false")
+        for name in ("csr_addr", "csr_wdata", "csr_rdata"):
+            if record[name] is not None:
+                raise RecordError(f"csr_valid=false requires {name}=null")
     else:
-        for field in ("csr_addr", "csr_wdata"):
-            if record[field] is not None:
-                raise RecordError(f"csr_we=false requires {field}=null")
+        need_range(record["csr_addr"], "csr_addr", 0, 4095)
+        if record["csr_rd_valid"]:
+            if record["csr_rdata"] is None:
+                if record["source"] == "dut" or "csr_rdata" not in record["not_observed_fields"]:
+                    raise RecordError("CSR read missing csr_rdata observation")
+            else:
+                need_range(record["csr_rdata"], "csr_rdata", 0, 0xffffffff)
+        elif record["csr_rdata"] is not None:
+            raise RecordError("csr_rd_valid=false requires csr_rdata=null")
+        if record["csr_wr_valid"]:
+            if record["csr_wdata"] is None:
+                if record["source"] == "dut" or "csr_wdata" not in record["not_observed_fields"]:
+                    raise RecordError("CSR write missing csr_wdata observation")
+            else:
+                need_range(record["csr_wdata"], "csr_wdata", 0, 0xffffffff)
+        elif record["csr_wdata"] is not None:
+            raise RecordError("csr_wr_valid=false requires csr_wdata=null")
+        check_csr(record)
 
-    if record["mem_valid"]:
-        if record["mem_size"] == "none":
-            raise RecordError("mem_valid=true requires a concrete mem_size")
-        if record["mem_va"] is None or record["mem_pa"] is None:
-            raise RecordError("mem_valid=true requires mem_va and mem_pa")
-        if record["mem_mask"] is None:
-            raise RecordError("mem_valid=true requires mem_mask")
-        if record["mem_pa"] >= (1 << 34):
-            raise RecordError("mem_pa exceeds 34 bits")
-        width = {"byte": 1, "half": 2, "word": 4}[record["mem_size"]]
-        if record["mem_mask"] == 0 or record["mem_mask"] >= (1 << width):
-            raise RecordError("mem_mask inconsistent with mem_size")
+    need_str(record["mem_size"], "mem_size", SIZES)
+    if not record["mem_valid"]:
         if record["mem_we"]:
-            if record["mem_wdata"] is None:
-                raise RecordError("store requires mem_wdata")
+            raise RecordError("mem_valid=false requires mem_we=false")
+        if record["mem_size"] != "none":
+            raise RecordError("mem_valid=false requires mem_size=none")
+        for name in ("mem_va", "mem_pa", "mem_mask", "mem_wdata", "mem_rdata"):
+            if record[name] is not None:
+                raise RecordError(f"mem_valid=false requires {name}=null")
+    else:
+        if record["mem_size"] == "none":
+            raise RecordError("mem_valid=true requires concrete mem_size")
+        need_range(record["mem_va"], "mem_va", 0, 0xffffffff)
+        need_range(record["mem_pa"], "mem_pa", 0, (1 << 34) - 1)
+        need_range(record["mem_mask"], "mem_mask", 0, 15)
+        mask = expected_mask(record["mem_size"], record["mem_va"])
+        if record["mem_mask"] != mask:
+            raise RecordError(
+                f"mem_mask 0x{record['mem_mask']:x} != expected 0x{mask:x} "
+                f"for {record['mem_size']} at 0x{record['mem_va']:x}")
+        if record["mem_we"]:
+            need_range(record["mem_wdata"], "mem_wdata", 0, 0xffffffff)
             if record["mem_rdata"] is not None:
                 raise RecordError("store must not report mem_rdata")
         else:
             if record["mem_wdata"] is not None:
                 raise RecordError("load must not report mem_wdata")
-    else:
-        if record["mem_we"]:
-            raise RecordError("mem_valid=false requires mem_we=false")
-        if record["mem_size"] != "none":
-            raise RecordError("mem_valid=false requires mem_size=none")
-        for field in ("mem_va", "mem_pa", "mem_mask", "mem_wdata", "mem_rdata"):
-            if record[field] is not None:
-                raise RecordError(f"mem_valid=false requires {field}=null")
+            if record["mem_rdata"] is None:
+                if "mem_rdata" not in record["not_observed_fields"]:
+                    raise RecordError("missing load data must be listed as not observed")
+            else:
+                need_range(record["mem_rdata"], "mem_rdata", 0, 0xffffffff)
+                if "mem_rdata" in record["not_observed_fields"]:
+                    raise RecordError("mem_rdata is both observed and not observed")
+
+    for name in ("derived_fields", "not_observed_fields"):
+        if not isinstance(record[name], list) or not all(isinstance(x, str) for x in record[name]):
+            raise RecordError(f"{name} must be a list of strings")
+    both = set(record["derived_fields"]) & set(record["not_observed_fields"])
+    if both:
+        raise RecordError(f"fields both derived and not observed: {sorted(both)}")
+
+    if record["source"] == "dut":
+        if not record["token_valid"] or not record["next_pc_valid"]:
+            raise RecordError("DUT record requires token and next_pc")
+        if record["derived_fields"] or record["not_observed_fields"]:
+            raise RecordError("DUT record must not mark required observations missing")
+        if record["mem_valid"] and not record["mem_we"] and record["mem_rdata"] is None:
+            raise RecordError("DUT load must provide mem_rdata")
+    if record["source"] == "spike-derived":
+        if record["token_valid"] or record["next_pc_valid"]:
+            raise RecordError("Spike-derived record must not fabricate token/next_pc")
+        if not record["derived_fields"]:
+            raise RecordError("Spike-derived record must list derived fields")
 
 
-def validate_trap(record: dict, schema: dict) -> None:
-    for field in schema["trap_required"]:
-        if field not in record:
-            raise RecordError(f"missing trap field {field}")
-    extra = set(record) - set(schema["trap_required"])
-    if extra:
-        raise RecordError(f"unknown trap fields {sorted(extra)}")
-    for name, spec in schema["trap_fields"].items():
-        if name in record:
-            check_field(record[name], spec, name)
+def validate_trap(record: dict) -> None:
+    check_keys(record, TRAP_REQUIRED, "trap")
+    if record["schema"] != "hias-retire/2":
+        raise RecordError("unsupported schema")
     if record["kind"] != "trap":
-        raise RecordError("trap validator called with kind != trap")
+        raise RecordError("kind must be trap")
+    need_str(record["source"], "source", {"dut", "synthetic"})
+    need_range(record["seq"], "seq", 0, 1 << 62)
+    for name in ("pc", "epc", "target_pc", "tval", "mstatus_before",
+                 "mstatus_after", "cause_csr_before", "cause_csr_after",
+                 "epc_csr_before", "epc_csr_after"):
+        need_range(record[name], name, 0, 0xffffffff)
+    need_range(record["cause"], "cause", 0, 31)
+    need_bool(record["is_interrupt"], "is_interrupt")
+    need_str(record["from_priv"], "from_priv", PRIVS)
+    need_str(record["to_priv"], "to_priv", PRIVS)
 
 
-def validate_record(record: dict, schema: dict) -> None:
-    if not isinstance(record, dict):
-        raise RecordError("record must be an object")
-    kind = record.get("kind")
-    if kind == "normal":
-        validate_normal(record, schema)
-    elif kind == "trap":
-        validate_trap(record, schema)
-    else:
-        raise RecordError(f"kind must be normal or trap, got {kind!r}")
+def validate_bundle(record: dict) -> list[dict]:
+    check_keys(record, BUNDLE_REQUIRED, "bundle")
+    if record["schema"] != "hias-retire/2" or record["kind"] != "bundle":
+        raise RecordError("bundle schema/kind mismatch")
+    need_range(record["seq_base"], "seq_base", 0, 1 << 62)
+    slots = record["slots"]
+    if not isinstance(slots, list) or len(slots) > 2:
+        raise RecordError("bundle slots must contain 0..2 records")
+    for index, slot in enumerate(slots):
+        validate_normal(slot)
+        if slot["seq"] != record["seq_base"] + index:
+            raise RecordError("bundle slot seq does not follow seq_base")
+    trap = record["trap"]
+    if trap is not None:
+        validate_trap(trap)
+        if slots:
+            raise RecordError("normal retirement and Trap must be mutually exclusive")
+        if trap["seq"] != record["seq_base"]:
+            raise RecordError("trap seq does not match seq_base")
+    return slots + ([trap] if trap is not None else [])
+
+
+def validate_stream(records: list[dict]) -> None:
+    last = -1
+    for index, record in enumerate(records, 1):
+        kind = record.get("kind")
+        if kind == "bundle":
+            events = validate_bundle(record)
+            seqs = [e["seq"] for e in events]
+            if seqs and min(seqs) < last:
+                raise RecordError(f"stream:{index}: seq moved backwards")
+            last = max(seqs) if seqs else last
+        elif kind in ("normal", "trap"):
+            if kind == "normal":
+                validate_normal(record)
+            else:
+                validate_trap(record)
+            if record["seq"] <= last:
+                raise RecordError(f"stream:{index}: seq not strictly increasing")
+            last = record["seq"]
+        else:
+            raise RecordError(f"stream:{index}: unknown kind {kind!r}")
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -171,110 +334,212 @@ def read_jsonl(path: Path) -> list[dict]:
 
 
 def validate_examples() -> int:
-    schema = load_schema()
     files = sorted(EXAMPLES.glob("*.jsonl"))
     if not files:
-        print("RETIRE_CONTRACT_FAIL: no example files", file=sys.stderr)
+        print("RETIRE_CONTRACT_FAIL: no examples", file=sys.stderr)
         return 2
     total = 0
     for path in files:
         records = read_jsonl(path)
-        for index, record in enumerate(records, 1):
-            try:
-                validate_record(record, schema)
-            except RecordError as exc:
-                print(f"RETIRE_CONTRACT_FAIL: {path.name}:{index}: {exc}",
-                      file=sys.stderr)
-                return 1
+        validate_stream(records)
         total += len(records)
         print(f"RETIRE_CONTRACT_FILE_OK: {path.name} records={len(records)}")
     print(f"RETIRE_CONTRACT_PASS: files={len(files)} records={total}")
     return 0
 
 
-def self_test() -> int:
-    schema = load_schema()
-    good_normal = {
-        "schema": "hias-retire/1", "kind": "normal", "seq": 1,
-        "token": {"idx": 1, "gen": 1},
+# ---------------------------------------------------------------------------
+# Self-test: paired positive/negative rules
+# ---------------------------------------------------------------------------
+
+def base_normal(**over):
+    rec = {
+        "schema": "hias-retire/2", "kind": "normal", "source": "synthetic",
+        "seq": 1, "token": {"idx": 1, "gen": 0}, "token_valid": True,
         "pc": 0x80000000, "instr": 0x00100093, "next_pc": 0x80000004,
-        "priv": "M", "rd_we": True, "rd": 1, "rd_data": 1,
-        "csr_we": False, "csr_addr": None, "csr_wdata": None,
-        "csr_rdata": None, "mem_valid": False, "mem_we": False,
-        "mem_va": None, "mem_pa": None, "mem_size": "none",
-        "mem_mask": None, "mem_wdata": None, "mem_rdata": None,
-        "source": "synthetic",
+        "next_pc_valid": True, "priv": "M",
+        "rd_we": True, "rd": 1, "rd_data": 1,
+        "csr_valid": False, "csr_rd_valid": False, "csr_wr_valid": False,
+        "csr_addr": None, "csr_wdata": None, "csr_rdata": None,
+        "mem_valid": False, "mem_we": False, "mem_va": None, "mem_pa": None,
+        "mem_size": "none", "mem_mask": None, "mem_wdata": None, "mem_rdata": None,
+        "derived_fields": [], "not_observed_fields": [],
     }
-    validate_record(good_normal, schema)
+    rec.update(over)
+    return rec
 
-    bad_cases = []
-    case = json.loads(json.dumps(good_normal))
-    case["rd_we"] = False  # rd_data still set
-    bad_cases.append(("rd_we=false with rd_data", case))
-    case = json.loads(json.dumps(good_normal))
-    case["rd"] = 0  # x0 write
-    bad_cases.append(("x0 write", case))
-    case = json.loads(json.dumps(good_normal))
-    case["mem_valid"] = True  # no addresses
-    bad_cases.append(("mem_valid without address", case))
-    case = json.loads(json.dumps(good_normal))
-    case["csr_we"] = True  # missing csr data
-    bad_cases.append(("csr_we without data", case))
-    case = json.loads(json.dumps(good_normal))
-    case["token"] = {"idx": 1}
-    bad_cases.append(("token missing gen", case))
-    case = json.loads(json.dumps(good_normal))
-    case["mem_valid"] = True
-    case["mem_size"] = "word"
-    case["mem_va"] = 0x80000000
-    case["mem_pa"] = 0x80000000
-    case["mem_mask"] = 0
-    bad_cases.append(("zero mem_mask", case))
-    case = json.loads(json.dumps(good_normal))
-    case["source"] = "dut"
-    case["priv"] = "H"
-    bad_cases.append(("bad privilege", case))
 
+def base_mem(**over):
+    rec = base_normal(rd_we=False, rd=0, rd_data=None, next_pc=0x80000008,
+                      mem_valid=True, mem_we=True, mem_va=0x80000000,
+                      mem_pa=0x80000000, mem_size="word", mem_mask=0xF,
+                      mem_wdata=0x12345678, mem_rdata=None)
+    rec.update(over)
+    return rec
+
+
+def self_test() -> int:
     failures = 0
-    for name, record in bad_cases:
+    positives = 0
+
+    def positive(name, record):
+        nonlocal positives
+        validate_normal(record)
+        positives += 1
+        print(f"RETIRE_CONTRACT_POSITIVE_OK: {name}")
+
+    def negative(name, record, reason):
+        nonlocal failures
         try:
-            validate_record(record, schema)
-        except RecordError:
-            print(f"RETIRE_CONTRACT_NEGATIVE_OK: {name}")
+            if isinstance(record, list):
+                validate_stream(record)
+            elif record.get("kind") == "bundle":
+                validate_bundle(record)
+            elif record.get("kind") == "trap":
+                validate_trap(record)
+            else:
+                validate_normal(record)
+        except RecordError as exc:
+            if reason not in str(exc):
+                print(f"RETIRE_CONTRACT_NEGATIVE_FAIL: {name}: wrong reason: {exc}",
+                      file=sys.stderr)
+                failures += 1
+            else:
+                print(f"RETIRE_CONTRACT_NEGATIVE_OK: {name} ({exc})")
         else:
-            print(f"RETIRE_CONTRACT_NEGATIVE_FAIL: {name} was accepted",
-                  file=sys.stderr)
+            print(f"RETIRE_CONTRACT_NEGATIVE_FAIL: {name} was accepted", file=sys.stderr)
             failures += 1
 
-    # Trap negative cases.
-    good_trap = {
-        "schema": "hias-retire/1", "kind": "trap", "seq": 2,
-        "pc": 0x80000010, "epc": 0x80000010, "target_pc": 0x80000100,
-        "cause": 11, "is_interrupt": False, "tval": 0,
-        "from_priv": "M", "to_priv": "M",
+    # CSR truth table: read/write validity must match the instruction encoding.
+    csrrw_x0 = 0x30001073  # csrrw x0, mstatus, x0
+    csrrs_x0 = 0x30002073  # csrrs x0, mstatus, x0
+    csrrs_x1 = 0x3000a0f3  # csrrs x1, mstatus, x1 (rs1=1)
+    csrrwi_0 = 0x30005073  # csrrwi x0, mstatus, 0
+    csrrsi_0 = 0x30006073  # csrrsi x0, mstatus, 0
+    for name, instr, rd, rd_we, rd_valid, wr_valid in [
+        ("csrrw rd=x0", csrrw_x0, 0, False, False, True),
+        ("csrrs rs1=x0", csrrs_x0, 0, False, True, False),
+        ("csrrs rs1=x1 value0", csrrs_x1, 1, True, True, True),
+        ("csrrwi zimm=0", csrrwi_0, 0, False, False, True),
+        ("csrrsi zimm=0", csrrsi_0, 0, False, True, False),
+    ]:
+        positive(name, base_normal(
+            instr=instr, rd=rd, rd_we=rd_we,
+            rd_data=(1 if rd_we else None),
+            csr_valid=True, csr_rd_valid=rd_valid, csr_wr_valid=wr_valid,
+            csr_addr=0x300, csr_wdata=(1 if wr_valid else None),
+            csr_rdata=(0 if rd_valid else None),
+        ))
+
+    # Byte lanes and half positions.
+    for offset in range(4):
+        positive(f"byte lane {offset}", base_mem(
+            mem_size="byte", mem_va=0x80000000 + offset,
+            mem_pa=0x80000000 + offset, mem_mask=1 << offset,
+            mem_wdata=0xa0 + offset))
+    for offset in (0, 2):
+        positive(f"half offset {offset}", base_mem(
+            mem_size="half", mem_va=0x80000000 + offset,
+            mem_pa=0x80000000 + offset, mem_mask=3 << offset,
+            mem_wdata=0x1234))
+    positive("word", base_mem())
+    for name, instr in [("LBU", 0x00004083), ("LHU", 0x00005083)]:
+        positive(name, base_mem(
+            mem_we=False, instr=instr,
+            mem_size="byte" if name == "LBU" else "half",
+            mem_mask=1 if name == "LBU" else 3,
+            mem_wdata=None, mem_rdata=0x5a))
+
+    # Missing observation must be explicit.
+    positive("Spike-derived missing next_pc/token", base_normal(
+        source="spike-derived", token=None, token_valid=False,
+        next_pc=None, next_pc_valid=False,
+        derived_fields=["seq", "mem_pa"], not_observed_fields=["token", "next_pc"]))
+    positive("load x0 missing rdata", base_mem(
+        source="spike-derived", token=None, token_valid=False,
+        next_pc=None, next_pc_valid=False, mem_we=False, mem_wdata=None,
+        mem_rdata=None, derived_fields=["mem_pa", "mem_size", "mem_mask"],
+        not_observed_fields=["token", "next_pc", "mem_rdata"]))
+
+    # Paired negatives.
+    negative("rd_we=false with rd_data",
+             base_normal(rd_we=False, rd=0, rd_data=1),
+             "rd_we=false requires rd_data=null")
+    negative("x0 write", base_normal(rd=0, rd_we=True), "rd=x0")
+    negative("CSR read suppression wrong",
+             base_normal(instr=csrrw_x0, rd=0, rd_we=False, rd_data=None,
+                         csr_valid=True, csr_rd_valid=True, csr_wr_valid=True,
+                         csr_addr=0x300, csr_wdata=1, csr_rdata=0),
+             "csr_rd_valid")
+    negative("CSR write suppression wrong",
+             base_normal(instr=csrrs_x0, rd=0, rd_we=False, rd_data=None,
+                         csr_valid=True, csr_rd_valid=True, csr_wr_valid=True,
+                         csr_addr=0x300, csr_wdata=1, csr_rdata=0),
+             "csr_wr_valid")
+    negative("wrong byte mask", base_mem(
+        mem_size="byte", mem_va=0x80000003, mem_mask=1), "mem_mask")
+    negative("unaligned half", base_mem(
+        mem_size="half", mem_va=0x80000001, mem_mask=3), "unaligned half")
+    negative("word mask wrong", base_mem(mem_mask=3), "mem_mask")
+    negative("missing load data unmarked", base_mem(
+        mem_we=False, mem_wdata=None, mem_rdata=None, not_observed_fields=[]),
+        "must be listed as not observed")
+    negative("token missing gen", base_normal(token={"idx": 1}), "token")
+    negative("token idx out of range",
+             base_normal(token={"idx": 32, "gen": 0}), "token.idx")
+    negative("unknown privilege", base_normal(priv="H"), "priv")
+    negative("DUT missing next_pc", base_normal(
+        source="dut", token_valid=True, next_pc=None, next_pc_valid=False,
+        not_observed_fields=["next_pc"]), "DUT record")
+    negative("Spike-derived fabricates token", base_normal(
+        source="spike-derived", token_valid=True, next_pc=None,
+        next_pc_valid=False, derived_fields=["seq"],
+        not_observed_fields=["next_pc"]), "Spike-derived")
+    negative("seq duplicate", [base_normal(seq=1), base_normal(seq=1)],
+             "seq not strictly increasing")
+    negative("seq backwards", [base_normal(seq=2), base_normal(seq=1)],
+             "seq not strictly increasing")
+    negative("trap missing field", {
+        "schema": "hias-retire/2", "kind": "trap", "source": "synthetic",
+        "seq": 3, "pc": 0x80000010, "epc": 0x80000010,
+        "target_pc": 0x80000100, "cause": 11, "is_interrupt": False,
+        "tval": 0, "from_priv": "M", "to_priv": "M",
+        "mstatus_before": 0, "mstatus_after": 0x1800,
+        "cause_csr_before": 0, "cause_csr_after": 11,
+        "epc_csr_before": 0,
+    }, "missing fields")
+    negative("trap from spike-derived", {
+        "schema": "hias-retire/2", "kind": "trap", "source": "spike-derived",
+        "seq": 3, "pc": 0x80000010, "epc": 0x80000010,
+        "target_pc": 0x80000100, "cause": 11, "is_interrupt": False,
+        "tval": 0, "from_priv": "M", "to_priv": "M",
         "mstatus_before": 0, "mstatus_after": 0x1800,
         "cause_csr_before": 0, "cause_csr_after": 11,
         "epc_csr_before": 0, "epc_csr_after": 0x80000010,
-        "source": "synthetic",
-    }
-    validate_record(good_trap, schema)
-    case = json.loads(json.dumps(good_trap))
-    del case["epc_csr_after"]
-    try:
-        validate_record(case, schema)
-    except RecordError:
-        print("RETIRE_CONTRACT_NEGATIVE_OK: trap missing csr field")
-    else:
-        print("RETIRE_CONTRACT_NEGATIVE_FAIL: trap missing csr field",
-              file=sys.stderr)
-        failures += 1
+    }, "source")
+    negative("bundle trap plus retire", {
+        "schema": "hias-retire/2", "kind": "bundle", "seq_base": 5,
+        "slots": [base_normal(seq=5)],
+        "trap": {"schema": "hias-retire/2", "kind": "trap", "source": "synthetic",
+                 "seq": 5, "pc": 0x80000010, "epc": 0x80000010,
+                 "target_pc": 0x80000100, "cause": 11, "is_interrupt": False,
+                 "tval": 0, "from_priv": "M", "to_priv": "M",
+                 "mstatus_before": 0, "mstatus_after": 0x1800,
+                 "cause_csr_before": 0, "cause_csr_after": 11,
+                 "epc_csr_before": 0, "epc_csr_after": 0x80000010},
+    }, "mutually exclusive")
 
     if failures:
-        print("RETIRE_CONTRACT_SELFTEST_FAIL", file=sys.stderr)
+        print(f"RETIRE_CONTRACT_SELFTEST_FAIL failures={failures} positives={positives}",
+              file=sys.stderr)
         return 1
-    print("RETIRE_CONTRACT_SELFTEST_PASS")
+    print(f"RETIRE_CONTRACT_SELFTEST_PASS positives={positives}")
     return 0
 
+
+# ---------------------------------------------------------------------------
+# Spike converter
+# ---------------------------------------------------------------------------
 
 SPIKE_RE = re.compile(
     r"^core\s+\d+:\s+(?P<priv>\d)\s+(?P<pc>0x[0-9a-f]+)\s+"
@@ -283,87 +548,113 @@ SPIKE_RE = re.compile(
     r"(?:\s+mem\s+(?P<memaddr>0x[0-9a-f]+)"
     r"(?:\s+(?P<memval>0x[0-9a-f]+))?)?\s*$"
 )
-
 PRIV_MAP = {"3": "M", "1": "S", "0": "U"}
-
-# Opcodes used to classify memory access size/kind from the instruction word.
-LOAD_OPS = {0x03: "load"}
-STORE_OPS = {0x23: "store"}
-FUNCT3_SIZE = {0: "byte", 1: "half", 2: "word"}
+LOAD_FUNCT3 = {0: ("byte", False), 1: ("half", False), 2: ("word", False),
+               4: ("byte", True), 5: ("half", True)}
+STORE_FUNCT3 = {0: "byte", 1: "half", 2: "word"}
 
 
 def convert_spike(path: Path) -> int:
-    """Convert real Spike commit lines to contract-shaped records.
-
-    Only fields Spike actually prints (priv, pc, instr, rd value, mem address,
-    mem value) are filled. Everything else is null/false with an explicit
-    validity rule, and the record is marked source=spike-derived. This is a
-    field-mapping demonstration, not a DUT retirement trace.
-    """
     records = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
         match = SPIKE_RE.match(line)
         if not match:
-            continue
+            print(f"RETIRE_CONTRACT_SPIKE_PARSE_FAIL: line {number}: {line!r}",
+                  file=sys.stderr)
+            return 1
+        if match["priv"] not in PRIV_MAP:
+            print(f"RETIRE_CONTRACT_SPIKE_PARSE_FAIL: line {number}: unknown priv "
+                  f"{match['priv']}", file=sys.stderr)
+            return 1
         pc = int(match["pc"], 16)
         instr = int(match["instr"], 16)
         opcode = instr & 0x7f
         funct3 = (instr >> 12) & 0x7
         rd = int(match["rd"]) if match["rd"] is not None else None
+        rd_val = int(match["rdval"], 16) if match["rdval"] else None
         mem_addr = int(match["memaddr"], 16) if match["memaddr"] else None
         mem_val = int(match["memval"], 16) if match["memval"] else None
 
-        mem_kind = None
-        if opcode in LOAD_OPS:
-            mem_kind = "load"
-        elif opcode in STORE_OPS:
-            mem_kind = "store"
+        mem_valid = False
+        mem_we = False
+        mem_size = "none"
+        mask = None
+        wdata = None
+        rdata = None
+        derived = ["seq"]
+        not_observed = ["token", "next_pc"]
+        if opcode == 0x03 and mem_addr is not None:
+            mem_valid = True
+            mem_size, unsigned = LOAD_FUNCT3[funct3]
+            mask = expected_mask(mem_size, mem_addr)
+            derived += ["mem_va", "mem_pa", "mem_size", "mem_mask"]
+            if rd is not None and rd != 0 and rd_val is not None:
+                rdata = rd_val
+                derived.append("mem_rdata")
+            else:
+                not_observed.append("mem_rdata")
+        elif opcode == 0x23 and mem_addr is not None:
+            mem_valid = True
+            mem_we = True
+            mem_size = STORE_FUNCT3[funct3]
+            mask = expected_mask(mem_size, mem_addr)
+            wdata = mem_val
+            derived += ["mem_va", "mem_pa", "mem_size", "mem_mask", "mem_wdata"]
+        elif mem_addr is not None:
+            print(f"RETIRE_CONTRACT_SPIKE_PARSE_FAIL: line {number}: mem on "
+                  f"unsupported opcode 0x{opcode:02x}", file=sys.stderr)
+            return 1
 
-        record = {
-            "schema": "hias-retire/1",
-            "kind": "normal",
-            "seq": len(records),
-            "token": {"idx": len(records) % 32, "gen": len(records) // 32 % 256},
-            "pc": pc,
-            "instr": instr,
-            "next_pc": 0,  # Spike log does not print next_pc
-            "priv": PRIV_MAP.get(match["priv"], "M"),
-            "rd_we": rd is not None and rd != 0,
-            "rd": rd if rd is not None else 0,
-            "rd_data": int(match["rdval"], 16) if match["rdval"] else None,
-            "csr_we": False,
-            "csr_addr": None,
-            "csr_wdata": None,
-            "csr_rdata": None,
-            "mem_valid": mem_kind is not None,
-            "mem_we": mem_kind == "store",
-            "mem_va": mem_addr,
-            "mem_pa": mem_addr,
-            "mem_size": FUNCT3_SIZE.get(funct3, "none") if mem_kind else "none",
-            "mem_mask": (1 << (1 << funct3)) - 1 if mem_kind else None,
-            "mem_wdata": mem_val if mem_kind == "store" else None,
-            "mem_rdata": mem_val if mem_kind == "load" else None,
-            "source": "spike-derived",
-        }
-        if record["rd_we"] and record["rd_data"] is None:
-            # Spike prints the destination value for register writes.
-            record["rd_we"] = False
-            record["rd"] = 0
-        if record["mem_valid"] and record["mem_size"] == "none":
-            record["mem_valid"] = False
-            record["mem_we"] = False
-            record["mem_va"] = None
-            record["mem_pa"] = None
-            record["mem_mask"] = None
-            record["mem_wdata"] = None
-            record["mem_rdata"] = None
-        records.append(record)
+        csr = csr_expected(instr)
+        if csr is None:
+            csr_valid = csr_rd = csr_wr = False
+            csr_addr = csr_wdata = csr_rdata = None
+        else:
+            csr_valid = True
+            csr_rd = csr["read"]
+            csr_wr = csr["write"]
+            csr_addr = csr["addr"]
+            csr_wdata = None
+            csr_rdata = None
+            derived += ["csr_valid", "csr_addr", "csr_rd_valid", "csr_wr_valid"]
+            if csr_wr:
+                not_observed.append("csr_wdata")
+            if csr_rd:
+                not_observed.append("csr_rdata")
 
+        rd_we = rd is not None and rd != 0
+        if rd_we and rd_val is None:
+            print(f"RETIRE_CONTRACT_SPIKE_PARSE_FAIL: line {number}: missing rd value",
+                  file=sys.stderr)
+            return 1
+        records.append({
+            "schema": "hias-retire/2", "kind": "normal",
+            "source": "spike-derived", "seq": len(records),
+            "token": None, "token_valid": False,
+            "pc": pc, "instr": instr, "next_pc": None, "next_pc_valid": False,
+            "priv": PRIV_MAP[match["priv"]],
+            "rd_we": rd_we, "rd": rd if rd is not None else 0,
+            "rd_data": rd_val if rd_we else None,
+            "csr_valid": csr_valid, "csr_rd_valid": csr_rd,
+            "csr_wr_valid": csr_wr, "csr_addr": csr_addr,
+            "csr_wdata": csr_wdata, "csr_rdata": csr_rdata,
+            "mem_valid": mem_valid, "mem_we": mem_we,
+            "mem_va": mem_addr, "mem_pa": mem_addr,
+            "mem_size": mem_size, "mem_mask": mask,
+            "mem_wdata": wdata, "mem_rdata": rdata,
+            "derived_fields": sorted(set(derived)),
+            "not_observed_fields": sorted(set(not_observed)),
+        })
+
+    validate_stream(records)
     out = EXAMPLES / "spike_derived_examples.jsonl"
     with out.open("w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record, sort_keys=True) + "\n")
-    print(f"RETIRE_CONTRACT_SPIKE_CONVERTED: lines={len(records)} out={out.relative_to(ROOT)}")
+    print(f"RETIRE_CONTRACT_SPIKE_CONVERTED: lines={len(records)} "
+          f"out={out.relative_to(ROOT)}")
     return 0
 
 
@@ -373,7 +664,6 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--convert-spike")
     args = parser.parse_args(argv)
-
     try:
         if args.self_test:
             return self_test()

@@ -9,3 +9,6 @@ obj_dir/
 # Local editor/OS noise
 *.swp
 .DS_Store
+
+# Python bytecode
+__pycache__/

@@ -22,6 +22,12 @@ STATIC_ASSERT(PLATFORM_MMIO_UART0_BASE >= PLATFORM_RAM_END ||
 STATIC_ASSERT(PLATFORM_MMIO_TEST_RESULT_BASE >= PLATFORM_RAM_END ||
               PLATFORM_MMIO_TEST_RESULT_BASE + PLATFORM_MMIO_TEST_RESULT_SIZE <= PLATFORM_RAM_BASE,
               test_result_outside_ram);
+STATIC_ASSERT(PLATFORM_PAGE_TABLE_END == PLATFORM_PAGE_TABLE_BASE + PLATFORM_PAGE_TABLE_RESERVE,
+              page_table_end_consistent);
+STATIC_ASSERT(PLATFORM_PAGE_TABLE_BASE == 0x8001a000u, page_table_base_frozen);
+STATIC_ASSERT(PLATFORM_PAGE_TABLE_END == 0x8001e000u, page_table_end_frozen);
+STATIC_ASSERT(PLATFORM_LAYOUT_GAP_START == PLATFORM_PAGE_TABLE_END, layout_gap_start_frozen);
+STATIC_ASSERT(PLATFORM_LAYOUT_GAP_END == PLATFORM_STACK_LIMIT, layout_gap_end_frozen);
 
 /* Keep a symbol so the object is non-empty and actually linked. */
 const unsigned int platform_check_signature = PLATFORM_RAM_BASE;

@@ -58,12 +58,22 @@ SECTIONS
   __signature_start = PLATFORM_SIGNATURE_BASE;
   __signature_end = PLATFORM_PAGE_TABLE_BASE;
   __page_table_start = PLATFORM_PAGE_TABLE_BASE;
-  __page_table_end = PLATFORM_STACK_LIMIT;
+  __page_table_end = PLATFORM_PAGE_TABLE_END;
+  __layout_gap_start = PLATFORM_LAYOUT_GAP_START;
+  __layout_gap_end = PLATFORM_LAYOUT_GAP_END;
 
   ASSERT(__bss_end <= __signature_start,
          "platform config: program/data overlaps signature reserve")
   ASSERT(__signature_end <= __page_table_start,
          "platform config: signature reserve overlaps page tables")
+  ASSERT((__page_table_end - __page_table_start) == PLATFORM_PAGE_TABLE_RESERVE,
+         "platform config: page table size does not match reserve")
+  ASSERT(__page_table_start % 4096 == 0,
+         "platform config: page table base not 4 KiB aligned")
+  ASSERT(__page_table_end == PLATFORM_LAYOUT_GAP_START,
+         "platform config: page table end does not match layout gap")
+  ASSERT(__layout_gap_end == __stack_limit,
+         "platform config: layout gap does not meet stack limit")
   ASSERT(__page_table_end <= __stack_limit,
          "platform config: page tables overlap stack reserve")
   ASSERT(__stack_limit >= PLATFORM_RAM_BASE,

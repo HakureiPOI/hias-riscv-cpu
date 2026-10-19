@@ -1,6 +1,6 @@
-# 地址图、PMA 与参考模型配置（P0-02 候选基线）
+# 地址图、PMA 与参考模型配置（P0-02-R1 修订基线）
 
-状态：**规格候选，未冻结。** 单一事实来源为 `config/platform.json`；生成文件与检查器见第 6 节。当前 CPU 未实现地址译码、PMA 或总线。
+状态：**修订候选，待管理复审。** 单一事实来源为 `config/platform.json`；生成文件与检查器见第 6 节。当前 CPU 未实现地址译码、PMA 或总线。
 
 ## 1 位宽与地址空间
 
@@ -34,9 +34,12 @@ P1 与最终 DUT 使用同一 128 KiB 物理 RAM 配置。参考模型 Spike 必
 | --- | --- | --- | --- |
 | 程序/数据/`.bss`/tohost/fromhost | `0x8000_0000`–`0x8001_9F00` | 由链接决定 | 必须在 `PLATFORM_PROGRAM_LIMIT` 之前结束 |
 | 签名保留 | `0x8001_9F00`–`0x8001_A000` | 256 B | `begin_signature`/`end_signature` 类用途 |
-| Sv32 页表保留 | `0x8001_A000`–`0x8001_EFF0` | 约 20 KiB（4 KiB 对齐后） | P5 页表；P1 不使用但保留 |
+| Sv32 页表保留 | `0x8001_A000`–`0x8001_E000` | **16 KiB（4 个完整 4 KiB 页）** | 一个根页 + 三个叶页的演示预算；P1 不使用但保留 |
+| 对齐空隙 | `0x8001_E000`–`0x8001_EFF0` | 0xFF0 B | 页表终点到栈底之间的空隙，不分配 |
 | 栈 | `0x8001_EFF0`–`0x8001_FFF0` | 4 KiB | 向下增长 |
 | 栈顶保护 | `0x8001_FFF0`–`0x8002_0000` | 16 B | 不分配 |
+
+页表区必须严格等于 `[0x8001a000,0x8001e000)`、大小 `0x4000`；生成器与链接脚本、ELF 符号逐一校验。不得把栈底 `0x8001eff0` 当作页表终点。
 
 链接脚本对这些区域做 `ASSERT`，重叠或越界会使链接失败。
 
@@ -48,17 +51,25 @@ P1 与最终 DUT 使用同一 128 KiB 物理 RAM 配置。参考模型 Spike 必
 | --- | --- | --- | --- | --- | --- | --- |
 | `clint` | `0x0200_0000` | `0xC000` | 预留 | 定时器/软件中断 | RW | Spike 参考地址；P1 DUT 不解码 |
 | `plic` | `0x0C00_0000` | `0x400000` | 预留 | 外部中断 | RW | Spike 参考地址；P1 DUT 不解码 |
-| `uart0` | `0x1000_0000` | `0x1000` | 实现 | 实现 | RW | 8 位数据寄存器；P1 仅字节访问 |
-| `test_result` | `0x1000_1000` | `0x1000` | 实现 | 实现 | RW | 32 位写结果寄存器；停机前写入 |
+| `uart0` | `0x1000_0000` | `0x1000` | 实现 | 实现 | RW | DATA/STATUS 寄存器见下表；P1 仅字节访问 |
+| `test_result` | `0x1000_1000` | `0x1000` | 实现 | 实现 | RW | 32 位 RESULT：读返回最近写入值，无读副作用，复位 0；仅对齐字访问 |
 | `fpu_mmio` | `0x1000_2000` | `0x1000` | 预留 | FP 演示 | RW | 独立 FP32 MMIO 演示预留；未实现 |
+
+MMIO 寄存器契约（P1）：
+
+| 区域 | 偏移 | 名称 | 宽度 | 方向 | 复位 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| uart0 | `0x00` | DATA | 8 | RW | 0 | 写 THR、读 RBR；只允许字节访问 |
+| uart0 | `0x04` | STATUS | 8 | RO | `0x01` | bit0 tx_ready，bit1 rx_valid；写忽略 |
+| test_result | `0x00` | RESULT | 32 | RW | 0 | 对齐字读写；读返回最近写入值，无读副作用 |
 
 访问规则：
 
-- UART：字节读/写；半字/字访问产生 access fault（P1 简化），最终若需要再扩展。
-- test_result：32 位对齐写；读返回最近写入值（调试用途）。
+- UART：仅字节访问 DATA/STATUS；半字/字或未定义偏移产生 access fault（P1 简化）。
+- test_result：仅 32 位对齐字访问；字节/半字/未对齐访问产生 access fault；读无副作用。
 - 未列出的地址：按 PMA 产生 access fault；不得返回 0 伪装成功。
 - 写副作用在提交头发生；不可取消事务（Store/MMIO）先完成再响应中断。
-- MMIO 地址不与 RAM 或彼此重叠；检查器强制 4 KiB 对齐与不重叠。
+- MMIO 地址不与 RAM 或彼此重叠；检查器强制 4 KiB 对齐、不重叠、寄存器自然对齐与不重叠。
 
 ## 5 参考模型（Spike）配置
 
@@ -81,17 +92,18 @@ P1 与最终 DUT 使用同一 128 KiB 物理 RAM 配置。参考模型 Spike 必
 
 ## 6 单一事实来源与生成
 
-- 配置：`config/platform.json`。
-- 生成器/检查器：`scripts/gen_platform.py`。
+- 配置：`config/platform.json`（含 MMIO 寄存器偏移/宽度/方向/复位）。
+- 生成器/检查器：`scripts/gen_platform.py`（`--validate-only` 仅做语义校验，`--check` 另查生成物漂移）。
 - 生成文件（禁止手改）：
   - `software/generated/platform.h`
   - `software/generated/platform.ld`
   - `config/platform.spike.args`
   - `config/platform.generated.json`
 - 重新生成：`python3 scripts/gen_platform.py`
-- 一致性检查：`python3 scripts/gen_platform.py --check`（比较生成内容，拒绝漂移）
+- 一致性检查：`python3 scripts/gen_platform.py --check`（比较生成内容，拒绝漂移，漂移返回 3）
+- 语义校验：`python3 scripts/gen_platform.py --validate-only`（非法配置返回 2）
 - 链接/ELF/Spike 一致性：`python3 scripts/check_platform.py`
-- 负向配置：`python3 scripts/check_platform.py --negative`
+- 负向配置：`python3 scripts/check_platform.py --negative`（语义错误必须 exit 2 + 指定原因；生成物漂移单独用例 exit 3）
 
 `software/smoke/link.ld` 通过 `INCLUDE software/generated/platform.ld` 使用同一组常量；`scripts/run_ref_smoke.sh` 从 `config/platform.spike.args` 读取 Spike 参数。软件常量、链接区域与参考内存因此同源。
 

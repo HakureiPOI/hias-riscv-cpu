@@ -33,8 +33,12 @@ module type_selfcheck;
       $fatal(1, "P0-02_TYPE_FAIL: wb_bundle_t width=%0d", $bits(wb_bundle_t));
     if ($bits(redirect_t) < VA_BITS + FETCH_GEN_W + 2 + 2)
       $fatal(1, "P0-02_TYPE_FAIL: redirect_t too narrow");
-    if ($bits(dispatch_bundle_t) != 2 + 2 + 2 * $bits(renamed_slot_t))
+    if ($bits(dispatch_bundle_t) != 2 + 2 * $bits(renamed_slot_t))
       $fatal(1, "P0-02_TYPE_FAIL: dispatch_bundle_t width=%0d", $bits(dispatch_bundle_t));
+    if ($bits(prefix_accept_t) != 2)
+      $fatal(1, "P0-02_TYPE_FAIL: prefix_accept_t width=%0d", $bits(prefix_accept_t));
+    if ($bits(retire_trace_t) != 64 + $bits(retire_record_t))
+      $fatal(1, "P0-02_TYPE_FAIL: retire_trace_t width=%0d", $bits(retire_trace_t));
     if ($bits(issue_bundle_t) != 2 + 2 * $bits(issue_slot_t))
       $fatal(1, "P0-02_TYPE_FAIL: issue_bundle_t width=%0d", $bits(issue_bundle_t));
     if ($bits(commit_bundle_t) != 2 + 2 * $bits(retire_record_t) + 1 + $bits(trap_event_t))
@@ -88,15 +92,21 @@ module type_selfcheck;
       decoded.pc = 32'h8000_0004;
       decoded.instr = 32'h0010_0093;
       decoded.op = OP_ALU_I;
+      decoded.exec_op = EXEC_ADDI;
       decoded.rd = 5'd1;
       decoded.rs1 = 5'd0;
       decoded.rd_we = 1'b1;
       decoded.mem_size = MEM_WORD;
+      decoded.csr_uimm = 5'd31;
+      decoded.csr_uimm_valid = 1'b1;
+      decoded.pred_index = 8'h5a;
+      decoded.fetch_exc_valid = 1'b0;
 
       renamed = '0;
       renamed.valid = 1'b1;
       renamed.token = '{idx: 5'd3, gen: 8'h2a};
       renamed.op = OP_ALU_R;
+      renamed.exec_op = EXEC_ADD;
       renamed.rd = 5'd5;
       renamed.rd_we = 1'b1;
       renamed.src1_ready = 1'b1;
@@ -108,6 +118,11 @@ module type_selfcheck;
       issue.token = renamed.token;
       issue.fu = FU_ALU0;
       issue.op = OP_ALU_R;
+      issue.exec_op = EXEC_ADD;
+      issue.instr = 32'h0010_0093;
+      issue.csr_uimm = 5'd31;
+      issue.csr_uimm_valid = 1'b1;
+      issue.pred_index = 8'h5a;
       issue.src1 = 32'h0000_0001;
       issue.src2 = 32'h0000_0002;
       issue.rd = 5'd5;
@@ -120,7 +135,6 @@ module type_selfcheck;
 
       retire = '0;
       retire.valid = 1'b1;
-      retire.seq = 64'd1;
       retire.token = renamed.token;
       retire.pc = 32'h8000_0004;
       retire.instr = 32'h0020_8293;
@@ -129,6 +143,8 @@ module type_selfcheck;
       retire.rd_we = 1'b1;
       retire.rd = 5'd5;
       retire.rd_data = 32'h0000_0003;
+      retire.csr_rd_valid = 1'b0;
+      retire.csr_wr_valid = 1'b0;
 
       trap = '0;
       trap.valid = 1'b1;
@@ -186,6 +202,16 @@ module type_selfcheck;
 
       if (retire.token != renamed.token)
         $fatal(1, "P0-02_TYPE_FAIL: retire token mismatch");
+      if (decoded.csr_uimm != 5'd31 || issue.csr_uimm != 5'd31)
+        $fatal(1, "P0-02_TYPE_FAIL: 5-bit CSR immediate was truncated");
+      if (issue.exec_op != EXEC_ADD || issue.instr != 32'h0010_0093)
+        $fatal(1, "P0-02_TYPE_FAIL: FU operation/instr missing");
+      if (issue.pred_index != 8'h5a)
+        $fatal(1, "P0-02_TYPE_FAIL: prediction index lost");
+      if (issue.fetch_exc_valid || issue.illegal)
+        $fatal(1, "P0-02_TYPE_FAIL: exception metadata defaults invalid");
+      if (retire.csr_rd_valid || retire.csr_wr_valid)
+        $fatal(1, "P0-02_TYPE_FAIL: CSR valid bits defaults invalid");
       if (req.byte_mask != 4'b1111)
         $fatal(1, "P0-02_TYPE_FAIL: byte mask layout");
     end
