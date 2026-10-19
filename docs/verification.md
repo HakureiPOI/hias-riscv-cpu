@@ -1,0 +1,46 @@
+# 验证入口（P0-01 实测）
+
+本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
+
+## 环境
+
+锁定值见 `scripts/toolchain.lock`。本次实测环境：
+
+- Ubuntu 24.04.4 LTS，Linux 6.8.0-124-generic x86_64，root 容器。
+- Verilator 5.008（`/usr/local/bin/verilator`）。
+- `riscv64-unknown-elf-gcc` 13.2.0，`-march=rv32i -mabi=ilp32`。
+- Spike 1.1.1-dev，源码 Commit `5a760667bf0d0ab893173b9eeff9c109c8d7dd9a`，安装到 `/usr/local/bin/spike`。Ubuntu 24.04 无 `spike` 软件包，需源码构建。
+
+## 总入口
+
+```sh
+make check-p0-01
+```
+
+依次执行 `env-check`、`rtl-smoke`、`ref-smoke`；任一步骤缺少工具、未运行或出现非预期失败时整体非零返回。预期失败探针由步骤脚本按“退出码 + 指定消息”双重判定，不吞掉任意非零退出码。
+
+## 分项入口
+
+| 目标 | 内容 |
+| --- | --- |
+| `make env-check` | OS/内核/资源、工具路径与版本、RV32I/ILP32 编译探针、ELF 属性 |
+| `make lint-smoke` | `verilator --lint-only -Wall --assert` 检查夹具与断言探针 |
+| `make rtl-smoke` | 构建并运行 valid/ready 夹具；正常、记分板错误、周期超时、主机超时、断言负向探针 |
+| `make ref-smoke` | 构建 RV32I ELF 三个变体，检查 ELF/反汇编，Spike 正常/错误/超时运行及观察接口 |
+| `make clean` | 删除 `build/`，不删除证据 |
+
+## RTL 夹具
+
+`verification/smoke/rtl/smoke_buffer.sv` 是 4 项、16 位的同步 valid/ready FIFO，仅用于验证构建、复位、握手、Flush、断言与退出机制。定向测试后使用固定种子 `0x5eed1234` 运行 10,000 周期随机激励，并以独立 `std::deque` 记分板核对接收、输出、Flush/复位丢弃与守恒。
+
+断言负向探针位于 `verification/smoke/rtl/assert_probe.sv`，必须产生 `P0-01_NEGATIVE_PROBE_ASSERTION_FIRED` 且非零退出。
+
+## 软件与参考执行
+
+`software/smoke/` 提供 freestanding RV32I 程序：启动汇编清零 `.bss`、建立栈、调用 C 函数，通过 `tohost` 的 `(code << 1) | 1` 编码结束。链接脚本使用 `0x80000000`、128 KiB RAM，未使用 libc、pk 或 OS。
+
+`SMOKE_FAIL=1` 反转判定作为错误结果负向用例；`SMOKE_HANG=1` 进入死循环作为超时负向用例。Spike 观察接口使用 `--log-commits` 与 `-d --debug-cmd`（`reg`/`until pc`），为后续退休差分提供基础；本轮不实现 DiffTest。
+
+## 证据
+
+原始小型日志位于 `verification/evidence/P0-01/`，与 `docs/progress/P0-01-report.md` 中的命令、退出码和 Commit 对应。`build/` 产物不入库。

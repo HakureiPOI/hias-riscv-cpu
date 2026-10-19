@@ -1,0 +1,19 @@
+# P0-01 toolchain lock. Values describe the environment that produced the
+# committed evidence; they are not version requirements for future work.
+#
+# Spike was built from source in this container:
+#   git clone https://github.com/riscv-software-src/riscv-isa-sim.git
+#   git checkout 5a760667bf0d0ab893173b9eeff9c109c8d7dd9a
+#   ./configure --prefix=/usr/local && make -j$(nproc) && make install
+# No prebuilt spike package exists in Ubuntu 24.04 (apt-cache policy spike
+# reports no candidate).
+SPIKE_URL=https://github.com/riscv-software-src/riscv-isa-sim.git
+SPIKE_COMMIT=5a760667bf0d0ab893173b9eeff9c109c8d7dd9a
+SPIKE_VERSION=1.1.1-dev
+SPIKE_PATH=/usr/local/bin/spike
+VERILATOR_VERSION=5.008
+VERILATOR_PATH=/usr/local/bin/verilator
+CROSS_PREFIX=riscv64-unknown-elf-
+CROSS_GCC_VERSION=13.2.0
+CROSS_ARCH=rv32i
+CROSS_ABI=ilp32

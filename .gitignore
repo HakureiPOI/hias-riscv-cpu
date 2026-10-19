@@ -1,0 +1,11 @@
+# P0-01 build products (not evidence)
+/build/
+obj_dir/
+*.o
+*.elf
+*.vcd
+*.fst
+
+# Local editor/OS noise
+*.swp
+.DS_Store
