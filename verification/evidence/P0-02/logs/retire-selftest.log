@@ -1,0 +1,11 @@
+command: python3 /workspace/hias-riscv-cpu/scripts/check_retire_contract.py --self-test
+RETIRE_CONTRACT_NEGATIVE_OK: rd_we=false with rd_data
+RETIRE_CONTRACT_NEGATIVE_OK: x0 write
+RETIRE_CONTRACT_NEGATIVE_OK: mem_valid without address
+RETIRE_CONTRACT_NEGATIVE_OK: csr_we without data
+RETIRE_CONTRACT_NEGATIVE_OK: token missing gen
+RETIRE_CONTRACT_NEGATIVE_OK: zero mem_mask
+RETIRE_CONTRACT_NEGATIVE_OK: bad privilege
+RETIRE_CONTRACT_NEGATIVE_OK: trap missing csr field
+RETIRE_CONTRACT_SELFTEST_PASS
+exit: 0

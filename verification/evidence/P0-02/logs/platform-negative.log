@@ -1,0 +1,10 @@
+command: python3 /workspace/hias-riscv-cpu/scripts/check_platform.py --negative
+PLATFORM_CHECK_NEGATIVE_OK: mmio_overlaps_ram (PLATFORM_CONFIG_FAIL: mmio[5]: range overlaps ram)
+PLATFORM_CHECK_NEGATIVE_OK: wrong_ram_size (PLATFORM_CONFIG_FAIL: memory.size must be 0x20000 (128 KiB) for P1)
+PLATFORM_CHECK_NEGATIVE_OK: misaligned_mmio (PLATFORM_CONFIG_FAIL: mmio[0]: MMIO base/size must be 4 KiB aligned)
+PLATFORM_CHECK_NEGATIVE_OK: spike_memory_mismatch (PLATFORM_CONFIG_FAIL: reference.spike.memory_arg must be 0x80000000:0x20000)
+PLATFORM_CHECK_NEGATIVE_OK: wrong_pa_bits (PLATFORM_CONFIG_FAIL: isa.pa_bits must be 34 for Sv32)
+PLATFORM_CHECK_NEGATIVE_OK: stack_exceeds_ram (PLATFORM_CONFIG_FAIL: software reserved regions consume the whole RAM)
+PLATFORM_CHECK_NEGATIVE_OK: duplicate_mmio_name (PLATFORM_CONFIG_FAIL: mmio[5].name duplicate: uart0)
+PLATFORM_CHECK_NEGATIVE_ALL_PASS
+exit: 0

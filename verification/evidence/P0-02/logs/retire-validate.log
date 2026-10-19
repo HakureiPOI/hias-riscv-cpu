@@ -1,0 +1,5 @@
+command: python3 /workspace/hias-riscv-cpu/scripts/check_retire_contract.py --validate-examples
+RETIRE_CONTRACT_FILE_OK: spike_derived_examples.jsonl records=19
+RETIRE_CONTRACT_FILE_OK: synthetic_examples.jsonl records=4
+RETIRE_CONTRACT_PASS: files=2 records=23
+exit: 0

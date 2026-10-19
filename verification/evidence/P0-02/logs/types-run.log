@@ -1,0 +1,4 @@
+command: /workspace/hias-riscv-cpu/build/p0-02/types/obj/type_selfcheck
+P0-02_TYPE_SELFCHECK_PASS bits: fetch_slot=152 decoded_slot=284 renamed_slot=344 issue_slot=269 retire=429 trap=331 commit=1192 mem_req=123
+- /workspace/hias-riscv-cpu/verification/spec/types/type_selfcheck.sv:198: Verilog $finish
+exit: 0
