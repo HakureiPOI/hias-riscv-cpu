@@ -14,6 +14,7 @@ P0-01 环境与验证冒烟已通过管理审查，进入 P0-02 规格与接口�
 - [P0-01 首轮审查](docs/progress/P0-01-review.md)与[修复任务](docs/tasks/P0-01-R1-验证入口修复.md)：保留首轮问题与修复要求。
 - [原任务 P0-01](docs/tasks/P0-01-环境与验证冒烟.md)：环境、RTL 自检、RV32 软件与参考执行的原始范围。
 - [验证入口](docs/verification.md)：实际执行过的 `make` 入口、夹具、参考执行与证据位置。
+- [ISA 支持表](docs/architecture/isa-support.md) · [CSR 支持表](docs/architecture/csr-support.md) · [地址图](docs/architecture/memory-map.md) · [接口](docs/interfaces.md) · [退休契约](docs/architecture/retire-contract.md) · [验证计划](docs/verification-plan.md)
 - [P0-01 实施报告](docs/progress/P0-01-report.md)：首轮真实命令、退出码、证据与未完成项。
 - [P0-01-R1 实施报告](docs/progress/P0-01-R1-report.md)：修复后的正常与故障注入结果。
 - [课程实验要求](docs/course/实验要求.md)：依据课程原始文件整理，包含待澄清事项。

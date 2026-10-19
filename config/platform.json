@@ -1,0 +1,100 @@
+{
+  "schema": "hias-platform/1",
+  "version": "p0-02-v1",
+  "description": "Single source of truth for the P1/final platform address map. Generated files are derived by scripts/gen_platform.py; do not hand-edit them.",
+  "isa": {
+    "xlen": 32,
+    "va_bits": 32,
+    "pa_bits": 34,
+    "p1_isa": "rv32i",
+    "final_isa": "rv32im_zicsr_zifencei",
+    "p1_priv": "m",
+    "final_priv": "msu",
+    "p1_mmu": "bare",
+    "final_mmu": "sv32_svade"
+  },
+  "memory": {
+    "name": "ram",
+    "base": "0x80000000",
+    "size": "0x20000",
+    "alignment": 4096,
+    "cacheable": true,
+    "access": [
+      "read",
+      "write",
+      "execute"
+    ]
+  },
+  "software": {
+    "reset_vector": "0x80000000",
+    "stack_reserve": "0x1000",
+    "signature_reserve": "0x100",
+    "page_table_reserve": "0x4000",
+    "tohost_symbol": "tohost",
+    "fromhost_symbol": "fromhost"
+  },
+  "mmio": [
+    {
+      "name": "clint",
+      "base": "0x02000000",
+      "size": "0xc000",
+      "p1": "reserved",
+      "final": "timer_software_interrupt",
+      "access": "rw",
+      "cacheable": false,
+      "note": "Spike reference CLINT range; DUT P1 does not decode it."
+    },
+    {
+      "name": "plic",
+      "base": "0x0c000000",
+      "size": "0x400000",
+      "p1": "reserved",
+      "final": "external_interrupt",
+      "access": "rw",
+      "cacheable": false,
+      "note": "Spike reference PLIC range; DUT P1 does not decode it."
+    },
+    {
+      "name": "uart0",
+      "base": "0x10000000",
+      "size": "0x1000",
+      "p1": "implemented",
+      "final": "implemented",
+      "access": "rw",
+      "cacheable": false,
+      "note": "8-bit MMIO UART; byte accesses only in P1."
+    },
+    {
+      "name": "test_result",
+      "base": "0x10001000",
+      "size": "0x1000",
+      "p1": "implemented",
+      "final": "implemented",
+      "access": "rw",
+      "cacheable": false,
+      "note": "32-bit write-only result register; write before halt."
+    },
+    {
+      "name": "fpu_mmio",
+      "base": "0x10002000",
+      "size": "0x1000",
+      "p1": "reserved",
+      "final": "reserved_for_fp_demo",
+      "access": "rw",
+      "cacheable": false,
+      "note": "Reserved for the independent FP32 MMIO demonstration; not implemented."
+    }
+  ],
+  "reference": {
+    "model": "spike",
+    "spike": {
+      "isa": "rv32i",
+      "priv": "m",
+      "memory_arg": "0x80000000:0x20000",
+      "disable_dtb": true,
+      "boot_rom_base": "0x1000",
+      "boot_rom_size": "0x1000",
+      "htif": "tohost/fromhost symbols in the target ELF"
+    }
+  }
+}

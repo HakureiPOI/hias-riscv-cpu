@@ -1,0 +1,22 @@
+/* AUTO-GENERATED from config/platform.json by scripts/gen_platform.py.
+ * Do not edit. Regenerate with: python3 scripts/gen_platform.py
+ */
+PLATFORM_RAM_BASE = 0x80000000;
+PLATFORM_RAM_SIZE = 0x00020000;
+PLATFORM_RESET_VECTOR = 0x80000000;
+PLATFORM_STACK_RESERVE = 0x00001000;
+PLATFORM_SIGNATURE_RESERVE = 0x00000100;
+PLATFORM_PAGE_TABLE_RESERVE = 0x00004000;
+PLATFORM_STACK_TOP = 0x8001fff0;
+PLATFORM_STACK_LIMIT = 0x8001eff0;
+PLATFORM_SIGNATURE_BASE = 0x80019f00;
+PLATFORM_PAGE_TABLE_BASE = 0x8001a000;
+PLATFORM_PROGRAM_LIMIT = 0x80019f00;
+ASSERT(PLATFORM_RAM_BASE == PLATFORM_RESET_VECTOR, "platform config: reset vector must equal RAM base")
+ASSERT((PLATFORM_RAM_BASE % 4096) == 0, "platform config: RAM base not 4 KiB aligned")
+ASSERT((PLATFORM_RAM_SIZE % 4096) == 0, "platform config: RAM size not 4 KiB aligned")
+ASSERT((33554432 >= 2147614720) || (33554432 + 49152 <= 2147483648), "platform config: MMIO clint overlaps RAM")
+ASSERT((201326592 >= 2147614720) || (201326592 + 4194304 <= 2147483648), "platform config: MMIO plic overlaps RAM")
+ASSERT((268435456 >= 2147614720) || (268435456 + 4096 <= 2147483648), "platform config: MMIO uart0 overlaps RAM")
+ASSERT((268439552 >= 2147614720) || (268439552 + 4096 <= 2147483648), "platform config: MMIO test_result overlaps RAM")
+ASSERT((268443648 >= 2147614720) || (268443648 + 4096 <= 2147483648), "platform config: MMIO fpu_mmio overlaps RAM")

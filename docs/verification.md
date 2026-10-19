@@ -1,4 +1,4 @@
-# 验证入口（P0-01 / P0-01-R1 实测）
+# 验证入口（P0-01 / P0-01-R1 / P0-02 实测）
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
@@ -28,7 +28,24 @@ make check-p0-01
 | `make rtl-smoke` | 构建并运行 valid/ready 夹具；正常、记分板错误、周期超时、看门狗、断言负向探针 |
 | `make ref-smoke` | 构建 RV32I ELF 三个变体，检查 ELF/反汇编，Spike 正常/错误/超时运行及观察接口 |
 | `make r1-probes` | P0-01-R1 受控故障注入：正常路径挂起、观察挂起、构建非零、记分板比较 |
+| `make platform-generate` | 从 `config/platform.json` 生成平台头文件、链接片段、Spike 参数 |
+| `make platform-check` | 校验配置、生成文件漂移、链接/ELF 布局与 Spike 参数一致 |
+| `make check-p0-02` | 平台正/负向、共享类型、退休契约检查 + P0-01/R1 回归（日志写入 P0-02 目录） |
 | `make clean` | 删除 `build/`，不删除证据 |
+
+## P0-02 平台配置
+
+单一事实来源是 `config/platform.json`；`scripts/gen_platform.py` 生成 `software/generated/platform.h`、`software/generated/platform.ld`、`config/platform.spike.args`、`config/platform.generated.json`。`--check` 会重新生成到临时目录并比较，拒绝手改或过期副本。`scripts/check_platform.py` 校验链接常量、ELF 段与保留区域、Spike 参数，并用 7 个变异配置证明非法/重叠配置被拒绝。负向检查中 `mmio_overlaps_ram` 同时覆盖“新增 MMIO 条目缺少必填字段”和“与 RAM 重叠”两类错误。
+
+`scripts/run_ref_smoke.sh` 不再使用 `-m128`，而是读取 `config/platform.spike.args`，因此软件链接区域与 Spike 参考内存统一为 `0x80000000`、`0x20000`（128 KiB）。
+
+## P0-02 共享类型
+
+`rtl/include/core_config_pkg.sv` 与 `rtl/include/core_types_pkg.sv` 由 Verilator `--lint-only -Wall --assert` 检查；`verification/spec/types/type_selfcheck.sv` 编译运行并校验关键位宽与结构布局；`type_invalid_probe` 用非法参数证明自检会失败。这些是类型/接口基线，不是 CPU 模块。
+
+## P0-02 退休契约
+
+`verification/spec/retire/retire_schema.json` 定义字段与有效性规则；`scripts/check_retire_contract.py --self-test` 用故意错误记录验证检查器会拒绝；`--validate-examples` 校验合成夹具与由真实 Spike 提交日志转换的样例（`source=spike-derived`，不是 DUT 退休记录）。转换命令与字段映射见 `docs/architecture/retire-contract.md`。
 
 ## 主机看门狗与可配置变量
 

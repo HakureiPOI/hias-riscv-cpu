@@ -5,7 +5,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help env-check lint-smoke rtl-smoke ref-smoke check-p0-01 r1-probes clean
+.PHONY: help env-check lint-smoke rtl-smoke ref-smoke check-p0-01 r1-probes check-p0-02 platform-generate platform-check clean
 
 help:
 	@printf '%s\n' \
@@ -16,6 +16,9 @@ help:
 	  '  make ref-smoke     build RV32I ELF variants and run them under Spike' \
 	  '  make check-p0-01   run env-check, lint-smoke, rtl-smoke, ref-smoke' \
 	  '  make r1-probes     run controlled fault-injection probes (P0-01-R1)' \
+	  '  make platform-generate  regenerate files from config/platform.json' \
+	  '  make platform-check     validate platform config and generated files' \
+	  '  make check-p0-02   platform/types/retire checks + P0-01 regression' \
 	  '  make clean         remove build/ (not evidence)'
 
 env-check:
@@ -37,6 +40,17 @@ check-p0-01:
 r1-probes:
 	@set -o pipefail; \
 	./scripts/run_r1_probes.sh
+
+platform-generate:
+	python3 ./scripts/gen_platform.py
+
+platform-check:
+	python3 ./scripts/gen_platform.py --check
+	python3 ./scripts/check_platform.py
+
+check-p0-02:
+	@set -o pipefail; \
+	./scripts/check_p0_02.sh
 
 clean:
 	rm -rf build

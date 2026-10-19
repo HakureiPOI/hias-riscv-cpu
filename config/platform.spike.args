@@ -1,0 +1,1 @@
+--isa=rv32i --priv=m --disable-dtb -m0x80000000:0x20000

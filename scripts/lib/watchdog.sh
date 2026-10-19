@@ -39,3 +39,26 @@ run_guarded() {
   } >"$log" 2>&1
   return "$rc"
 }
+
+# run_guarded_append <log> <command> [args...]
+# Same as run_guarded but appends to an existing log (used when the caller
+# wants to record the fully expanded command line first).
+run_guarded_append() {
+  local log="$1"
+  shift
+  local tmo="$P0_01_HOST_TIMEOUT"
+  local start end rc
+  start="$(date +%s)"
+  {
+    timeout -k 5s "${tmo}s" "$@" 2>&1
+    rc=$?
+    end="$(date +%s)"
+    printf 'elapsed_seconds: %s\n' "$((end - start))"
+    printf 'exit: %s\n' "$rc"
+    if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+      printf 'P0-01_WATCHDOG_TIMEOUT: host watchdog fired after %ss (exit=%s); command=%s\n' \
+        "$tmo" "$rc" "$*"
+    fi
+  } >>"$log" 2>&1
+  return "$rc"
+}

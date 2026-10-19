@@ -1,0 +1,62 @@
+{
+  "version": "p0-02-v1",
+  "ram": {
+    "base": "0x80000000",
+    "size": "0x00020000",
+    "end": "0x80020000"
+  },
+  "reset_vector": "0x80000000",
+  "layout": {
+    "program_limit": "0x80019f00",
+    "signature": [
+      "0x80019f00",
+      "0x8001a000"
+    ],
+    "page_tables": [
+      "0x8001a000",
+      "0x8001e000"
+    ],
+    "stack": [
+      "0x8001eff0",
+      "0x8001fff0"
+    ]
+  },
+  "mmio": [
+    {
+      "name": "clint",
+      "base": "0x02000000",
+      "size": "0x0000c000",
+      "p1": "reserved",
+      "access": "rw"
+    },
+    {
+      "name": "plic",
+      "base": "0x0c000000",
+      "size": "0x00400000",
+      "p1": "reserved",
+      "access": "rw"
+    },
+    {
+      "name": "uart0",
+      "base": "0x10000000",
+      "size": "0x00001000",
+      "p1": "implemented",
+      "access": "rw"
+    },
+    {
+      "name": "test_result",
+      "base": "0x10001000",
+      "size": "0x00001000",
+      "p1": "implemented",
+      "access": "rw"
+    },
+    {
+      "name": "fpu_mmio",
+      "base": "0x10002000",
+      "size": "0x00001000",
+      "p1": "reserved",
+      "access": "rw"
+    }
+  ],
+  "spike_args": "--isa=rv32i --priv=m --disable-dtb -m0x80000000:0x20000"
+}

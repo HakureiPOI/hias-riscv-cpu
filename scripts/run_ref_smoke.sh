@@ -10,8 +10,7 @@ BUILD="$ROOT/build/ref-smoke"
 LOG_DIR="${P0_01_LOG_DIR:-$ROOT/verification/evidence/P0-01-R1/logs}"
 CROSS="${CROSS_PREFIX:-riscv64-unknown-elf-}"
 SPIKE="${SPIKE:-spike}"
-SPIKE_ISA="${SPIKE_ISA:-rv32i}"
-SPIKE_MEM="${SPIKE_MEM:-128}"
+PLATFORM_ARGS_FILE="${PLATFORM_ARGS_FILE:-$ROOT/config/platform.spike.args}"
 
 # shellcheck source=lib/watchdog.sh
 . "$ROOT/scripts/lib/watchdog.sh"
@@ -21,10 +20,20 @@ if ! mkdir -p "$BUILD" "$LOG_DIR"; then
   exit 1
 fi
 
+# Spike target arguments are generated from config/platform.json. This keeps
+# the reference RAM range identical to the linker MEMORY region.
+if [ ! -r "$PLATFORM_ARGS_FILE" ]; then
+  printf 'P0-01_REF_STEP_FAIL: missing platform args %s; run python3 scripts/gen_platform.py\n' \
+    "$PLATFORM_ARGS_FILE" >&2
+  exit 1
+fi
+read -r -a SPIKE_PLATFORM_ARGS < "$PLATFORM_ARGS_FILE"
+
 CC_FLAGS=(-march=rv32i -mabi=ilp32 -mcmodel=medany -mno-relax
           -nostdlib -nostartfiles -ffreestanding -fno-builtin -O2
           -T "$ROOT/software/smoke/link.ld" -Wl,--build-id=none)
-SRC=("$ROOT/software/smoke/start.S" "$ROOT/software/smoke/main.c")
+SRC=("$ROOT/software/smoke/start.S" "$ROOT/software/smoke/main.c"
+     "$ROOT/software/smoke/platform_check.c")
 
 fail=0
 pass() { printf 'P0-01_REF_STEP_PASS: %s\n' "$*"; }
@@ -91,7 +100,7 @@ run_ok() {
   local commit="$LOG_DIR/spike-ok-commits.log"
   local elf="$BUILD/ok.elf"
   local rc
-  local -a cmd=("$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM")
+  local -a cmd=("$SPIKE" "${SPIKE_PLATFORM_ARGS[@]}")
   if [ "${P0_01_SPIKE_NORMAL_HANG:-0}" = "1" ]; then
     # Controlled fault: do not enable --log-commits here, otherwise a 2 s
     # hanging run can emit a very large trace. The watchdog message is the
@@ -100,8 +109,12 @@ run_ok() {
   else
     cmd+=(--log-commits --log="$commit")
   fi
+  {
+    printf 'command: timeout -k 5s %ss %s %s\n' \
+      "${P0_01_SPIKE_NORMAL_TIMEOUT:-$P0_01_HOST_TIMEOUT}" "${cmd[*]}" "$elf"
+  } >"$log" 2>&1
   P0_01_HOST_TIMEOUT="${P0_01_SPIKE_NORMAL_TIMEOUT:-$P0_01_HOST_TIMEOUT}" \
-    run_guarded "$log" "${cmd[@]}" "$elf"
+    run_guarded_append "$log" "${cmd[@]}" "$elf"
   rc=$?
   if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
     printf 'P0-01_WATCHDOG_TIMEOUT: Spike normal run exceeded %ss (exit=%s)\n' \
@@ -118,7 +131,7 @@ run_ok() {
 run_fail() {
   local log="$LOG_DIR/spike-fail.log"
   local rc
-  run_guarded "$log" "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" "$BUILD/fail.elf"
+  run_guarded "$log" "$SPIKE" "${SPIKE_PLATFORM_ARGS[@]}" "$BUILD/fail.elf"
   rc=$?
   if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
     printf 'P0-01_WATCHDOG_TIMEOUT: Spike negative control exceeded host timeout (exit=%s)\n' "$rc"
@@ -134,7 +147,7 @@ run_hang() {
   local log="$LOG_DIR/spike-hang.log"
   local rc
   P0_01_HOST_TIMEOUT="${P0_01_SPIKE_HANG_TIMEOUT:-5}" run_guarded "$log" \
-    "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" "$BUILD/hang.elf"
+    "$SPIKE" "${SPIKE_PLATFORM_ARGS[@]}" "$BUILD/hang.elf"
   rc=$?
   if [ "$rc" = "124" ] && grep -qF 'P0-01_WATCHDOG_TIMEOUT' "$log"; then
     pass "Spike timeout control detected hang (exit=$rc)"
@@ -173,7 +186,7 @@ reg 0
 quit
 EOF
   P0_01_HOST_TIMEOUT="${P0_01_OBSERVE_TIMEOUT:-5}" run_guarded "$log" \
-    "$SPIKE" --isa="$SPIKE_ISA" -m"$SPIKE_MEM" -d --debug-cmd="$cmds" \
+    "$SPIKE" "${SPIKE_PLATFORM_ARGS[@]}" -d --debug-cmd="$cmds" \
     "$observe_elf"
   rc=$?
   if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
