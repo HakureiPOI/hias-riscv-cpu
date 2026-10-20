@@ -55,6 +55,8 @@ module integer_tb_top (
     output logic        req_pending,
     output logic        mem_req_valid,
     output logic        mem_req_ready,
+    output logic [31:0] mem_req_va,
+    output logic [7:0]  mem_req_gen,
     output logic        mem_resp_valid,
     output logic        mem_resp_ready,
     output logic        ram_write
@@ -78,6 +80,7 @@ module integer_tb_top (
       .redirect_valid_o(redirect_valid),
       .redirect_target_o(redirect_target), .req_pending_o(req_pending),
       .mem_req_valid_o(mem_req_valid), .mem_req_ready_o(mem_req_ready),
+      .mem_req_va_o(mem_req_va), .mem_req_gen_o(mem_req_gen),
       .mem_resp_valid_o(mem_resp_valid), .mem_resp_ready_o(mem_resp_ready),
       .ram_write_o(ram_write));
 

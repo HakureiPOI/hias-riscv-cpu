@@ -59,6 +59,7 @@ P1-D/E 边界：Load/Store 由 P1-D 接入；CSR/Trap/MRET/WFI/Fence 由 P1-E/F 
 - 软件链接复用 `software/smoke/link.ld` 与平台单一来源；只用 rv32i/ilp32、无 C/M/访存/CSR。
 - Spike 使用 `config/platform.spike.args`、`--pc=0x80000000` 直接进入目标 ELF，`--instructions=5000` 有限运行，`--log-commits` 记录参考提交。脚本在第一个 `end` PC 截断参考流（无启动 ROM 指令），不丢弃任何 DUT 退休。
 - DUT TB 从 `commit_o` 记录 source=dut 正常记录（真实 Token/next_pc/seq），停止于同一 `end` PC；`scripts/p1c_diff.py` 比较 PC、原指令、priv、rd 写/值、DUT next_pc 与相邻参考 PC（最后一条用 end 快照，标记 derived）、最终 32 个 ARF 寄存器和退休数。参考 Token 不可观测，只断言 DUT idx=0 与 gen 递增/回绕。
-- 差分完整消费 DUT 文件：恰好一个末尾终点退休，拒绝其后额外正常记录/Trap/坏行；真实 `priv` 来自 DUT 记录；参考后缀只允许终点自循环，最后 `next_pc` 由实际后继参考 PC 推导。最终寄存器/提交终点/提交后 next_pc/退休数分别校验。
+- 差分完整消费 DUT 文件：公共入口调用 `check_retire_contract.validate_stream` 校验 `hias-retire/2` 的 seq/字段/类型/来源规则，再检查恰好一个末尾终点退休，拒绝其后额外正常记录/Trap/坏行；真实 `priv` 来自 DUT 记录；参考后缀只允许终点自循环，最后 `next_pc` 由实际后继参考 PC 推导。最终寄存器/提交终点/提交后 next_pc/退休数分别校验。格式错误在正常、注入和 `pc_extra` 模式中都先返回基线失败。
 - 差分负向：`pc`、`instr`、`rd`、`next_pc`、`missing`、`duplicate`、`token` 七类先验证干净基线，只有指定字段/位置/计数差异才产生成功标记；脏基线、目标错误伴随额外错误、错误原因不符分别拒绝。实际总入口在注入原正常步骤后自行 FAIL。
-- 恢复/停止验证：真实定向程序覆盖六分支 taken/untaken 矩阵；请求门控四类恢复场景；fault 保持 16 个实际边沿并核对完整身份/元数据、ARF 不变、无 commit/Trap/RAM 写；新增 JALR 清 bit0 后 bit1 仍非对齐的停止用例。
+- 监视器负向：观察夹具在首次 fault 注入错误 x1 链接值但随后稳定，必须被独立镜像拒绝；保持期间改变一寄存器必须被真实保持监视拒绝。正常关闭注入通过；实际总入口在注入 fault 步骤后 FAIL。
+- 恢复/停止验证：真实定向程序覆盖六分支 taken/untaken 矩阵；请求门控四类恢复场景；fault TB 从复位建立独立 32 寄存器镜像，仅按预期正常提交更新，首次 fault 即与镜像比较，保持 16 个实际边沿继续比较且核对完整身份/元数据、无 commit/Trap/RAM 写；新增 JALR 清 bit0 后 bit1 仍非对齐的停止用例。

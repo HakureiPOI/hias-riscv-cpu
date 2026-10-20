@@ -31,6 +31,8 @@ module p1_integer_top (
     output logic                          req_pending_o,
     output logic                          mem_req_valid_o,
     output logic                          mem_req_ready_o,
+    output logic [31:0]                   mem_req_va_o,
+    output logic [7:0]                    mem_req_gen_o,
     output logic                          mem_resp_valid_o,
     output logic                          mem_resp_ready_o,
     output logic                          ram_write_o
@@ -99,6 +101,8 @@ module p1_integer_top (
   assign redirect_target_o = redirect.target_pc;
   assign mem_req_valid_o = req.valid;
   assign mem_req_ready_o = req_ready;
+  assign mem_req_va_o = req.va;
+  assign mem_req_gen_o = req.gen;
   assign mem_resp_valid_o = resp.valid;
   assign mem_resp_ready_o = resp_ready;
 

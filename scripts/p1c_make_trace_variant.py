@@ -11,7 +11,8 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--mode", required=True, choices=[
         "extra_endpoint", "extra_other", "bad_line", "priv", "last_next",
-        "dirty_pc"])
+        "dirty_pc", "seq_dup", "seq_back", "seq_missing", "bool_string",
+        "field_missing", "type_error"])
     a = ap.parse_args()
     lines = [ln for ln in Path(a.src).read_text(encoding="utf-8").splitlines() if ln.strip()]
     recs = [json.loads(ln) for ln in lines]
@@ -36,6 +37,18 @@ def main():
         recs[-1]["next_pc"] = (recs[-1]["next_pc"] + 4) & 0xffffffff
     elif a.mode == "dirty_pc":
         recs[0]["pc"] = (recs[0]["pc"] + 4) & 0xffffffff
+    elif a.mode == "seq_dup":
+        recs[1]["seq"] = recs[0]["seq"]
+    elif a.mode == "seq_back":
+        recs[2]["seq"] = recs[0]["seq"]
+    elif a.mode == "seq_missing":
+        del recs[0]["seq"]
+    elif a.mode == "bool_string":
+        recs[0]["token_valid"] = "true"
+    elif a.mode == "field_missing":
+        del recs[0]["instr"]
+    elif a.mode == "type_error":
+        recs[0]["pc"] = hex(recs[0]["pc"])
     out = "\n".join(json.dumps(r, separators=(",", ":")) for r in recs)
     if a.mode == "bad_line":
         out += "\nthis is not a valid JSON record\n"

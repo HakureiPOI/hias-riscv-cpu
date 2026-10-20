@@ -5,7 +5,7 @@ set -u
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="${P1_C_EVIDENCE:-$ROOT/verification/evidence/P1-C-R1}"
+BASE="${P1_C_EVIDENCE:-$ROOT/verification/evidence/P1-C-R2}"
 LOG_DIR="$BASE/logs"
 SOFT_DIR="$BASE/software"
 FAULT_DIR="$BASE/faults"
@@ -23,7 +23,7 @@ if ! [[ "$HOST_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || ! [[ "$KILL_AFTER" =~ ^[1-9][0-9]
   exit 2
 fi
 case "$INJECT" in
-  ""|pc|instr|rd|next_pc|missing|duplicate|token|pc_extra) ;;
+  ""|pc|instr|rd|next_pc|missing|duplicate|token|pc_extra|fault_initial|fault_hold) ;;
   *) printf 'P1-C_CONFIG_ERROR: invalid P1_C_INJECT=%s\n' "$INJECT" >&2; exit 2 ;;
 esac
 
@@ -269,6 +269,17 @@ if [ "$integer_ok" -eq 1 ]; then
   else
     bad "old-checker F01/F02 reproduction"
   fi
+  # R2 old-checker reproductions: seq gate and fault initial-ARF snapshot.
+  if run_logged old-repro-r2 env \
+       P1_C_R2_REPRO_EVIDENCE="$BASE/old-repro-r2" \
+       P1_C_R2_BASE_DATA="$SOFT_DIR" \
+       "$ROOT/scripts/repro_p1_c_r2.sh"; then
+    if grep -qF 'P1-C-R2_OLD_REPRO_ALL_PASS' "$LOG_DIR/old-repro-r2.log"; then
+      pass "old-checker G01/G02 reproduction"
+    else bad "old-checker R2 reproduction missing PASS"; fi
+  else
+    bad "old-checker G01/G02 reproduction"
+  fi
 
   seeds=(0x1a2b3c4d 0x5e6f7a8b 0x9c0d1e2f)
   for idx in 0 1 2; do
@@ -287,7 +298,14 @@ fi
 # V02 stopped faults and control alignment boundaries.
 if [ "$fault_ok" -eq 1 ]; then
   for c in illegal unsupported unaligned unaligned_branch jalr_unaligned fetch branch_untaken jalr_clear; do
-    if run_logged "fault-$c" "$BUILD/fault/obj/fault_tb" +case="$c"; then
+    fault_extra=()
+    if [ "$c" = jalr_unaligned ] && [ "$INJECT" = fault_initial ]; then
+      fault_extra+=(+negative=initial_arf)
+    fi
+    if [ "$c" = jalr_unaligned ] && [ "$INJECT" = fault_hold ]; then
+      fault_extra+=(+negative=hold_change)
+    fi
+    if run_logged "fault-$c" "$BUILD/fault/obj/fault_tb" +case="$c" "${fault_extra[@]}"; then
       if grep -qF "P1C_FAULT_PASS case=$c" "$LOG_DIR/fault-$c.log"; then
         pass "fault/control probe $c"
       else bad "fault probe $c missing PASS"; fi
@@ -295,6 +313,12 @@ if [ "$fault_ok" -eq 1 ]; then
       bad "fault probe $c"
     fi
   done
+  run_expected fault-negative-initial 1 \
+    "P1C_FAULT_NEGATIVE_INITIAL_ARF_DETECTED" \
+    "$BUILD/fault/obj/fault_tb" +case=jalr_unaligned +negative=initial_arf
+  run_expected fault-negative-hold 1 \
+    "P1C_FAULT_NEGATIVE_HOLD_CHANGE_DETECTED" \
+    "$BUILD/fault/obj/fault_tb" +case=jalr_unaligned +negative=hold_change
 else
   bad "fault probes skipped because build failed"
 fi
@@ -339,6 +363,33 @@ if [ -f "$SOFT_DIR/directed.dut.jsonl" ] && [ -f "$SOFT_DIR/directed.spike.log" 
     --regs "$regs" --end-pc "0x$end_pc" --inject rd
   if grep -qF 'NEGATIVE_RD_DETECTED' "$INJECT_DIR/variant-dirty-pc-inject-rd.log"; then
     bad "dirty baseline incorrectly produced RD detection"
+  fi
+
+  # Direct differential format gate: same public path, no outer validator.
+  for spec in seq_dup:seq-dup:not\ strictly\ increasing \
+              seq_back:seq-back:not\ strictly\ increasing \
+              seq_missing:seq-missing:missing\ fields \
+              bool_string:bool-string:token_valid \
+              field_missing:field-missing:missing\ fields \
+              type_error:type-error:pc; do
+    mode="${spec%%:*}"; rest="${spec#*:}"; vname="${rest%%:*}"
+    pattern="${rest#*:}"
+    variant="$variant_dir/$vname.jsonl"
+    python3 "$ROOT/scripts/p1c_make_trace_variant.py" --in "$dut" --out "$variant" --mode "$mode"
+    run_expected "format-$vname" 4 "P1C_DIFF_BASELINE_FAIL" \
+      python3 "$ROOT/scripts/p1c_diff.py" --dut "$variant" --spike "$spike_log" \
+      --regs "$regs" --end-pc "0x$end_pc"
+    if ! grep -qF "$pattern" "$INJECT_DIR/format-$vname.log"; then
+      bad "format $vname missing reason '$pattern'"
+    fi
+  done
+  seqdup="$variant_dir/seq-dup.jsonl"
+  python3 "$ROOT/scripts/p1c_make_trace_variant.py" --in "$dut" --out "$seqdup" --mode seq_dup
+  run_expected format-seq-dup-inject-rd 4 "P1C_DIFF_BASELINE_FAIL" \
+    python3 "$ROOT/scripts/p1c_diff.py" --dut "$seqdup" --spike "$spike_log" \
+    --regs "$regs" --end-pc "0x$end_pc" --inject rd
+  if grep -qF 'NEGATIVE_RD_DETECTED' "$INJECT_DIR/format-seq-dup-inject-rd.log"; then
+    bad "format-invalid baseline incorrectly produced RD detection"
   fi
 else
   bad "directed trace missing for negative probes"

@@ -13,6 +13,7 @@ import json
 import re
 import sys
 from pathlib import Path
+import check_retire_contract as contract
 
 SPIKE_RE = re.compile(
     r"^core\s+\d+:\s+(?P<priv>\d)\s+(?P<pc>0x[0-9a-f]+)\s+"
@@ -96,6 +97,10 @@ def read_dut(path: Path, end_pc: int):
         if r.get("pc") == end_pc:
             endpoint_indexes.append(len(records))
         records.append(r)
+    try:
+        contract.validate_stream(records)
+    except contract.RecordError as exc:
+        raise DiffError(f"format: {exc}")
     if not records or records[-1].get("pc") != end_pc:
         raise DiffError("DUT never ended at the unique endpoint")
     if endpoint_indexes != [len(records) - 1]:
