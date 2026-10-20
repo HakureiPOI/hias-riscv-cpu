@@ -5,7 +5,7 @@ set -u
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="${P1_C_EVIDENCE:-$ROOT/verification/evidence/P1-C}"
+BASE="${P1_C_EVIDENCE:-$ROOT/verification/evidence/P1-C-R1}"
 LOG_DIR="$BASE/logs"
 SOFT_DIR="$BASE/software"
 FAULT_DIR="$BASE/faults"
