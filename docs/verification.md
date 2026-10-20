@@ -1,8 +1,10 @@
-# 验证入口（P0-01 ... P0-02-R2 / P1-A 实测）
+# 验证入口（P0 / P1-A / P1-B 实测）
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
-P1-A 经 R2 [管理验收](progress/P1-A-R2-review.md)通过；`P1_A_EVIDENCE=verification/evidence/P1-A-R2 make check-p1-a` 正常 exit 0，独立注入运行总入口 exit 2，详见报告。P1-B-R1 分支正常 `check-p1-b` 日志 exit 0，实际早期错误注入总入口 FAIL；[R1 复审](progress/P1-B-R1-review.md)接受 JAL/恢复及错误累计修复，发现构建退出码、独立 PC/完整请求检查与探针原因绑定仍需收尾，当前执行 [P1-B-R2](tasks/P1-B-R2-验证收尾.md)，尚未验收或合入 main。main 的验证入口仍以已合入内容为准；Windows 管理侧未运行 RTL 或该入口。
+P1-A 与 P1-B 均经 R2 管理验收通过并合入。P1-B 被测试实现 `c14c2be` 上 `make check-p1-b` 正常 exit 0，含 P1-A/P0 回归；default/wrap 构建失败与 wrong-reason/extra 实际总入口均 FAIL，详见 [P1-B-R2 验收](progress/P1-B-R2-review.md)。现有前端仅取字/译码，当前下达 [P1-C](tasks/P1-C-整数执行与顺序提交.md)，执行、真实退休和 CPU 差分仍未实现。Windows 管理侧未运行 RTL 或这些入口。
+
+后续执行检查须显式设置本轮证据目录；例如 P1-C 内部将 P1_B_EVIDENCE 指向本轮 regression 子目录，不覆盖已验收的 P1-B-R2 原始证据。
 
 ## 环境
 
@@ -33,6 +35,7 @@ make check-p0-01
 | `make platform-generate` | 从 `config/platform.json` 生成平台头文件、链接片段、Spike 参数 |
 | `make platform-check` | 校验配置、生成文件漂移、链接/ELF 布局与 Spike 参数一致 |
 | `make check-p0-02` | 平台正/负向/漂移、共享类型、接口/事件夹具、退休契约检查 + P0-01/R1 回归（R2 默认日志写入 P0-02-R2 目录） |
+| `make check-p1-b` | 92 项译码/JAL 锚点、真实 RAM 前端、独立 PC/完整请求监视、默认/强制回绕、分类负向/看门狗/旧版复现，含 P1-A/P0 回归；不是 CPU 执行或退休测试 |
 | `make check-p1-a` | P1-A RTL Lint、空闲骨架、RAM/桥定向+随机、DUT 物理回读、稳定性/final-handshake/错误/超时/忽略 TERM 探针、Token 联合补测，并回归 `check-p0-02`；`P1_A_INJECT_MISMATCH_HANG=1` 用于证明意外比较挂起会使总入口 FAIL |
 | `make clean` | 删除 `build/`，不删除证据 |
 

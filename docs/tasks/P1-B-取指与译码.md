@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | R1 已交付，RTL 修复接受，执行 [P1-B-R2 验证收尾](P1-B-R2-验证收尾.md)；暂不合入、不进入 P1-C |
+| 状态 | 经 [P1-B-R2 管理验收](../progress/P1-B-R2-review.md)通过并合入；下一任务 P1-C |
 | 前置 | [P1-A-R2 管理验收](../progress/P1-A-R2-review.md) |
 | 分支 | 从包含本任务的最新 origin/main 新建 `codex/p1-b-fetch-decode` |
 | 起点 | P1-A 实施 `b63948019b9d5dfe4efc846a6e38ae0811416540` 加最新管理文档；记录实际基线 Commit |

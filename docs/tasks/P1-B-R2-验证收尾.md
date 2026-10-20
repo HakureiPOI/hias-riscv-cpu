@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | 已下达，待手动转交；P1-B 尚未验收，不进入 P1-C |
+| 状态 | 已交付并经 [管理验收](../progress/P1-B-R2-review.md)通过；P1-B 已合入，下一任务 P1-C |
 | 输入 | [P1-B-R1 管理复审](../progress/P1-B-R1-review.md)，G01—G03 |
 | 分支 | 继续 `codex/p1-b-fetch-decode` |
 | 起点 | `0dce6ed385e7062f322eede395ae65adfafcf374`，纳入含本任务的最新 origin/main，记录实际修复基线 |

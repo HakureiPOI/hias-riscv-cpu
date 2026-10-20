@@ -1,6 +1,6 @@
 # 共享类型与模块接口（P0-02 冻结基线）
 
-状态：**共享接口基线已冻结，见 [管理验收](progress/P0-02-R2-review.md)；功能模块待实施。** 对应 RTL 类型包：
+状态：**共享接口基线已冻结，见 [管理验收](progress/P0-02-R2-review.md)；P1-A/P1-B 模块已验收，整数后端按 [P1-C 任务](tasks/P1-C-整数执行与顺序提交.md)实施。** 对应 RTL 类型包：
 
 - `rtl/include/core_config_pkg.sv`：参数与位宽。
 - `rtl/include/core_types_pkg.sv`：packed struct/枚举。

@@ -1,6 +1,6 @@
 # P1-B 取指、译码与前端集成
 
-状态：P1-B 实施模块说明。前端只完成取指、RV32I/Zicsr/Zifencei 译码和结果保持；不执行指令、不更新 CSR、不产生真实退休/Trap。
+状态：P1-B 经 [R2 管理验收](../progress/P1-B-R2-review.md)通过并合入。前端只完成取指、RV32I/Zicsr/Zifencei 译码和结果保持；不执行指令、不更新 CSR、不产生真实退休/Trap。后端接入按 [P1-C 任务](../tasks/P1-C-整数执行与顺序提交.md)推进。
 
 ## 1 文件与端口
 

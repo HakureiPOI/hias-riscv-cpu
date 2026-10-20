@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | 已交付并经 [R1 复审](../progress/P1-B-R1-review.md)；RTL 修复接受，继续 [R2 验证收尾](P1-B-R2-验证收尾.md)，P1-B 尚未整体验收 |
+| 状态 | R1 修复接受，剩余验证经 [R2 管理验收](../progress/P1-B-R2-review.md)关闭；P1-B 已合入，下一任务 P1-C |
 | 输入 | [P1-B 管理审查](../progress/P1-B-review.md)，F01—F03；[原任务](P1-B-取指与译码.md)范围继续有效 |
 | 分支 | 继续 `codex/p1-b-fetch-decode`，不新开后端阶段 |
 | 修复起点 | `a7862559674f9ac52f1acb60cf4e49cd3a59c8fa`，先纳入包含本任务的最新 origin/main，记录实际修复基线 |

@@ -2,14 +2,16 @@
 
 本项目计划实现 RV32 双发射乱序处理器，完成动态分支预测、Cache、Sv32 MMU/TLB、独立 FP32 运算部件及 FPGA 验证。
 
-P0-01、P0-02 和 P1-A 基础框架/RAM 总线已通过管理验收，实施已合入 main；P1-B-R1 的 JAL/恢复 RTL 修复已接受，验证仍需收尾，当前下达 P1-B-R2，实施分支暂不合入、不进入 P1-C。当前尚无执行指令的完整 CPU、真实退休/DiffTest 或 FPGA 结果；设计参数和时间表不代表功能已经实现。
+P0-01、P0-02、P1-A 基础框架/RAM 总线及 P1-B 取指/译码已通过管理验收，实施已合入 main；当前下达 P1-C 整数执行与顺序提交。当前具备真实 RAM 前端取字/译码，尚无指令执行、真实退休/DiffTest 或 FPGA 结果；设计参数和时间表不代表功能已经实现。
 
 ## 项目文档
 
 - [项目设计书](docs/项目设计书.md)：课程要求映射、架构方案、接口约定、验证门禁、里程碑与风险处理。
 - [技术调研记录](docs/research/技术调研-2026-10-19.md)：官方规范、开源参考、选型依据及调研边界。
 - [协作流程](docs/协作流程.md)：Windows 管理审查、Ubuntu 24 容器内 opencode 实施，用户手动转交。
-- [当前实施任务 P1-B-R2](docs/tasks/P1-B-R2-验证收尾.md)：构建失败传播、独立 PC/完整请求监视与探针原因隔离。
+- [当前实施任务 P1-C](docs/tasks/P1-C-整数执行与顺序提交.md)：ARF、29 条整数/控制流、单项真实提交和 Spike 子集差分，不提前实现 LSU/CSR/Trap。
+- [P1-B-R2 管理验收](docs/progress/P1-B-R2-review.md)：817 项文件核验，G01—G03 关闭，P1-B 合入并允许进入 P1-C。
+- [上一轮任务 P1-B-R2](docs/tasks/P1-B-R2-验证收尾.md)：构建失败传播、独立 PC/完整请求监视与探针原因隔离。
 - [P1-B-R1 管理复审](docs/progress/P1-B-R1-review.md)：315 项文件核验，已接受的 RTL 修复与 G01—G03 剩余验证问题。
 - [上一轮任务 P1-B-R1](docs/tasks/P1-B-R1-译码与恢复修复.md)：修复 JAL/期望表、重定向与响应身份，并保证完整测试保留早期失败。
 - [P1-B 管理审查](docs/progress/P1-B-review.md)：139 项文件哈希核对及 F01—F03 阻塞项，暂不合入、不进入 P1-C。
@@ -37,6 +39,7 @@ P0-01、P0-02 和 P1-A 基础框架/RAM 总线已通过管理验收，实施已�
 - [P1-A 基础框架报告](docs/progress/P1-A-report.md)：核心/SoC 骨架、128 KiB RAM/桥、V01—V05 结果。
 - [P1-A-R1 修订报告](docs/progress/P1-A-R1-report.md)：顶端 PA/非法宽度、TB 时序/副作用与负向看门狗修复。
 - [P1-A-R2 验证收尾报告](docs/progress/P1-A-R2-report.md)：探针错误绑定、DUT 物理回读/统一监视与意外挂起总入口失败。
+- [P1-B 报告](docs/progress/P1-B-report.md)、[R1 报告](docs/progress/P1-B-R1-report.md)与 [R2 报告](docs/progress/P1-B-R2-report.md)：前端实施、JAL/恢复修复与验证收尾，按交付时快照保留。
 - [P0-01 实施报告](docs/progress/P0-01-report.md)：首轮真实命令、退出码、证据与未完成项。
 - [P0-01-R1 实施报告](docs/progress/P0-01-R1-report.md)：修复后的正常与故障注入结果。
 - [课程实验要求](docs/course/实验要求.md)：依据课程原始文件整理，包含待澄清事项。
