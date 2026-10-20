@@ -95,7 +95,8 @@ int main(int argc, char** argv) {
   bool pending_commit = false;
   int pending_idx = -1;
   bool fault = false;
-  int errors = 0;
+  int other_errors = 0;
+  int target_errors = 0;
 
   auto apply_pending = [&]() {
     if (!pending_commit) return;
@@ -115,7 +116,7 @@ int main(int argc, char** argv) {
     if (idx >= static_cast<int>(c.commit_pcs.size())) {
       std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s extra commit %d\n",
                    name.c_str(), idx);
-      ++errors;
+      ++other_errors;
       return;
     }
     const uint32_t want_pc = c.commit_pcs[idx];
@@ -135,7 +136,7 @@ int main(int argc, char** argv) {
         "instr=0x%x/0x%x rd_we=%u/%u rd=%u/%d data=0x%x/0x%x\n",
         name.c_str(), idx, d->commit_pc, want_pc, d->commit_instr, want_instr,
         d->commit_rd_we, want_we, got_rd, w.rd, got_data, w.data);
-      ++errors;
+      ++other_errors;
     }
     dump_trace("commit", idx, d->commit_pc, d->commit_instr,
                d->commit_rd_we, got_rd, got_data);
@@ -143,11 +144,11 @@ int main(int argc, char** argv) {
     pending_idx = idx;
   };
   auto compare_arf = [&](const uint32_t* obs, const char* phase,
-                         bool report) -> bool {
+                         bool target) -> bool {
     int bad = -1;
     if (same_regs(obs, mirror, &bad)) return true;
-    if (report)
-      report_regs(phase, bad, obs[bad], mirror[bad]);
+    report_regs(phase, bad, obs[bad], mirror[bad]);
+    if (target) ++target_errors; else ++other_errors;
     return false;
   };
 
@@ -163,28 +164,43 @@ int main(int argc, char** argv) {
       if (c.kind < 0 && commits >= static_cast<int>(c.commit_pcs.size())) {
         edge(d);
         apply_pending();
-        if (!compare_arf(d->arf_debug_o, "normal_final", true)) ++errors;
+        compare_arf(d->arf_debug_o, "normal_final", false);
         break;
       }
     }
     edge(d);
     apply_pending();
-    if (!compare_arf(d->arf_debug_o, "commit_edge", true)) ++errors;
+    compare_arf(d->arf_debug_o, "commit_edge", false);
   }
 
+  auto check_meta = [&](uint32_t kind, uint32_t cause, uint32_t tval,
+                        uint32_t pc, uint32_t instr, const char* phase) {
+    if (kind != static_cast<unsigned>(c.kind) || cause != c.cause ||
+        tval != c.tval || pc != c.pc || instr != c.fault_instr) {
+      std::fprintf(stderr,
+        "P1C_FAULT_FAIL: case=%s phase=%s metadata mismatch "
+        "kind=%u/%d cause=%u/%u tval=0x%x/0x%x pc=0x%x/0x%x instr=0x%x/0x%x\n",
+        name.c_str(), phase, kind, c.kind, cause, c.cause, tval, c.tval,
+        pc, c.pc, instr, c.fault_instr);
+      ++other_errors;
+    }
+  };
+
   if (c.kind < 0) {
-    if (fault) { std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s unexpected fault\n", name.c_str()); ++errors; }
+    if (fault) {
+      std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s unexpected fault\n", name.c_str());
+      ++other_errors;
+    }
     if (commits != static_cast<int>(c.commit_pcs.size())) {
       std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s commits=%d expected=%zu\n",
                    name.c_str(), commits, c.commit_pcs.size());
-      ++errors;
+      ++other_errors;
     }
-    if (name == "branch_untaken") {
-      if (d->arf_debug_o[1] != 1u || d->arf_debug_o[0] != 0u) ++errors;
-    }
-    if (name == "jalr_clear") {
-      if (d->arf_debug_o[1] != 0x80000008u || d->arf_debug_o[5] != 5u) ++errors;
-    }
+    if (name == "branch_untaken" &&
+        (d->arf_debug_o[1] != 1u || d->arf_debug_o[0] != 0u)) ++other_errors;
+    if (name == "jalr_clear" &&
+        (d->arf_debug_o[1] != 0x80000008u || d->arf_debug_o[5] != 5u))
+      ++other_errors;
   } else if (fault) {
     const uint32_t f_kind = d->fault_kind, f_cause = d->fault_cause;
     const uint32_t f_tval = d->fault_tval, f_pc = d->fault_pc;
@@ -195,45 +211,50 @@ int main(int argc, char** argv) {
                 "tval=0x%08x pc=0x%08x instr=0x%08x token=%u/%u fetch_gen=%u\n",
                 name.c_str(), f_kind, f_cause, f_tval, f_pc, f_instr,
                 f_tidx, f_tgen, f_fetch);
-    if (f_kind != static_cast<unsigned>(c.kind) || f_cause != c.cause ||
-        f_tval != c.tval || f_pc != c.pc || f_instr != c.fault_instr) {
-      std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s fault metadata mismatch\n",
-                   name.c_str());
-      ++errors;
+    check_meta(f_kind, f_cause, f_tval, f_pc, f_instr, "fault_first");
+    if (commits != static_cast<int>(c.commit_pcs.size())) {
+      std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s fault-prefix commits=%d "
+                           "expected=%zu\n", name.c_str(), commits,
+                   c.commit_pcs.size());
+      ++other_errors;
     }
     if (f_tidx != 0 || f_tgen != static_cast<uint32_t>(commits)) {
       std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s fault token %u/%u "
                            "expected 0/%d\n", name.c_str(), f_tidx, f_tgen, commits);
-      ++errors;
+      ++other_errors;
     }
     auto it = fetch_gen_by_pc.find(f_pc);
     if (it == fetch_gen_by_pc.end() || f_fetch != it->second) {
       std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s fault fetch_gen=%u "
                            "expected=%s\n", name.c_str(), f_fetch,
                    it == fetch_gen_by_pc.end() ? "missing" : "recorded");
-      ++errors;
+      ++other_errors;
     }
     if (d->commit_valid || d->commit_trap_valid || d->ram_write) {
       std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s side effect at fault\n",
                    name.c_str());
-      ++errors;
+      ++other_errors;
     }
-    if (!compare_arf(d->arf_debug_o, "fault_first", true)) ++errors;
+    compare_arf(d->arf_debug_o, "fault_first", false);
 
-    if (negative == "initial_arf") {
+    const bool initial_mode = negative == "initial_arf" ||
+                              negative == "initial_arf_extra" ||
+                              negative == "initial_arf_missing";
+    const bool hold_mode = negative == "hold_change" ||
+                           negative == "hold_change_extra";
+    const bool extra_mode = negative == "initial_arf_extra" ||
+                            negative == "hold_change_extra";
+    // Extra observation error, routed through the same metadata checker.
+    if (extra_mode) check_meta(f_kind, f_cause ^ 1u, f_tval, f_pc, f_instr,
+                               "injected_extra");
+
+    if (initial_mode) {
       uint32_t obs[32];
       for (int r = 0; r < 32; ++r) obs[r] = d->arf_debug_o[r];
-      obs[1] = 0x8000000cu;  // the link value the buggy JALR would write
-      int bad = -1;
-      if (!same_regs(obs, mirror, &bad) && bad == 1) {
-        report_regs("negative_initial", bad, obs[bad], mirror[bad]);
-        std::printf("P1C_FAULT_NEGATIVE_INITIAL_ARF_DETECTED\n");
-        delete d;
-        return 1;
-      }
-      std::printf("P1C_FAULT_NEGATIVE_INITIAL_ARF_NOT_DETECTED\n");
-      delete d;
-      return 2;
+      // initial_arf_missing keeps the correct value; the normal target probes
+      // inject the link value the buggy JALR would write.
+      obs[1] = (negative == "initial_arf_missing") ? mirror[1] : 0x8000000cu;
+      compare_arf(obs, "negative_initial", true);
     }
 
     // Sixteen actual edges with independent architectural mirror and metadata
@@ -247,47 +268,67 @@ int main(int argc, char** argv) {
           d->fault_token_gen != f_tgen || d->fault_fetch_gen != f_fetch) {
         std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s fault metadata changed "
                              "at hold edge %d\n", name.c_str(), i);
-        ++errors;
+        ++other_errors;
       }
       if (d->commit_valid || d->commit_trap_valid || d->ram_write) {
         std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s side effect in hold %d\n",
                      name.c_str(), i);
-        ++errors;
+        ++other_errors;
       }
-      if (negative == "hold_change" && i == 3) {
+      if (hold_mode && i == 3) {
         uint32_t obs[32];
         for (int r = 0; r < 32; ++r) obs[r] = d->arf_debug_o[r];
         obs[5] ^= 1u;  // one held architectural value changes
-        int bad = -1;
-        if (!same_regs(obs, mirror, &bad) && bad == 5) {
-          report_regs("negative_hold", bad, obs[bad], mirror[bad]);
-          std::printf("P1C_FAULT_NEGATIVE_HOLD_CHANGE_DETECTED\n");
-          delete d;
-          return 1;
-        }
-        std::printf("P1C_FAULT_NEGATIVE_HOLD_CHANGE_NOT_DETECTED\n");
-        delete d;
-        return 2;
+        compare_arf(obs, "negative_hold", true);
       }
-      if (!compare_arf(d->arf_debug_o, "hold_edge", true)) {
-        std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s ARF changed at hold %d\n",
-                     name.c_str(), i);
-        ++errors;
-      }
+      compare_arf(d->arf_debug_o, "hold_edge", false);
       std::printf("P1C_FAULT_TRACE case=%s phase=hold edge=%d arf_ok\n",
                   name.c_str(), i);
     }
   } else {
     std::fprintf(stderr, "P1C_FAULT_FAIL: case=%s fault not observed\n", name.c_str());
-    ++errors;
+    ++other_errors;
   }
 
-  delete d;
-  if (errors) {
-    std::printf("P1C_FAULT_FAIL case=%s errors=%d\n", name.c_str(), errors);
+  if (negative.empty()) {
+    if (other_errors) {
+      std::printf("P1C_FAULT_FAIL case=%s other_errors=%d target_errors=%d\n",
+                  name.c_str(), other_errors, target_errors);
+      delete d;
+      return 1;
+    }
+    std::printf("P1C_FAULT_PASS case=%s kind=%d commits=%d\n",
+                name.c_str(), c.kind, commits);
+    delete d;
+    return 0;
+  }
+
+  const bool scenario_ok = fault &&
+      commits == static_cast<int>(c.commit_pcs.size());
+  const bool initial_mode = negative == "initial_arf" ||
+                            negative == "initial_arf_extra" ||
+                            negative == "initial_arf_missing";
+  const char* base = initial_mode ? "INITIAL_ARF" : "HOLD_CHANGE";
+  std::printf("P1C_FAULT_PROBE_STATS probe=%s target_errors=%d other_errors=%d "
+              "scenario=%s\n", negative.c_str(), target_errors, other_errors,
+              scenario_ok ? "complete" : "incomplete");
+  if (!scenario_ok) {
+    std::printf("P1C_FAULT_NEGATIVE_%s_SCENARIO_FAIL\n", base);
+    delete d;
+    return 4;
+  }
+  if (target_errors > 0 && other_errors == 0) {
+    std::printf("P1C_FAULT_NEGATIVE_%s_DETECTED\n", base);
+    delete d;
     return 1;
   }
-  std::printf("P1C_FAULT_PASS case=%s kind=%d commits=%d\n",
-              name.c_str(), c.kind, commits);
-  return 0;
+  if (target_errors == 0) {
+    std::printf("P1C_FAULT_NEGATIVE_%s_NOT_DETECTED\n", base);
+    delete d;
+    return 2;
+  }
+  std::printf("P1C_FAULT_NEGATIVE_%s_EXTRA_ERRORS target_errors=%d "
+              "other_errors=%d\n", base, target_errors, other_errors);
+  delete d;
+  return 3;
 }

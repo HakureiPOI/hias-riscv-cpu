@@ -5,7 +5,7 @@ set -u
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="${P1_C_EVIDENCE:-$ROOT/verification/evidence/P1-C-R2}"
+BASE="${P1_C_EVIDENCE:-$ROOT/verification/evidence/P1-C-R3}"
 LOG_DIR="$BASE/logs"
 SOFT_DIR="$BASE/software"
 FAULT_DIR="$BASE/faults"
@@ -27,7 +27,7 @@ if ! [[ "$HOST_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || ! [[ "$KILL_AFTER" =~ ^[1-9][0-9]
   exit 2
 fi
 case "$INJECT" in
-  ""|pc|instr|rd|next_pc|missing|duplicate|token|pc_extra|fault_initial|fault_hold) ;;
+  ""|pc|instr|rd|next_pc|missing|duplicate|token|pc_extra|fault_initial|fault_hold|probe_initial_extra|probe_hold_extra) ;;
   *) printf 'P1-C_CONFIG_ERROR: invalid P1_C_INJECT=%s\n' "$INJECT" >&2; exit 2 ;;
 esac
 
@@ -286,6 +286,15 @@ if [ "$integer_ok" -eq 1 ]; then
   else
     bad "old-checker G01/G02 reproduction"
   fi
+  if run_logged old-repro-r3 env \
+       P1_C_R3_REPRO_EVIDENCE="$BASE/old-repro-r3" \
+       "$ROOT/scripts/repro_p1_c_r3.sh"; then
+    if grep -qF 'P1-C-R3_OLD_REPRO_ALL_PASS' "$LOG_DIR/old-repro-r3.log"; then
+      pass "old fault-probe H01 reproduction"
+    else bad "old fault-probe reproduction missing PASS"; fi
+  else
+    bad "old fault-probe H01 reproduction"
+  fi
 
   seeds=(0x1a2b3c4d 0x5e6f7a8b 0x9c0d1e2f)
   for idx in 0 1 2; do
@@ -319,12 +328,25 @@ if [ "$fault_ok" -eq 1 ]; then
       bad "fault probe $c"
     fi
   done
+  neg_initial=initial_arf
+  neg_hold=hold_change
+  if [ "$INJECT" = probe_initial_extra ]; then neg_initial=initial_arf_extra; fi
+  if [ "$INJECT" = probe_hold_extra ]; then neg_hold=hold_change_extra; fi
   run_expected fault-negative-initial 1 \
     "P1C_FAULT_NEGATIVE_INITIAL_ARF_DETECTED" \
-    "$BUILD/fault/obj/fault_tb" +case=jalr_unaligned +negative=initial_arf
+    "$BUILD/fault/obj/fault_tb" +case=jalr_unaligned +negative="$neg_initial"
   run_expected fault-negative-hold 1 \
     "P1C_FAULT_NEGATIVE_HOLD_CHANGE_DETECTED" \
-    "$BUILD/fault/obj/fault_tb" +case=jalr_unaligned +negative=hold_change
+    "$BUILD/fault/obj/fault_tb" +case=jalr_unaligned +negative="$neg_hold"
+  run_expected fault-negative-initial-extra 3 \
+    "P1C_FAULT_NEGATIVE_INITIAL_ARF_EXTRA_ERRORS" \
+    "$BUILD/fault/obj/fault_tb" +case=jalr_unaligned +negative=initial_arf_extra
+  run_expected fault-negative-hold-extra 3 \
+    "P1C_FAULT_NEGATIVE_HOLD_CHANGE_EXTRA_ERRORS" \
+    "$BUILD/fault/obj/fault_tb" +case=jalr_unaligned +negative=hold_change_extra
+  run_expected fault-negative-initial-missing 2 \
+    "P1C_FAULT_NEGATIVE_INITIAL_ARF_NOT_DETECTED" \
+    "$BUILD/fault/obj/fault_tb" +case=jalr_unaligned +negative=initial_arf_missing
 else
   bad "fault probes skipped because build failed"
 fi
