@@ -1,0 +1,4 @@
+command: timeout -k 5s 1200s /workspace/hias-riscv-cpu/build/p1-d/int/obj/integer_tb +image=verification/evidence/P1-D-R1/probe-fail/ram-monitor/software/random2.bin +trace=verification/evidence/P1-D-R1/probe-fail/ram-monitor/software/random2.dut.jsonl +regs=verification/evidence/P1-D-R1/probe-fail/ram-monitor/software/random2.regs.json +end_pc=0x80000254 +max_retire=10000 +max_cycles=400000 +stall +delay +ram_dump=verification/evidence/P1-D-R1/probe-fail/ram-monitor/software/random2.ram +ram_start=0x80018000 +ram_len=256
+P1D_MEM_STATS data_req=264 data_resp=264 fetch_req=2567 fetch_resp=2567 ram_writes=156 data_req_waits=949
+P1C_DUT_PASS retires=2123 endpoint=0x80000254 cycles=18256 redirect_req_wait=16 redirect_resp_wait=306 redirect_resp_same=27 redirect_dec=105 redirect_stall=72
+exit: 0

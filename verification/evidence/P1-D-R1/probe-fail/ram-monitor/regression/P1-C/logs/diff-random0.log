@@ -1,0 +1,3 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut verification/evidence/P1-D-R1/probe-fail/ram-monitor/regression/P1-C/software/random0.dut.jsonl --spike verification/evidence/P1-D-R1/probe-fail/ram-monitor/regression/P1-C/software/random0.spike.log --regs verification/evidence/P1-D-R1/probe-fail/ram-monitor/regression/P1-C/software/random0.regs.json --end-pc 0x800001c0
+P1C_DIFF_PASS retires=1281 endpoint=0x800001c0 reference_next_pc=derived
+exit: 0

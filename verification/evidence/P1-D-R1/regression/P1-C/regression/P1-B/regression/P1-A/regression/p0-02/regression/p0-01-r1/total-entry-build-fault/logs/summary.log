@@ -1,0 +1,14 @@
+P0-01 check summary
+date_utc: 2026-10-20T13:09:30Z
+git_head: 8b4017ccf774b9776c21518d8d788181c846afbf
+git_branch: codex/p1-d-load-store
+host_timeout_seconds: 60
+step_timeout_seconds: 60
+log_dir: verification/evidence/P1-D-R1/regression/P1-C/regression/P1-B/regression/P1-A/regression/p0-02/regression/p0-01-r1/total-entry-build-fault/logs
+git_status:
+  ?? verification/evidence/P1-D-R1/
+steps:
+  env-check    exit=0
+  rtl-smoke    exit=1
+  ref-smoke    exit=0
+result: FAIL

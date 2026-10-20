@@ -1,0 +1,9 @@
+command: timeout -k 5s 120s /workspace/hias-riscv-cpu/build/p1-d-r1/old-repro/obj/arb_old
+P1D_ARB_FAIL: wrong id not routed got=0x0 want=0x0
+P1D_ARB_FAIL: wrong id after edge keeps owner got=0x0 want=0x0
+P1D_ARB_FAIL: response owner got=0x0 want=0x0
+P1D_ARB_FAIL: response backpressure got=0x0 want=0x0
+P1D_ARB_FAIL: second fairness grant got=0x0 want=0x0
+P1D_ARB_FAIL: lsu after canceled lock got=0x0 want=0x0
+P1D_ARB_FAIL errors=6
+exit: 1

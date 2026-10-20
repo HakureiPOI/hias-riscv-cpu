@@ -1,0 +1,42 @@
+P1-D_STEP_PASS: P1-D RTL lint
+P1-D_STEP_PASS: P1-D integer TB lint
+P1-D_STEP_PASS: arbiter fairness/routing/stability
+P1-D_STEP_PASS: integer DUT build
+P1-D_STEP_PASS: data fault build
+P1-D_STEP_PASS: old arbiter F01 reproduction
+P1-D_STEP_PASS: software directed
+P1-D_STEP_FAIL: end discovery watchdog forced timeout
+P1-D_STEP_PASS: software random0
+P1-D_STEP_FAIL: end discovery watchdog forced timeout
+P1-D_STEP_PASS: software random1
+P1-D_STEP_FAIL: end discovery watchdog forced timeout
+P1-D_STEP_PASS: software random2
+P1-D_STEP_FAIL: end discovery watchdog forced timeout
+P1-D_STEP_PASS: data fault load_misalign
+P1-D_STEP_PASS: data fault load_x0_misalign
+P1-D_STEP_PASS: data fault load_access
+P1-D_STEP_PASS: data fault store_misalign
+P1-D_STEP_PASS: data fault store_access
+P1-D_STEP_PASS: data fault bridge_load_error
+P1-D_STEP_PASS: data fault ram_end_load_byte
+P1-D_STEP_PASS: data fault ram_end_load_half
+P1-D_STEP_PASS: data fault ram_end_load_word
+P1-D_STEP_PASS: data fault ram_end_store_byte
+P1-D_STEP_PASS: data fault ea_wrap_load
+P1-D_STEP_PASS: data fault mmio_load
+P1-D_STEP_PASS: fault-negative-first-event (exit=1)
+P1-D_STEP_PASS: fault-negative-hold-change (exit=1)
+P1-D_STEP_FAIL: directed trace missing for negative probes
+P1-D_STEP_PASS: P1-C regression (including P1-B/P1-A/P0)
+P1-D check summary
+date_utc: 2026-10-20T13:25:55Z
+git_head: 8b4017ccf774b9776c21518d8d788181c846afbf
+git_branch: codex/p1-d-load-store
+log_dir: verification/evidence/P1-D-R1/probe-fail/end-hang/logs
+inject: none
+probe_extra: 0
+git_status:
+  ?? verification/evidence/P1-D-R1/
+result: FAIL
+P1-D_CHECK_ALL_FAIL
+make: *** [Makefile:72: check-p1-d] Error 1

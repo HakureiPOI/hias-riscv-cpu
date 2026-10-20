@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/gen_p1d_random.py --out verification/evidence/P1-D-R1/probe-fail/normal-pc/software/random0.S --seed 0x1a2b3c4d --loops 80 --body 16
+exit: 0

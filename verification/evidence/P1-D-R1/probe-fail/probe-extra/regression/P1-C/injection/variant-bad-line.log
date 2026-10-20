@@ -1,0 +1,4 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut verification/evidence/P1-D-R1/probe-fail/probe-extra/regression/P1-C/injection/traces/bad-line.jsonl --spike verification/evidence/P1-D-R1/probe-fail/probe-extra/regression/P1-C/software/directed.spike.log --regs verification/evidence/P1-D-R1/probe-fail/probe-extra/regression/P1-C/software/directed.regs.json --end-pc 0x800001cc
+P1C_DIFF_BASELINE_FAIL: DUT trace line 125: invalid JSON: Expecting value: line 1 column 1 (char 0)
+elapsed_seconds: 0
+exit: 4

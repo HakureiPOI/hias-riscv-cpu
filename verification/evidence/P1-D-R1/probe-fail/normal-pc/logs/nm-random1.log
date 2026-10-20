@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s bash -c exec "$0" "$1" > "$2" riscv64-unknown-elf-nm verification/evidence/P1-D-R1/probe-fail/normal-pc/software/random1.elf verification/evidence/P1-D-R1/probe-fail/normal-pc/software/random1.nm
+exit: 0

@@ -1,0 +1,4 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut verification/evidence/P1-D-R1/probe-fail/probe-extra/regression/P1-C/injection/traces/seq-back.jsonl --spike verification/evidence/P1-D-R1/probe-fail/probe-extra/regression/P1-C/software/directed.spike.log --regs verification/evidence/P1-D-R1/probe-fail/probe-extra/regression/P1-C/software/directed.regs.json --end-pc 0x800001cc
+P1C_DIFF_BASELINE_FAIL: format: stream:3: seq not strictly increasing
+elapsed_seconds: 0
+exit: 4

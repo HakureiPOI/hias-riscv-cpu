@@ -1,0 +1,10 @@
+P1-D check summary
+date_utc: 2026-10-20T13:17:40Z
+git_head: 8b4017ccf774b9776c21518d8d788181c846afbf
+git_branch: codex/p1-d-load-store
+log_dir: verification/evidence/P1-D-R1/probe-fail/probe-extra/logs
+inject: none
+probe_extra: 1
+git_status:
+  ?? verification/evidence/P1-D-R1/
+result: FAIL

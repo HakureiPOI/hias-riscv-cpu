@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s riscv64-unknown-elf-objcopy -O binary verification/evidence/P1-D-R1/probe-fail/normal-pc/software/random2.elf verification/evidence/P1-D-R1/probe-fail/normal-pc/software/random2.bin
+exit: 0

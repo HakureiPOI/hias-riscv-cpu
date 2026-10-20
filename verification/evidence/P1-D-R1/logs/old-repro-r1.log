@@ -1,0 +1,4 @@
+command: timeout -k 5s 1200s env P1_D_R1_REPRO_EVIDENCE=/workspace/hias-riscv-cpu/verification/evidence/P1-D-R1/old-repro-r1 /workspace/hias-riscv-cpu/scripts/repro_p1_d_r1.sh
+OLD_P1D_F01_ARB_IDENTITY_REPRODUCED
+P1-D-R1_OLD_REPRO_ALL_PASS
+exit: 0

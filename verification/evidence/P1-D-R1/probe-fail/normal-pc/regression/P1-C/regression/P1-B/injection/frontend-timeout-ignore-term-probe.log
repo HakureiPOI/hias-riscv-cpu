@@ -1,0 +1,5 @@
+command: timeout -k 5s 900s timeout -k 2s 3s /workspace/hias-riscv-cpu/build/p1-b-r2/frontend-default/obj/frontend_tb +hang_ignore_term
+P1-B_FRONTEND_TIMEOUT_PROBE
+./scripts/check_p1_b.sh: line 52: 2641314 Killed                  timeout -k "${KILL_AFTER}s" "${HOST_TIMEOUT}s" "$@" 2>&1
+elapsed_seconds: 5
+exit: 137

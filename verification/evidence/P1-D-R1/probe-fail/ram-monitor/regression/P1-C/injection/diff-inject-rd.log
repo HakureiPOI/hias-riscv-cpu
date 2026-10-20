@@ -1,0 +1,4 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut verification/evidence/P1-D-R1/probe-fail/ram-monitor/regression/P1-C/software/directed.dut.jsonl --spike verification/evidence/P1-D-R1/probe-fail/ram-monitor/regression/P1-C/software/directed.spike.log --regs verification/evidence/P1-D-R1/probe-fail/ram-monitor/regression/P1-C/software/directed.regs.json --end-pc 0x800001cc --inject rd
+P1C_DIFF_NEGATIVE_RD_DETECTED: index=0 field=rd_wdata dut=(1, 305418241) ref=(1, 305418240)
+elapsed_seconds: 1
+exit: 1

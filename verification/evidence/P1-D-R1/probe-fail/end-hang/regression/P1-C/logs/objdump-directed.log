@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s bash -c exec "$0" -d "$1" > "$2" riscv64-unknown-elf-objdump verification/evidence/P1-D-R1/probe-fail/end-hang/regression/P1-C/software/directed.elf verification/evidence/P1-D-R1/probe-fail/end-hang/regression/P1-C/software/directed.objdump
+exit: 0

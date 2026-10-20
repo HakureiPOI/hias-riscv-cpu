@@ -1,0 +1,3 @@
+command: timeout -k 5s 1200s /workspace/hias-riscv-cpu/build/p1-d/fault/obj/data_fault_tb +case=load_access
+P1D_FAULT_PASS case=load_access kind=5 cause=5 commits=0 hold_edges=16
+exit: 0

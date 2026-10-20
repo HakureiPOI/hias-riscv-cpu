@@ -1,0 +1,3 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/check_retire_contract.py --validate-file verification/evidence/P1-D-R1/probe-fail/normal-pc/software/random0.dut.jsonl
+RETIRE_CONTRACT_FILE_PASS: random0.dut.jsonl records=2205
+exit: 0

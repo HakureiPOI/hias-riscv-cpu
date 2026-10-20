@@ -1,0 +1,9 @@
+P1-B-R2 check summary
+date_utc: 2026-10-20T13:09:30Z
+git_head: 8b4017ccf774b9776c21518d8d788181c846afbf
+git_branch: codex/p1-d-load-store
+log_dir: verification/evidence/P1-D-R1/regression/P1-C/regression/P1-B/logs
+inject: none
+git_status:
+  ?? verification/evidence/P1-D-R1/
+result: PASS

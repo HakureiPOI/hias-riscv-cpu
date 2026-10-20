@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -mcmodel=medany -mno-relax -nostdlib -nostartfiles -ffreestanding -fno-builtin -O2 -T /workspace/hias-riscv-cpu/software/smoke/link.ld -Wl,--build-id=none -o verification/evidence/P1-D-R1/probe-fail/probe-extra/software/random2.elf verification/evidence/P1-D-R1/probe-fail/probe-extra/software/random2.S
+exit: 0

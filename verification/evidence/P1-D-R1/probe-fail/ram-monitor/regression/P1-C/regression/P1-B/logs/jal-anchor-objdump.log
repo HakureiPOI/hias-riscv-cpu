@@ -1,0 +1,23 @@
+command: timeout -k 5s 900s riscv64-unknown-elf-objdump -d -M no-aliases /workspace/hias-riscv-cpu/build/p1-b-r2/jal/jal_anchor.o
+
+/workspace/hias-riscv-cpu/build/p1-b-r2/jal/jal_anchor.o:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	000010ef          	jal	ra,1000 <_start+0x1000>
+   4:	000012ef          	jal	t0,1004 <_start+0x1004>
+   8:	0020006f          	jal	zero,a <_start+0xa>
+   c:	ffdfffef          	jal	t6,8 <_start+0x8>
+  10:	7fffffef          	jal	t6,10000e <_start+0x10000e>
+  14:	800002ef          	jal	t0,fff00014 <_start+0xfff00014>
+  18:	000000ef          	.word	0x000000ef
+  1c:	0000116f          	.word	0x0000116f
+  20:	000021ef          	.word	0x000021ef
+  24:	0000326f          	.word	0x0000326f
+  28:	000042ef          	.word	0x000042ef
+  2c:	0000536f          	.word	0x0000536f
+  30:	000063ef          	.word	0x000063ef
+  34:	0000f46f          	.word	0x0000f46f
+exit: 0

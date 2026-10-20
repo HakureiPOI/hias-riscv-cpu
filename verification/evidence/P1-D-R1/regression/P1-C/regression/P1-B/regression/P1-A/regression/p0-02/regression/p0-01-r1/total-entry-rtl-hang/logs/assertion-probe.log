@@ -1,0 +1,8 @@
+command: timeout -k 5s 60s /workspace/hias-riscv-cpu/build/rtl-smoke/probe_sim/obj/probe_sim
+[0] %Error: assert_probe.sv:8: Assertion failed in TOP.assert_probe: P0-01_NEGATIVE_PROBE_ASSERTION_FIRED
+%Error: /workspace/hias-riscv-cpu/verification/smoke/rtl/assert_probe.sv:8: Verilog $stop
+Aborting...
+timeout: the monitored command dumped core
+/workspace/hias-riscv-cpu/scripts/lib/watchdog.sh: line 22: 2629444 Aborted                 timeout -k 5s "${tmo}s" "$@" 2>&1
+elapsed_seconds: 0
+exit: 134

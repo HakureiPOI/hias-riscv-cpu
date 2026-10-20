@@ -1,0 +1,6 @@
+command: timeout -k 5s 2s /workspace/hias-riscv-cpu/build/rtl-smoke/smoke_sim/obj/smoke_sim +hang +no_cycle_limit
+P0-01_RTL_SMOKE: start seed=0x5eed1234 random_cycles=10000
+P0-01_TIMEOUT_PROBE: entering intentional hang
+elapsed_seconds: 3
+exit: 124
+P0-01_WATCHDOG_TIMEOUT: host watchdog fired after 2s (exit=124); command=/workspace/hias-riscv-cpu/build/rtl-smoke/smoke_sim/obj/smoke_sim +hang +no_cycle_limit

@@ -1,0 +1,20 @@
+command: timeout -k 5s 1200s /workspace/hias-riscv-cpu/build/p1-c/fault/obj/fault_tb +case=unaligned_branch
+P1C_FAULT_TRACE case=unaligned_branch phase=fault_first kind=3 cause=0 tval=0x80000006 pc=0x80000000 instr=0x00000363 token=0/0 fetch_gen=0
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=0 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=1 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=2 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=3 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=4 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=5 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=6 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=7 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=8 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=9 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=10 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=11 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=12 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=13 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=14 arf_ok
+P1C_FAULT_TRACE case=unaligned_branch phase=hold edge=15 arf_ok
+P1C_FAULT_PASS case=unaligned_branch kind=3 commits=0
+exit: 0

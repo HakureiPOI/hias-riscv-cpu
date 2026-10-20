@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s timeout -k 2s 3s sleep 30
+exit: 124

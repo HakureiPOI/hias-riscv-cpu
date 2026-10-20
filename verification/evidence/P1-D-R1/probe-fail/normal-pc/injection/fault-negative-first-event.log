@@ -1,0 +1,5 @@
+command: timeout -k 5s 1200s /workspace/hias-riscv-cpu/build/p1-d/fault/obj/data_fault_tb +case=load_misalign +negative=first_event
+P1D_FAULT_FAIL: case=load_misalign injected first-fault RAM event got=0x0 want=0x1
+P1D_FAULT_FAIL: case=load_misalign injected first-fault commit got=0x0 want=0x1
+P1D_FAULT_NEGATIVE_FIRST_EVENT_DETECTED errors=2
+exit: 1

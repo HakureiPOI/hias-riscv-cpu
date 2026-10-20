@@ -1,0 +1,5 @@
+command: timeout -k 5s 60s /workspace/hias-riscv-cpu/build/rtl-smoke/smoke_sim/obj/smoke_sim
+P0-01_RTL_SMOKE: start seed=0x5eed1234 random_cycles=10000
+P0-01_RTL_SMOKE_PASS cycles=10071 accepted=5890 produced=5768 flush_dropped=120 remaining=0
+elapsed_seconds: 1
+exit: 0

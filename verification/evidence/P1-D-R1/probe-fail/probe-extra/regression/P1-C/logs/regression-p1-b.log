@@ -1,0 +1,39 @@
+command: timeout -k 5s 1200s env P1_B_EVIDENCE=verification/evidence/P1-D-R1/probe-fail/probe-extra/regression/P1-C/regression/P1-B P1_B_HOST_TIMEOUT=900 make -C /workspace/hias-riscv-cpu check-p1-b
+make[2]: Entering directory '/workspace/hias-riscv-cpu'
+P1-B-R2_STEP_PASS: P1-B-R2 frontend lint
+P1-B-R2_STEP_PASS: P1-B-R2 integration wrapper lint
+P1-B-R2_STEP_PASS: F01 JAL assembler/objdump anchor
+P1-B-R2_STEP_PASS: decode unit build
+P1-B-R2_STEP_PASS: decode units (92 independent expectations + JAL anchors)
+P1-B-R2_STEP_PASS: decode-mismatch-probe (exit=1, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: decode-mismatch-other-probe (exit=2, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: decode-mismatch-extra-probe (exit=3, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: default frontend build
+P1-B-R2_STEP_PASS: forced-wrap frontend build
+P1-B-R2_STEP_PASS: integrated frontend default (image, wrap, redirects, 1020 accepts)
+P1-B-R2_STEP_PASS: integrated frontend wrap (image, wrap, redirects, 1020 accepts)
+P1-B-R2_STEP_PASS: frontend-mismatch-probe (exit=1, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: frontend-mismatch-other-probe (exit=2, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: frontend-mismatch-extra-probe (exit=3, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: frontend-inject-directed-probe (exit=1, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: frontend-inject-directed-other-probe (exit=2, elapsed=1s, expected message present)
+P1-B-R2_STEP_PASS: frontend-inject-directed-extra-probe (exit=3, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: frontend-inject-random0-probe (exit=1, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: frontend-pc-model-probe (exit=1, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: frontend-req-stability-probe (exit=1, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: frontend-timeout-probe (exit=124, elapsed=3s, expected message present)
+P1-B-R2_STEP_PASS: frontend-timeout-ignore-term-probe (exit=137, elapsed=5s, expected message present)
+P1-B-R2_STEP_PASS: old-version F01/F02/F03 reproduction
+P1-B-R2_STEP_PASS: P1-A regression (including P0)
+P1-B-R2 check summary
+date_utc: 2026-10-20T13:17:40Z
+git_head: 8b4017ccf774b9776c21518d8d788181c846afbf
+git_branch: codex/p1-d-load-store
+log_dir: verification/evidence/P1-D-R1/probe-fail/probe-extra/regression/P1-C/regression/P1-B/logs
+inject: none
+git_status:
+  ?? verification/evidence/P1-D-R1/
+result: PASS
+P1-B-R2_CHECK_ALL_PASS
+make[2]: Leaving directory '/workspace/hias-riscv-cpu'
+exit: 0

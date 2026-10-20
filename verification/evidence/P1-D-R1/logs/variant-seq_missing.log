@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/p1c_make_trace_variant.py --in /workspace/hias-riscv-cpu/verification/evidence/P1-D-R1/software/directed.dut.jsonl --out /workspace/hias-riscv-cpu/verification/evidence/P1-D-R1/injection/traces/seq_missing.jsonl --mode seq_missing
+exit: 0

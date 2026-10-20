@@ -1,0 +1,5 @@
+command: timeout -k 5s 1200s env P1_C_R2_REPRO_EVIDENCE=verification/evidence/P1-D-R1/probe-fail/normal-pc/regression/P1-C/old-repro-r2 P1_C_R2_BASE_DATA=verification/evidence/P1-D-R1/probe-fail/normal-pc/regression/P1-C/software /workspace/hias-riscv-cpu/scripts/repro_p1_c_r2.sh
+OLD_G01_SEQ_BLIND_REPRODUCED
+OLD_G02_FAULT_INITIAL_ARF_SNAPSHOT_REPRODUCED
+P1-C-R2_OLD_REPRO_ALL_PASS
+exit: 0

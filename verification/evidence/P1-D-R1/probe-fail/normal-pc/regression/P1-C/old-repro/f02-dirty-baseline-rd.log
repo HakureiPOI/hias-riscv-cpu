@@ -1,0 +1,3 @@
+command: timeout -k 5s 120s python3 /tmp/opencode/p1c-old-worktree/scripts/p1c_diff.py --dut verification/evidence/P1-D-R1/probe-fail/normal-pc/regression/P1-C/old-repro/data/dirty_pc.jsonl --spike verification/evidence/P1-D-R1/probe-fail/normal-pc/regression/P1-C/old-repro/data/directed.spike.log --regs verification/evidence/P1-D-R1/probe-fail/normal-pc/regression/P1-C/old-repro/data/directed.regs.json --end-pc 0x800001cc --inject rd
+P1C_DIFF_NEGATIVE_RD_DETECTED: first difference index=0 field=pc dut=2147483652 ref=2147483648
+exit: 1
