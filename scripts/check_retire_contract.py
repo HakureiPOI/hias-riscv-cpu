@@ -733,18 +733,25 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--validate-examples", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--convert-spike")
+    parser.add_argument("--validate-file")
     args = parser.parse_args(argv)
     try:
         if args.self_test:
             return self_test()
         if args.convert_spike:
             return convert_spike(Path(args.convert_spike))
+        if args.validate_file:
+            path = Path(args.validate_file)
+            records = read_jsonl(path)
+            validate_stream(records)
+            print(f"RETIRE_CONTRACT_FILE_PASS: {path.name} records={len(records)}")
+            return 0
         if args.validate_examples:
             return validate_examples()
     except RecordError as exc:
         print(f"RETIRE_CONTRACT_FAIL: {exc}", file=sys.stderr)
         return 1
-    parser.error("choose --validate-examples, --self-test, or --convert-spike")
+    parser.error("choose --validate-examples, --self-test, --convert-spike, or --validate-file")
     return 2
 
 
