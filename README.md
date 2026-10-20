@@ -2,14 +2,16 @@
 
 本项目计划实现 RV32 双发射乱序处理器，完成动态分支预测、Cache、Sv32 MMU/TLB、独立 FP32 运算部件及 FPGA 验证。
 
-P0-01、P0-02、P1-A、P1-B 及 P1-C 已通过管理验收并合入 main。当前具备 29 条整数/控制流、ARF、单项真实退休与子集 Spike 差分；P1-C-R3 已关闭最后的 fault 探针失败传播问题。当前下达 P1-D：RAM Load/Store、取指/数据仲裁及访存退休；访存、CSR/Trap、MMIO 外设、完整 DiffTest 与 FPGA 仍未完成。
+P0-01、P0-02、P1-A、P1-B 及 P1-C 已通过管理验收并合入 main。main 具备 29 条整数/控制流、ARF、单项真实退休与子集 Spike 差分。P1-D 分支已交付 8 条 RAM Load/Store 和访存退休，正常差分成果已认可；仲裁身份与验证尚有 F01—F04，当前执行 P1-D-R1，暂不合入、不进入 P1-E/F。CSR/Trap、MMIO 外设、完整 DiffTest 与 FPGA 仍未完成。
 
 ## 项目文档
 
 - [项目设计书](docs/项目设计书.md)：课程要求映射、架构方案、接口约定、验证门禁、里程碑与风险处理。
 - [技术调研记录](docs/research/技术调研-2026-10-19.md)：官方规范、开源参考、选型依据及调研边界。
 - [协作流程](docs/协作流程.md)：Windows 管理审查、Ubuntu 24 容器内 opencode 实施，用户手动转交。
-- [当前实施任务 P1-D](docs/tasks/P1-D-LoadStore与访存仲裁.md)：8 条 RAM 访存指令、共享通路、故障停止及访存退休对照，新分支实施。
+- [当前实施任务 P1-D-R1](docs/tasks/P1-D-R1-仲裁身份与验证修复.md)：修复仲裁身份、补逐笔监视与 fault 边界、完善真实失败传播和看门狗。
+- [P1-D 管理审查](docs/progress/P1-D-review.md)：1328 项证据核对，认可访存/差分成果，F01—F04 修复后复审。
+- [原任务 P1-D](docs/tasks/P1-D-LoadStore与访存仲裁.md)：8 条 RAM 访存指令、共享通路、故障停止及访存退休对照。
 - [P1-C-R3 管理验收](docs/progress/P1-C-R3-review.md)：1008 项证据核对，H01 关闭，P1-C 整体通过并合入。
 - [上一轮任务 P1-C-R3](docs/tasks/P1-C-R3-fault探针失败传播.md)：统一 fault 监视与失败传播，已完成。
 - [P1-C-R2 管理复审](docs/progress/P1-C-R2-review.md)：987 项证据核对，版本口径澄清及唯一剩余阻塞 H01。

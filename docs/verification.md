@@ -2,7 +2,7 @@
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
-P1-A/P1-B/P1-C 均已通过管理验收并合入。P1-C-R3 被测试实现 `aa4272c` 正常总入口 exit 0，定向 124、随机合计 3844 条；目标加其他错误的 fault 探针返回 EXTRA_ERRORS，原预期检出步骤被拒绝且两次实际总入口 FAIL。详见 [R3 验收](progress/P1-C-R3-review.md)。当前下达 [P1-D](tasks/P1-D-LoadStore与访存仲裁.md)，尚未实现；Windows 管理侧只核验实现与证据，未运行 RTL 或这些入口。
+P1-A/P1-B/P1-C 均已通过管理验收并合入。P1-C-R3 被测试实现 `aa4272c` 正常总入口 exit 0，定向 124、随机合计 3844 条；目标加其他错误的 fault 探针返回 EXTRA_ERRORS，原预期检出步骤被拒绝且两次实际总入口 FAIL。详见 [R3 验收](progress/P1-C-R3-review.md)。P1-D 分支 `b42794c` 的 make check-p1-d exit 0，定向 160、随机 2205/2202/2123，含内存字段/最终 ARF/RAM 对照；[管理审查](progress/P1-D-review.md)认可该进展，但仲裁身份、逐笔监视、fault 和入口有界性仍待 [P1-D-R1](tasks/P1-D-R1-仲裁身份与验证修复.md)修复，尚未合入。Windows 管理侧只核验实现与证据，未运行 RTL 或这些入口。
 
 后续执行检查须显式设置本轮证据目录；例如 P1-C 内部将 P1_B_EVIDENCE 指向本轮 regression 子目录，不覆盖已验收的 P1-B-R2 原始证据。
 
@@ -84,6 +84,6 @@ make check-p0-01
 
 ## 证据
 
-P1-C 最新验收证据位于 `verification/evidence/P1-C-R3/`，1008 项（含清单），SHA256SUMS=`ba8a19a8f2251e0a6dec6b0568bcc497d2926ee3339190513daf881ae88b6e05`。后续执行必须显式改设 P1_C_EVIDENCE，保护默认指向的已验收证据。P1-D 总入口属于待实现任务，不列为已实测入口。
+P1-C 最新验收证据位于 `verification/evidence/P1-C-R3/`，1008 项（含清单），SHA256SUMS=`ba8a19a8f2251e0a6dec6b0568bcc497d2926ee3339190513daf881ae88b6e05`。后续执行必须显式改设 P1_C_EVIDENCE，保护默认指向的已验收证据。P1-D 总入口已在未合入分支实测，不列为 main 的可用入口；分支 `verification/evidence/P1-D/` 共 1328 项，清单哈希 `d5d81b0c1b44e1ecd8cce37539e7e4d769360d9884ed16057727904952012b9f`，历史证据保持不变。
 
 原始小型日志位于 `verification/evidence/P0-01/`、`P0-01-R1/`、`P0-02/`、`P0-02-R1/`、`P0-02-R2/`、`P1-A/`，与对应报告的 Commit、命令和退出码对应。P1-A 入口使用 `P1_A_EVIDENCE=verification/evidence/P1-A`，P0 回归的嵌套日志写入其 `regression/` 子目录。`build/` 产物不入库。R2 运行使用 `P0_02_EVIDENCE=verification/evidence/P0-02-R2`，回归的 `P0_01_LOG_DIR`/`P0_01_R1_PROBE_DIR` 指向其 `regression/` 子目录。
