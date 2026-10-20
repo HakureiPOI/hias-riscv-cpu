@@ -37,6 +37,7 @@ module p1_frontend_core #(
   logic          out_valid_q;
   logic          fetch_accept_error;
   logic          fetch_result_valid;
+  logic          redirect_effective;
 
   p1_fetch #(.ID_W(ID_W), .GEN_W(GEN_W)) u_fetch (
       .clk(clk), .reset(reset), .redirect_i(redirect_i),
@@ -49,13 +50,17 @@ module p1_frontend_core #(
   assign fetch_slot = fetch_bundle.slot[0];
   p1_decode u_decode (.fetch_i(fetch_slot), .decoded_o(decode_comb));
 
+  assign redirect_effective = redirect_i.valid &&
+                             (redirect_i.target_pc[1:0] == 2'b00);
+
   always_comb begin
     fetch_accept = '0;
-    if (fetch_bundle.slot_valid[0] && !redirect_i.valid &&
+    if (fetch_bundle.slot_valid[0] && !redirect_effective &&
         (!out_valid_q || decoded_accept_i.accept_count[0]))
       fetch_accept.accept_count = 2'd1;
     decoded_o = out_q;
-    decoded_valid_o = out_valid_q;
+    decoded_o.valid = out_valid_q && !redirect_effective;
+    decoded_valid_o = out_valid_q && !redirect_effective;
     accept_error_o = decoded_accept_i.accept_count[1] | fetch_accept_error;
     fetch_valid_o = fetch_bundle.slot_valid[0] | fetch_result_valid;
     fetch_pc_o = fetch_slot.pc;
@@ -71,7 +76,7 @@ module p1_frontend_core #(
     end else begin
       // Redirect/Flush clears the held decoded result and suppresses a new
       // capture in the same cycle.
-      if (redirect_i.valid && redirect_i.target_pc[1:0] == 2'b00) begin
+      if (redirect_effective) begin
         out_valid_q <= 1'b0;
       end
       if (out_valid_q && decoded_accept_i.accept_count[0]) begin

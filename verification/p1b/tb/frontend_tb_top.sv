@@ -18,6 +18,7 @@ module frontend_tb_top #(
     input  logic [1:0]  resp_delay_i,
     input  logic        req_gate,
     input  logic [1:0]  fault_mode,
+    input  logic [2:0]  fault_delay_i,
     input  logic [1:0]  decoded_accept,
 
     output logic        dec_valid,
@@ -26,14 +27,28 @@ module frontend_tb_top #(
     output logic [4:0]  dec_op,
     output logic [5:0]  dec_exec,
     output logic [4:0]  dec_rd,
+    output logic [4:0]  dec_rs1,
+    output logic [4:0]  dec_rs2,
+    output logic [31:0] dec_imm,
+    output logic        dec_uses1,
+    output logic        dec_uses2,
     output logic        dec_rd_we,
+    output logic        dec_is_branch,
+    output logic        dec_is_jump,
     output logic        dec_is_load,
     output logic        dec_is_store,
     output logic        dec_is_csr,
+    output logic        dec_is_fence,
+    output logic        dec_is_fence_i,
+    output logic        dec_is_mret,
+    output logic        dec_is_sret,
+    output logic        dec_is_wfi,
     output logic        dec_illegal,
     output logic [4:0]  dec_illegal_cause,
     output logic [31:0] dec_illegal_tval,
     output logic [1:0]  dec_mem_size,
+    output logic [1:0]  dec_csr_op,
+    output logic [11:0] dec_csr_addr,
     output logic [4:0]  dec_csr_uimm,
     output logic        dec_csr_uimm_valid,
     output logic        dec_fetch_exc_valid,
@@ -61,6 +76,8 @@ module frontend_tb_top #(
     output logic        mem_resp_ready_o,
     output logic [5:0]  mem_resp_id_o,
     output logic [7:0]  mem_resp_gen_o,
+    output logic [31:0] mem_resp_rdata_o,
+    output logic        mem_resp_error_o,
     output logic        ram_write_o,
     output logic        fault_used_o,
     output logic        commit_valid_o,
@@ -120,24 +137,34 @@ module frontend_tb_top #(
       .resp_o(bridge_resp), .resp_ready_i(bridge_resp_ready),
       .resp_delay_i(resp_delay_i), .ram_write_o(ram_write_o));
 
-  // One-shot response fault: bad ID/gen first, then the real response.
+  // One-shot response fault: inject a wrong ID/gen, hold the real response
+  // for a configurable number of cycles, then deliver it. Production bridge
+  // and RAM are untouched.
   logic      saved_valid_q;
   logic      fault_used_q;
+  logic [2:0] fault_delay_q;
   mem_resp_t saved_q;
 
   always_comb begin
     core_resp = bridge_resp;
     bridge_resp_ready = core_resp_ready;
     fault_used_o = fault_used_q;
-    if (fault_mode == 2'd1) begin
+    if (fault_mode != 2'd0) begin
       if (saved_valid_q) begin
-        core_resp = saved_q;
-        core_resp.valid = 1'b1;
         bridge_resp_ready = 1'b1;
+        if (fault_delay_q == 3'd0) begin
+          core_resp = saved_q;
+          core_resp.valid = 1'b1;
+        end else begin
+          core_resp = '0;
+          core_resp.valid = 1'b0;
+        end
       end else if (bridge_resp.valid && !fault_used_q) begin
         core_resp = bridge_resp;
-        core_resp.req_id = bridge_resp.req_id ^ 6'h1;
-        core_resp.gen = bridge_resp.gen ^ 8'h1;
+        if (fault_mode == 2'd1 || fault_mode == 2'd2)
+          core_resp.req_id = bridge_resp.req_id ^ 6'h1;
+        if (fault_mode == 2'd1 || fault_mode == 2'd3)
+          core_resp.gen = bridge_resp.gen ^ 8'h1;
         core_resp.valid = 1'b1;
         bridge_resp_ready = 1'b1;
       end
@@ -148,17 +175,24 @@ module frontend_tb_top #(
     if (reset) begin
       saved_valid_q <= 1'b0;
       fault_used_q <= 1'b0;
+      fault_delay_q <= '0;
       saved_q <= '0;
-    end else if (fault_mode == 2'd1) begin
+    end else if (fault_mode != 2'd0) begin
       if (bridge_resp.valid && !fault_used_q && !saved_valid_q) begin
         saved_q <= bridge_resp;
         saved_valid_q <= 1'b1;
         fault_used_q <= 1'b1;
+        fault_delay_q <= fault_delay_i;
       end else if (saved_valid_q) begin
-        saved_valid_q <= 1'b0;
+        if (fault_delay_q != 3'd0)
+          fault_delay_q <= fault_delay_q - 3'd1;
+        else
+          saved_valid_q <= 1'b0;
       end
     end else begin
+      saved_valid_q <= 1'b0;
       fault_used_q <= 1'b0;
+      fault_delay_q <= '0;
     end
   end
 
@@ -171,6 +205,8 @@ module frontend_tb_top #(
   assign mem_resp_ready_o = core_resp_ready;
   assign mem_resp_id_o = core_resp.req_id;
   assign mem_resp_gen_o = core_resp.gen;
+  assign mem_resp_rdata_o = core_resp.rdata;
+  assign mem_resp_error_o = core_resp.error;
 
   assign dec_valid = decoded_valid;
   assign dec_pc = decoded.pc;
@@ -178,14 +214,28 @@ module frontend_tb_top #(
   assign dec_op = decoded.op;
   assign dec_exec = decoded.exec_op;
   assign dec_rd = decoded.rd;
+  assign dec_rs1 = decoded.rs1;
+  assign dec_rs2 = decoded.rs2;
+  assign dec_imm = decoded.imm;
+  assign dec_uses1 = decoded.uses_rs1;
+  assign dec_uses2 = decoded.uses_rs2;
   assign dec_rd_we = decoded.rd_we;
+  assign dec_is_branch = decoded.is_branch;
+  assign dec_is_jump = decoded.is_jump;
   assign dec_is_load = decoded.is_load;
   assign dec_is_store = decoded.is_store;
   assign dec_is_csr = decoded.is_csr;
+  assign dec_is_fence = decoded.is_fence;
+  assign dec_is_fence_i = decoded.is_fence_i;
+  assign dec_is_mret = decoded.is_mret;
+  assign dec_is_sret = decoded.is_sret;
+  assign dec_is_wfi = decoded.is_wfi;
   assign dec_illegal = decoded.illegal;
   assign dec_illegal_cause = decoded.illegal_cause;
   assign dec_illegal_tval = decoded.illegal_tval;
   assign dec_mem_size = decoded.mem_size;
+  assign dec_csr_op = decoded.csr_op;
+  assign dec_csr_addr = decoded.csr_addr;
   assign dec_csr_uimm = decoded.csr_uimm;
   assign dec_csr_uimm_valid = decoded.csr_uimm_valid;
   assign dec_fetch_exc_valid = decoded.fetch_exc_valid;

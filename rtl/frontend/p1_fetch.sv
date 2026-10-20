@@ -52,12 +52,13 @@ module p1_fetch #(
 
   logic accept_fetch;
   logic response_match;
+  logic redirect_effective;
 
   always_comb begin
     mem_req_o = '0;
     mem_req_o.valid = !reset && (state_q == S_IDLE) && !out_valid_q &&
                       !wrap_blocked_q && !wait_redirect_q &&
-                      !redirect_i.valid;
+                      !redirect_effective;
     mem_req_o.is_store = 1'b0;
     mem_req_o.va = pc_q;
     mem_req_o.pa = PA_BITS'(pc_q);
@@ -82,6 +83,9 @@ module p1_fetch #(
     result_valid_o = out_valid_q;
   end
 
+  assign redirect_effective = redirect_i.valid &&
+                              (redirect_i.target_pc[1:0] == 2'b00);
+
   always_ff @(posedge clk) begin
     if (reset) begin
       state_q <= S_IDLE;
@@ -104,9 +108,9 @@ module p1_fetch #(
 
       // Protocol check: only 4-byte aligned redirect targets are accepted.
       // The front-end does not fabricate a Trap with a wrong EPC.
-      if (redirect_i.valid && (redirect_i.target_pc[1:0] != 2'b00)) begin
+      if (redirect_i.valid && !redirect_effective) begin
         redirect_error_o <= 1'b1;
-      end else if (redirect_i.valid) begin
+      end else if (redirect_effective) begin
         // Redirect/Flush has priority over ordinary output and acceptance.
         pc_q <= redirect_i.target_pc;
         out_valid_q <= 1'b0;
@@ -137,18 +141,20 @@ module p1_fetch #(
       end
 
       if (state_q == S_RESP && mem_resp_i.valid) begin
-        if (discard_q || redirect_i.valid) begin
-          // Old or cancelled response: consume, do not create a fetch event.
+        if (!response_match) begin
+          // An unrelated or injected response consumes a bus response but is
+          // not the owner of the outstanding request. Keep the saved identity,
+          // discard flag and wrap barrier until the matching response arrives.
+          state_q <= S_RESP;
+        end else if (discard_q || redirect_effective) begin
+          // Matching response for a cancelled request: only now release its
+          // identity and clear the wrap barrier. No fetch event is created.
           state_q <= S_IDLE;
           discard_q <= 1'b0;
           if (wrap_blocked_q) begin
             wrap_blocked_q <= 1'b0;
             next_gen_q <= '0;
           end
-        end else if (!response_match) begin
-          // Wrong ID/gen: consume the response but keep waiting for the true
-          // response. This path is exercised by the testbench fault wrapper.
-          state_q <= S_RESP;
         end else begin
           out_slot_q <= '0;
           out_slot_q.valid <= 1'b1;

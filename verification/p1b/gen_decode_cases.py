@@ -127,9 +127,7 @@ def decode(instr):
     elif opcode == 0x17:  # AUIPC
         out.update(op=OP["AUIPC"], exec=EX["AUIPC"], imm=imm_u(),
                    rd_we=int(rd != 0))
-    elif opcode == 0x6f:  # JAL
-        if f3 != 0:
-            return illegal()
+    elif opcode == 0x6f:  # JAL is J-type; instr[14:12] are immediate bits
         out.update(op=OP["JAL"], exec=EX["JAL"], imm=imm_j(),
                    rd_we=int(rd != 0), is_jump=1)
     elif opcode == 0x67:  # JALR
@@ -242,6 +240,20 @@ def enc_cases():
     add("LUI", u(0x37, 5, 0x12345))
     add("AUIPC", u(0x17, 5, 0x12345))
     add("JAL", j(0x6f, 5, 0x20))
+    add("JAL_0010ef", 0x000010ef)
+    add("JAL_0012ef", 0x000012ef)
+    add("JAL_imm_0", j(0x6f, 1, 0))
+    add("JAL_imm_p2", j(0x6f, 31, 2))
+    add("JAL_imm_n2", j(0x6f, 5, -2))
+    add("JAL_imm_n4", j(0x6f, 0, -4))
+    add("JAL_imm_p4096", j(0x6f, 1, 4096))
+    add("JAL_imm_min", j(0x6f, 5, -1048576))
+    add("JAL_imm_max", j(0x6f, 31, 1048574))
+    # Every J-type instr[14:12] value is immediate data, not funct3.
+    for v in range(8):
+        raw = j(0x6f, 1 + v, 0x1000 + (v << 12))
+        raw = (raw & ~(7 << 12)) | (v << 12)
+        add(f"JAL_F3field_{v}", raw)
     add("JALR", i(0x67, 5, 0, 6, 0x10))
     for name, f3 in (("BEQ", 0), ("BNE", 1), ("BLT", 4), ("BGE", 5),
                      ("BLTU", 6), ("BGEU", 7)):
@@ -292,7 +304,6 @@ def enc_cases():
     add("ILL_MUL", r(0x33, 5, 0, 6, 7, 1))
     add("ILL_SRET", 0x10200073)
     add("ILL_SFENCE_VMA", 0x12000073)
-    add("ILL_JAL_F3", i(0x6f, 5, 1, 0, 0))
     add("ILL_JALR_F3", i(0x67, 5, 1, 6, 0))
     add("ILL_BRANCH_F3", b(0x63, 2, 6, 7, 0))
     add("ILL_LOAD_F3", i(0x03, 5, 3, 6, 0))

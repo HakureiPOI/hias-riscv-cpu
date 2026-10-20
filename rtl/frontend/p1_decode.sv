@@ -111,16 +111,12 @@ module p1_decode (
           decoded_o.imm = imm_u(fetch_i.instr);
           decoded_o.rd_we = (rd != 0);
         end
-        7'b1101111: begin // JAL
-          if (funct3 == 3'b000) begin
-            decoded_o.op = OP_JAL;
-            decoded_o.exec_op = EXEC_JAL;
-            decoded_o.imm = imm_j(fetch_i.instr);
-            decoded_o.rd_we = (rd != 0);
-            decoded_o.is_jump = 1'b1;
-          end else begin
-            decoded_o.illegal = 1'b1;
-          end
+        7'b1101111: begin // JAL: J-type, no funct3 field at [14:12]
+          decoded_o.op = OP_JAL;
+          decoded_o.exec_op = EXEC_JAL;
+          decoded_o.imm = imm_j(fetch_i.instr);
+          decoded_o.rd_we = (rd != 0);
+          decoded_o.is_jump = 1'b1;
         end
         7'b1100111: begin // JALR
           if (funct3 == 3'b000) begin

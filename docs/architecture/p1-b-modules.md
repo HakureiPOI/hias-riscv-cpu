@@ -38,7 +38,7 @@ P1-C 接入位置：消费 `decoded_o`/`decoded_valid_o`，按 `decoded_accept_i
 - 请求为 4 字节 word 读：PA 为 VA 零扩展，`byte_mask=4'b1111`、`is_store=0`、`wdata=0`、`size=MEM_WORD`。
 - 最多一个请求在途；请求只有在 `valid && ready` 边沿接受。未接受时请求 payload 保持；redirect 取消尚未接受的请求。
 - 已接受的读必须收尾；redirect 后响应被消费但不生成新译码事件。响应按保存的请求 PC/ID/代次匹配，不按重定向后的 PC 归属。
-- 不匹配 ID/代次的响应被丢弃并继续等待真正响应；测试包装可先注入错误 ID/代次再送真实响应。
+- 只有 ID 与代次都匹配的响应才能结束已接受请求；错误 ID/代次响应可以消费但保留在途身份、取消标志和回绕屏障。取消项即使后续响应身份匹配也只释放身份且不生成结果。
 - 译码结果在消费前保持 PC、指令、预测占位、异常和 `fetch_gen`；`pred_taken=0`、`pred_target=PC+4`、`pred_index=0`。
 - 取指访问错误产生 `fetch_exc_valid=1`、cause=instruction access fault(1)、tval=原取指 PC，且不置 `illegal`；异常结果保持并在交付一次后等待 redirect。
 - 代次回绕前阻塞新请求，直到在途响应/旧响应排空；缩小 `GEN_W` 的集成构建强制覆盖。
@@ -46,6 +46,7 @@ P1-C 接入位置：消费 `decoded_o`/`decoded_valid_o`，按 `decoded_accept_i
 ## 3 译码契约
 
 - 覆盖 RV32I 40 条（含 FENCE/ECALL/EBREAK）、Zicsr 六种、Zifencei、MRET/WFI。
+- JAL opcode 下 `instr[14:12]` 是 J-type 立即数，不检查 funct3；`0x000010ef`/`0x000012ef` 分别译码为 JAL x1/x5、imm=+4096。JALR 与其他实际存在的功能码检查保留。
 - `rd=x0` 时 `rd_we=0`；Load x0 仍保留 `is_load`；合法 HINT 不因无写回而非法；CSRRS/CSRRC 的读不由 `rd_we=0` 抑制。
 - 移位立即数只把 `shamt[4:0]` 作为运算量；I/S/B/U/J 立即数按语义符号扩展。
 - 非法编码保留原 32 位指令到 `illegal_tval`，cause=illegal instruction(2)，并清除子操作的写回/访存/CSR/系统标志。
@@ -58,7 +59,10 @@ P1-C 接入位置：消费 `decoded_o`/`decoded_valid_o`，按 `decoded_accept_i
 `make check-p1-b`：
 
 1. `p1_frontend_top` 与集成 TB 包装执行 `verilator --lint-only -Wall --assert`。
-2. 独立 76 项译码表：40 条指令、CSR 六种、zimm=0/31、HINT/FENCE 保留字段、x0、立即数边界、非法/不支持编码；另跑 `+mismatch` 受控负向。
-3. 真实 RAM/桥集成：从复位向量逐字取到独立镜像、RAM 末字、越界取指异常、背压、请求停顿、响应延迟、连续 redirect、同拍响应 redirect、旧 ID/代次、故障响应后恢复、强制代次回绕；3 个固定种子合计 1020 次译码接受。
-4. 受控负向与挂起探针：前端 `+mismatch` 只经字段比较路径失败；`+hang`/忽略 TERM 分别验证 124/137 主机看门狗。
-5. `make check-p1-a` 回归（含 P0），所有嵌套证据写入 `verification/evidence/P1-B/regression/`。
+2. JAL 规范锚点：锁定 RISC-V 工具链 assembler/objdump 对 `0x000010ef`、`0x000012ef`、正负/边界立即数和 `instr[14:12]=0..7` 的编码/反汇编留证。
+3. 独立 92 项译码表：40 条指令、JAL 全部 8 个 `instr[14:12]` 值、正负/边界立即数、CSR 六种、zimm=0/31、HINT/FENCE 保留字段、x0、非法/不支持编码；另跑 `+mismatch` 受控负向。
+4. 真实 RAM/桥集成：从复位向量逐字取到独立镜像、RAM 末字、越界取指异常、背压、请求停顿、响应延迟、连续 redirect、同拍响应 redirect、非法目标同拍、旧 ID、旧代次、取消后错误响应、强制代次回绕；默认 `GEN_W=8` 与 `GEN_W=2` 配置均运行，3 个固定种子合计 1020 次译码接受。
+5. 统一边沿监视：独立请求/响应所有权队列、结果队列、全字段译码比较、请求/译码 payload 稳定性、全局错误累计；每阶段/种子输出请求、匹配完成、无主响应、译码接受与错误统计。
+6. 受控负向与注入：前端 `+mismatch`、`+inject_directed`、`+inject_random0` 绑定真实字段比较；`+hang`/忽略 TERM 分别验证 124/137 主机看门狗。
+7. 旧版复现：对 `278f6f7` 在独立目录复现 JAL 非法、redirect+accept 泄漏、取消后错误响应提前释放与早期错误被清除。
+8. `make check-p1-a` 回归（含 P0），所有嵌套证据写入 `verification/evidence/P1-B-R1/regression/`。

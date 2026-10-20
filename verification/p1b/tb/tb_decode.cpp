@@ -104,6 +104,47 @@ static void compare_common(Tb& tb, const ExpectedDecode& e, bool illegal_ok) {
            tb.dut->dec_is_wfi, e.is_wfi);
 }
 
+static void check_jal_anchor(Tb& tb, uint32_t instr, uint32_t rd,
+                             int32_t imm) {
+  tb.drive(instr, 0x80000200u);
+  tb.check(tb.dut->dec_valid == 1, "JAL anchor valid");
+  tb.check(tb.dut->dec_illegal == 0, "JAL anchor illegal", tb.dut->dec_illegal, 0);
+  tb.check(tb.dut->dec_pc == 0x80000200u, "JAL anchor pc",
+           tb.dut->dec_pc, 0x80000200u);
+  tb.check(tb.dut->dec_op == 2, "JAL anchor op", tb.dut->dec_op, 2);
+  tb.check(tb.dut->dec_exec == 21, "JAL anchor exec", tb.dut->dec_exec, 21);
+  tb.check(tb.dut->dec_rd == rd, "JAL anchor rd", tb.dut->dec_rd, rd);
+  tb.check(tb.dut->dec_imm == static_cast<uint32_t>(imm), "JAL anchor imm",
+           tb.dut->dec_imm, static_cast<uint32_t>(imm));
+  tb.check(tb.dut->dec_is_jump == 1, "JAL anchor is_jump",
+           tb.dut->dec_is_jump, 1);
+  tb.check(tb.dut->dec_rd_we == (rd != 0), "JAL anchor rd_we",
+           tb.dut->dec_rd_we, rd != 0);
+  tb.check(tb.dut->dec_uses1 == 0 && tb.dut->dec_uses2 == 0,
+           "JAL anchor source use");
+}
+
+static void check_jal_anchors(Tb& tb) {
+  // Fixed field values manually checked against the locked RV32I J-type
+  // encoding and the assembler/objdump anchor in verification/p1b/spec.
+  check_jal_anchor(tb, 0x000010efu, 1, 4096);
+  check_jal_anchor(tb, 0x000012efu, 5, 4096);
+  check_jal_anchor(tb, 0x0020006fu, 0, 2);
+  check_jal_anchor(tb, 0xffdfffefu, 31, -4);
+  check_jal_anchor(tb, 0x7fffffefu, 31, 1048574);
+  check_jal_anchor(tb, 0x800002efu, 5, -1048576);
+  static const struct { uint32_t instr; uint32_t rd; int32_t imm; } f3[8] = {
+    {0x000000efu, 1, 0},       {0x0000116fu, 2, 0x1000},
+    {0x000021efu, 3, 0x2000},  {0x0000326fu, 4, 0x3000},
+    {0x000042efu, 5, 0x4000},  {0x0000536fu, 6, 0x5000},
+    {0x000063efu, 7, 0x6000},  {0x0000f46fu, 8, 0xf000},
+  };
+  for (unsigned i = 0; i < 8; ++i) {
+    tb.check(((f3[i].instr >> 12) & 7u) == i, "JAL field value");
+    check_jal_anchor(tb, f3[i].instr, f3[i].rd, f3[i].imm);
+  }
+}
+
 int main(int argc, char** argv) {
   bool mismatch = false;
   for (int i = 1; i < argc; ++i)
@@ -126,6 +167,8 @@ int main(int argc, char** argv) {
       compare_common(tb, e, true);
     }
   }
+
+  check_jal_anchors(tb);
 
   // Fetch exception takes precedence and preserves its metadata.
   tb.drive(0xffffffffu, 0x80000100u, true, 0x80000100u, 1);
