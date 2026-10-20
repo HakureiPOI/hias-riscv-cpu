@@ -1,0 +1,8 @@
+command: timeout -k 5s 120s /workspace/hias-riscv-cpu/build/p1-b-r1/old-repro/f03/f03 +mismatch
+P1-B_FRONTEND_FAIL: op got=0x0 want=0x1 pc=0x80000000
+P1-B_FRONTEND_BASIC_PASS cases=76 accepted=77
+P1-B_FRONTEND_WRAP_PASS gen_w=2
+P1-B_FRONTEND_RANDOM_PASS seeds=3 accepted=1020
+P1-B_FRONTEND_PASS accepted=340 requests=453 responses=453 redirects=121 cycles=2814
+exit: 0
+OLD_F03_ERROR_CLEARED

@@ -1,0 +1,9 @@
+P1-A check summary
+date_utc: 2026-10-20T01:59:01Z
+git_head: f9f501514ddf39ae64e30f73565ec88c65c068ce
+git_branch: codex/p1-b-fetch-decode
+log_dir: verification/evidence/P1-B-R1/injection-make/regression/P1-A/logs
+git_status:
+  ?? docs/progress/P1-B-R1-report.md
+  ?? verification/evidence/P1-B-R1/
+result: PASS

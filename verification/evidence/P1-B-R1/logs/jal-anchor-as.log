@@ -1,0 +1,2 @@
+command: timeout -k 5s 600s riscv64-unknown-elf-as -march=rv32i -mabi=ilp32 -o /workspace/hias-riscv-cpu/build/p1-b-r1/jal/jal_anchor.o /workspace/hias-riscv-cpu/verification/p1b/spec/jal_anchor.s
+exit: 0

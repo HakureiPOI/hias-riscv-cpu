@@ -1,0 +1,5 @@
+command: timeout -k 5s 600s /workspace/hias-riscv-cpu/build/p1-b-r1/decode/obj/decode_tb +mismatch
+P1-B_DECODE_FAIL: op got=0x0 want=0x1
+P1-B_DECODE_NEGATIVE_MISMATCH_DETECTED errors=1
+elapsed_seconds: 0
+exit: 1
