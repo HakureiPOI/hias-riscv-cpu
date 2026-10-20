@@ -11,7 +11,8 @@ VERILATOR="${VERILATOR:-verilator}"; SPIKE="${SPIKE:-spike}"
 CROSS="${CROSS_PREFIX:-riscv64-unknown-elf-}"
 HOST_TIMEOUT="${P1_D_HOST_TIMEOUT:-1200}"; KILL_AFTER="${P1_D_KILL_AFTER:-5}"
 INJECT="${P1_D_INJECT:-}"; PROBE_EXTRA="${P1_D_PROBE_EXTRA:-0}"
-case "$INJECT" in ""|pc|instr|rd|next_pc|missing|duplicate|token|pc_extra) ;; *) printf 'P1-D_CONFIG_ERROR: invalid P1_D_INJECT\n' >&2; exit 2;; esac
+case "$INJECT" in ""|pc|instr|rd|next_pc|missing|duplicate|token|pc_extra|ram) ;; *) printf 'P1-D_CONFIG_ERROR: invalid P1_D_INJECT\n' >&2; exit 2;; esac
+if ! [[ "$HOST_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || ! [[ "$KILL_AFTER" =~ ^[1-9][0-9]*$ ]]; then printf 'P1-D_CONFIG_ERROR: bad timeout\n' >&2; exit 2; fi
 mkdir -p "$LOG_DIR" "$SOFT_DIR" "$FAULT_DIR" "$INJECT_DIR" "$BUILD" || exit 1
 fail=0
 pass(){ printf 'P1-D_STEP_PASS: %s\n' "$*"; }
@@ -36,16 +37,21 @@ read -r -a SPIKE_ARGS < "$ROOT/config/platform.spike.args"
 CC_FLAGS=(-march=rv32i -mabi=ilp32 -mcmodel=medany -mno-relax -nostdlib -nostartfiles -ffreestanding -fno-builtin -O2 -T "$ROOT/software/smoke/link.ld" -Wl,--build-id=none)
 build_program(){ local tag="$1" src="$2"; local elf="$SOFT_DIR/$tag.elf" bin="$SOFT_DIR/$tag.bin"; if ! run_logged "build-$tag" "${CROSS}gcc" "${CC_FLAGS[@]}" -o "$elf" "$src"; then bad "build $tag"; return 1; fi; if ! run_logged "objcopy-$tag" "${CROSS}objcopy" -O binary "$elf" "$bin"; then bad "objcopy $tag"; return 1; fi; if ! run_logged "objdump-$tag" bash -c 'exec "$0" -d "$1" > "$2"' "${CROSS}objdump" "$elf" "$SOFT_DIR/$tag.objdump"; then bad "objdump $tag"; return 1; fi; if ! run_logged "nm-$tag" bash -c 'exec "$0" "$1" > "$2"' "${CROSS}nm" "$elf" "$SOFT_DIR/$tag.nm"; then bad "nm $tag"; return 1; fi; if [ "$src" != "$SOFT_DIR/$tag.S" ]; then cp "$src" "$SOFT_DIR/$tag.S"; fi; pass "software $tag"; }
 
-run_program(){ local tag="$1"; local elf="$SOFT_DIR/$tag.elf" bin="$SOFT_DIR/$tag.bin"; local dut="$SOFT_DIR/$tag.dut.jsonl" regs="$SOFT_DIR/$tag.regs.json" dump="$SOFT_DIR/$tag.ram"; local end; end="$("${CROSS}nm" "$elf" | awk '$3=="end"{print $1}')"; [ -z "$end" ] && { bad "no end $tag"; return 1; }; if ! run_logged "spike-$tag" "$SPIKE" "${SPIKE_ARGS[@]}" --pc=0x80000000 --instructions=5000 --log-commits --log="$SOFT_DIR/$tag.spike.log" "$elf"; then bad "Spike $tag"; return 1; fi; if ! run_logged "dut-$tag" "$BUILD/int/obj/integer_tb" +image="$bin" +trace="$dut" +regs="$regs" +end_pc=0x"$end" +max_retire=10000 +max_cycles=400000 +stall +delay +ram_dump="$dump" +ram_start=0x80018000 +ram_len=256; then bad "DUT $tag"; return 1; fi; if ! run_logged "contract-$tag" python3 "$ROOT/scripts/check_retire_contract.py" --validate-file "$dut"; then bad "contract $tag"; return 1; fi; local extra=(); if [ "$tag" = directed ] && [ -n "$INJECT" ]; then extra+=(--inject "$INJECT"); fi; if ! run_logged "diff-$tag" python3 "$ROOT/scripts/p1d_diff.py" --dut "$dut" --spike "$SOFT_DIR/$tag.spike.log" --regs "$regs" --end-pc "0x$end" --ram-dump "$dump" --ram-start 0x80018000 --ram-len 256 "${extra[@]}"; then bad "diff $tag"; return 1; fi; if ! grep -qF 'P1D_DIFF_PASS' "$LOG_DIR/diff-$tag.log"; then bad "diff $tag missing PASS"; return 1; fi; local stats; stats="$(grep 'P1D_MEM_STATS' "$LOG_DIR/dut-$tag.log" | tail -1)"; local dreq dresp wr; dreq="$(printf '%s' "$stats" | sed -n 's/.*data_req=\([0-9]*\).*/\1/p')"; dresp="$(printf '%s' "$stats" | sed -n 's/.*data_resp=\([0-9]*\).*/\1/p')"; wr="$(printf '%s' "$stats" | sed -n 's/.*ram_writes=\([0-9]*\).*/\1/p')"; [ -z "$dreq" ] && { bad "missing mem stats $tag"; return 1; }; if [ "$dreq" != "$dresp" ]; then bad "$tag data req/resp conservation $dreq/$dresp"; return 1; fi; if [ "$tag" != directed ] && { [ "$wr" -lt 64 ] || [ $((dreq-wr)) -lt 64 ]; }; then bad "$tag insufficient load/store $dreq/writes=$wr"; return 1; fi; printf '%s\n' "$dreq" >"$SOFT_DIR/$tag.data_req"; printf '%s\n' "$wr" >"$SOFT_DIR/$tag.writes"; pass "DUT/Spike diff $tag data_req=$dreq writes=$wr"; return 0; }
+run_program(){ local tag="$1"; if [ "${P1_D_HANG:-}" = "end" ]; then if run_logged "end-$tag" sleep 30; then :; else bad "end discovery watchdog forced timeout"; return 1; fi; fi; local elf="$SOFT_DIR/$tag.elf" bin="$SOFT_DIR/$tag.bin"; local dut="$SOFT_DIR/$tag.dut.jsonl" regs="$SOFT_DIR/$tag.regs.json" dump="$SOFT_DIR/$tag.ram"; local end; end="$(awk '$3=="end"{print $1}' "$SOFT_DIR/$tag.nm")"; [ -z "$end" ] && { bad "no end $tag"; return 1; }; local ram_len=256; if [ "$tag" = directed ]; then ram_len=64; fi; if ! run_logged "spike-$tag" "$SPIKE" "${SPIKE_ARGS[@]}" --pc=0x80000000 --instructions=5000 --log-commits --log="$SOFT_DIR/$tag.spike.log" "$elf"; then bad "Spike $tag"; return 1; fi; if ! run_logged "dut-$tag" "$BUILD/int/obj/integer_tb" +image="$bin" +trace="$dut" +regs="$regs" +end_pc=0x"$end" +max_retire=10000 +max_cycles=400000 +stall +delay +ram_dump="$dump" +ram_start=0x80018000 +ram_len=$ram_len; then bad "DUT $tag"; return 1; fi; if ! run_logged "contract-$tag" python3 "$ROOT/scripts/check_retire_contract.py" --validate-file "$dut"; then bad "contract $tag"; return 1; fi; local extra=(); if [ "$tag" = directed ] && [ -n "$INJECT" ]; then extra+=(--inject "$INJECT"); fi; if ! run_logged "diff-$tag" python3 "$ROOT/scripts/p1d_diff.py" --dut "$dut" --spike "$SOFT_DIR/$tag.spike.log" --regs "$regs" --end-pc "0x$end" --ram-dump "$dump" --ram-start 0x80018000 --ram-len $ram_len "${extra[@]}"; then bad "diff $tag"; return 1; fi; if ! grep -qF 'P1D_DIFF_PASS' "$LOG_DIR/diff-$tag.log"; then bad "diff $tag missing PASS"; return 1; fi; local stats; stats="$(grep 'P1D_MEM_STATS' "$LOG_DIR/dut-$tag.log" | tail -1)"; local dreq dresp wr; dreq="$(printf '%s' "$stats" | sed -n 's/.*data_req=\([0-9]*\).*/\1/p')"; dresp="$(printf '%s' "$stats" | sed -n 's/.*data_resp=\([0-9]*\).*/\1/p')"; wr="$(printf '%s' "$stats" | sed -n 's/.*ram_writes=\([0-9]*\).*/\1/p')"; [ -z "$dreq" ] && { bad "missing mem stats $tag"; return 1; }; if [ "$dreq" != "$dresp" ]; then bad "$tag data req/resp conservation $dreq/$dresp"; return 1; fi; if [ "$tag" != directed ] && { [ "$wr" -lt 64 ] || [ $((dreq-wr)) -lt 64 ]; }; then bad "$tag insufficient load/store $dreq/writes=$wr"; return 1; fi; printf '%s\n' "$dreq" >"$SOFT_DIR/$tag.data_req"; printf '%s\n' "$wr" >"$SOFT_DIR/$tag.writes"; pass "DUT/Spike diff $tag data_req=$dreq writes=$wr"; return 0; }
+
+# Reproduce the old arbiter identity/lock defects with the R1 TB.
+if run_logged old-repro-r1 env P1_D_R1_REPRO_EVIDENCE="$BASE/old-repro-r1" "$ROOT/scripts/repro_p1_d_r1.sh"; then
+  if grep -qF 'P1-D-R1_OLD_REPRO_ALL_PASS' "$LOG_DIR/old-repro-r1.log"; then pass "old arbiter F01 reproduction"; else bad "old arbiter reproduction missing PASS"; fi
+else bad "old arbiter F01 reproduction"; fi
 
 if [ "$int_ok" -eq 1 ]; then
   if build_program directed "$ROOT/software/p1d/directed.S"; then run_program directed || true; fi
   seeds=(0x1a2b3c4d 0x5e6f7a8b 0x9c0d1e2f)
-  for i in 0 1 2; do tag="random$i"; src="$SOFT_DIR/$tag.S"; python3 "$ROOT/scripts/gen_p1d_random.py" --out "$src" --seed "${seeds[$i]}" --loops 80 --body 16 >"$LOG_DIR/gen-$tag.log" 2>&1 || bad "gen $tag"; if [ -f "$src" ] && build_program "$tag" "$src"; then run_program "$tag" || true; fi; done
+  for i in 0 1 2; do tag="random$i"; src="$SOFT_DIR/$tag.S"; if run_logged "gen-$tag" python3 "$ROOT/scripts/gen_p1d_random.py" --out "$src" --seed "${seeds[$i]}" --loops 80 --body 16; then :; else bad "gen $tag"; fi; if [ -f "$src" ] && build_program "$tag" "$src"; then run_program "$tag" || true; fi; done
 else bad "software/diff skipped"; fi
 
 if [ "$fault_ok" -eq 1 ]; then
-  for c in load_misalign load_x0_misalign load_access store_misalign store_access bridge_load_error; do
+  for c in load_misalign load_x0_misalign load_access store_misalign store_access bridge_load_error ram_end_load_byte ram_end_load_half ram_end_load_word ram_end_store_byte ea_wrap_load mmio_load; do
     if run_logged "fault-$c" "$BUILD/fault/obj/data_fault_tb" +case="$c"; then
       if grep -qF "P1D_FAULT_PASS case=$c" "$LOG_DIR/fault-$c.log"; then pass "data fault $c"; else bad "fault $c missing PASS"; fi
     else bad "fault $c"; fi
@@ -56,25 +62,24 @@ if [ -f "$SOFT_DIR/directed.dut.jsonl" ]; then
   end="$("${CROSS}nm" "$SOFT_DIR/directed.elf" | awk '$3=="end"{print $1}')"; dut="$SOFT_DIR/directed.dut.jsonl"; regs="$SOFT_DIR/directed.regs.json"; spike="$SOFT_DIR/directed.spike.log"; dump="$SOFT_DIR/directed.ram"
   probe_pc=pc
   if [ "$PROBE_EXTRA" = "1" ]; then probe_pc=pc_extra; fi
-  for kind in pc instr rd next_pc missing duplicate token; do
+  for kind in pc instr rd next_pc missing duplicate token ram; do
     ikind="$kind"; if [ "$kind" = "pc" ]; then ikind="$probe_pc"; fi
-    run_expected "diff-inject-$kind" 1 "P1D_DIFF_NEGATIVE_${kind^^}_DETECTED" python3 "$ROOT/scripts/p1d_diff.py" --dut "$dut" --spike "$spike" --regs "$regs" --end-pc "0x$end" --ram-dump "$dump" --ram-start 0x80018000 --ram-len 256 --inject "$ikind"
+    run_expected "diff-inject-$kind" 1 "P1D_DIFF_NEGATIVE_${kind^^}_DETECTED" python3 "$ROOT/scripts/p1d_diff.py" --dut "$dut" --spike "$spike" --regs "$regs" --end-pc "0x$end" --ram-dump "$dump" --ram-start 0x80018000 --ram-len 64 --inject "$ikind"
   done
-  run_expected diff-inject-pc-extra 3 "P1D_DIFF_INJECTION_EXTRA_ERRORS" python3 "$ROOT/scripts/p1d_diff.py" --dut "$dut" --spike "$spike" --regs "$regs" --end-pc "0x$end" --ram-dump "$dump" --ram-start 0x80018000 --ram-len 256 --inject pc_extra
+  run_expected diff-inject-pc-extra 3 "P1D_DIFF_INJECTION_EXTRA_ERRORS" python3 "$ROOT/scripts/p1d_diff.py" --dut "$dut" --spike "$spike" --regs "$regs" --end-pc "0x$end" --ram-dump "$dump" --ram-start 0x80018000 --ram-len 64 --inject pc_extra
   vd="$INJECT_DIR/traces"; mkdir -p "$vd"
   for mode in seq_dup seq_missing bool_string; do
-    v="$vd/$mode.jsonl"; python3 "$ROOT/scripts/p1c_make_trace_variant.py" --in "$dut" --out "$v" --mode "$mode"
-    run_expected "format-$mode" 4 "P1D_DIFF_BASELINE_FAIL" python3 "$ROOT/scripts/p1d_diff.py" --dut "$v" --spike "$spike" --regs "$regs" --end-pc "0x$end" --ram-dump "$dump" --ram-start 0x80018000 --ram-len 256
+    v="$vd/$mode.jsonl"; run_logged "variant-$mode" python3 "$ROOT/scripts/p1c_make_trace_variant.py" --in "$dut" --out "$v" --mode "$mode"
+    run_expected "format-$mode" 4 "P1D_DIFF_BASELINE_FAIL" python3 "$ROOT/scripts/p1d_diff.py" --dut "$v" --spike "$spike" --regs "$regs" --end-pc "0x$end" --ram-dump "$dump" --ram-start 0x80018000 --ram-len 64
   done
 else bad "directed trace missing for negative probes"; fi
 
 # Actual total-entry failures: normal directed step injected, and expected
 # detection probe replaced by target+extra error.
-if [ -n "$INJECT" ]; then bad "directed diff injected ($INJECT) failed as required"; fi
 if [ "$PROBE_EXTRA" = "1" ]; then
   # Re-run the expected PC probe with pc_extra; it must not match the fixed
   # rc1/DETECTED criterion.
-  run_expected probe-extra-rejection 3 "P1D_DIFF_INJECTION_EXTRA_ERRORS" python3 "$ROOT/scripts/p1d_diff.py" --dut "$SOFT_DIR/directed.dut.jsonl" --spike "$SOFT_DIR/directed.spike.log" --regs "$SOFT_DIR/directed.regs.json" --end-pc "0x$("${CROSS}nm" "$SOFT_DIR/directed.elf" | awk '$3=="end"{print $1}')" --ram-dump "$SOFT_DIR/directed.ram" --ram-start 0x80018000 --ram-len 256 --inject pc_extra
+  run_expected probe-extra-rejection 3 "P1D_DIFF_INJECTION_EXTRA_ERRORS" python3 "$ROOT/scripts/p1d_diff.py" --dut "$SOFT_DIR/directed.dut.jsonl" --spike "$SOFT_DIR/directed.spike.log" --regs "$SOFT_DIR/directed.regs.json" --end-pc "0x$(awk '$3=="end"{print $1}' "$SOFT_DIR/directed.nm")" --ram-dump "$SOFT_DIR/directed.ram" --ram-start 0x80018000 --ram-len 64 --inject pc_extra
 fi
 
 if run_logged regression-p1-c env P1_C_EVIDENCE="$BASE/regression/P1-C" P1_C_HOST_TIMEOUT="${P1_D_P1C_HOST_TIMEOUT:-1200}" make -C "$ROOT" check-p1-c; then

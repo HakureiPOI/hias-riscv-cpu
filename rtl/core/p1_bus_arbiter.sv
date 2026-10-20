@@ -35,11 +35,14 @@ module p1_bus_arbiter (
   } owner_e;
 
   owner_e owner_q;
+  logic [5:0] owner_id_q;
+  logic [7:0] owner_gen_q;
   owner_e sel_q;
   logic   sel_locked_q;
   logic   last_was_lsu_q;
   owner_e sel;
   logic   sel_req_valid;
+  logic   resp_match;
 
   always_comb begin
     sel = OWNER_NONE;
@@ -53,18 +56,26 @@ module p1_bus_arbiter (
                     (sel == OWNER_LSU) ? lsu_req_i.valid : 1'b0;
 
     bus_req_o = '0;
-    if (sel == OWNER_FETCH) bus_req_o = fetch_req_i;
-    else if (sel == OWNER_LSU) bus_req_o = lsu_req_i;
+    if (owner_q == OWNER_NONE) begin
+      if (sel == OWNER_FETCH) bus_req_o = fetch_req_i;
+      else if (sel == OWNER_LSU) bus_req_o = lsu_req_i;
+    end
 
     fetch_req_ready_o = (owner_q == OWNER_NONE) && (sel == OWNER_FETCH) &&
-                        bus_req_ready_i;
+                        fetch_req_i.valid && bus_req_ready_i;
     lsu_req_ready_o = (owner_q == OWNER_NONE) && (sel == OWNER_LSU) &&
-                      bus_req_ready_i;
+                      lsu_req_i.valid && bus_req_ready_i;
 
-    fetch_resp_o = (owner_q == OWNER_FETCH) ? bus_resp_i : '0;
-    lsu_resp_o = (owner_q == OWNER_LSU) ? bus_resp_i : '0;
-    bus_resp_ready_o = (owner_q == OWNER_FETCH) ? fetch_resp_ready_i :
-                       (owner_q == OWNER_LSU) ? lsu_resp_ready_i : 1'b1;
+    resp_match = (bus_resp_i.req_id == owner_id_q) &&
+                 (bus_resp_i.gen == owner_gen_q);
+    fetch_resp_o = (owner_q == OWNER_FETCH && resp_match) ? bus_resp_i : '0;
+    lsu_resp_o = (owner_q == OWNER_LSU && resp_match) ? bus_resp_i : '0;
+    // Matching responses are held by the owner client's ready. Wrong/orphan
+    // responses are drained without releasing the saved owner identity.
+    bus_resp_ready_o = (owner_q == OWNER_NONE) ? 1'b1 :
+                       (resp_match ?
+                        ((owner_q == OWNER_FETCH) ? fetch_resp_ready_i :
+                                                   lsu_resp_ready_i) : 1'b1);
 
     fetch_outstanding_o = (owner_q == OWNER_FETCH);
     lsu_outstanding_o = (owner_q == OWNER_LSU);
@@ -73,6 +84,8 @@ module p1_bus_arbiter (
   always_ff @(posedge clk) begin
     if (reset) begin
       owner_q <= OWNER_NONE;
+      owner_id_q <= '0;
+      owner_gen_q <= '0;
       sel_q <= OWNER_NONE;
       sel_locked_q <= 1'b0;
       last_was_lsu_q <= 1'b0;
@@ -80,10 +93,14 @@ module p1_bus_arbiter (
       if (owner_q == OWNER_NONE) begin
         if (fetch_req_ready_o) begin
           owner_q <= OWNER_FETCH;
+          owner_id_q <= fetch_req_i.req_id;
+          owner_gen_q <= fetch_req_i.gen;
           sel_locked_q <= 1'b0;
           last_was_lsu_q <= 1'b0;
         end else if (lsu_req_ready_o) begin
           owner_q <= OWNER_LSU;
+          owner_id_q <= lsu_req_i.req_id;
+          owner_gen_q <= lsu_req_i.gen;
           sel_locked_q <= 1'b0;
           last_was_lsu_q <= 1'b1;
         end else if (!sel_req_valid) begin
@@ -93,7 +110,9 @@ module p1_bus_arbiter (
           sel_locked_q <= 1'b1;
           sel_q <= sel;
         end
-      end else if (bus_resp_i.valid && bus_resp_ready_o) begin
+      end else if (bus_resp_i.valid && bus_resp_ready_o &&
+                   (bus_resp_i.req_id == owner_id_q) &&
+                   (bus_resp_i.gen == owner_gen_q)) begin
         owner_q <= OWNER_NONE;
       end
     end

@@ -43,7 +43,13 @@ int main(int argc, char** argv) {
   set_lsu(d, 0, 2, 0x22); d->eval();
   check(d->lsu_outstanding == 1 && d->fetch_outstanding == 0, "lsu ownership");
 
-  // Response routing and backpressure.
+  // Wrong identity response is drained but must not release the owner.
+  d->bus_resp_valid = 1; d->bus_resp_id = 9; d->bus_resp_gen = 0x99;
+  d->eval();
+  check(d->lsu_resp_valid == 0 && d->fetch_resp_valid == 0, "wrong id not routed");
+  check(d->lsu_outstanding == 1, "wrong id keeps owner");
+  tick(d);
+  check(d->lsu_outstanding == 1, "wrong id after edge keeps owner");
   d->bus_resp_valid = 1; d->bus_resp_id = 2; d->bus_resp_gen = 0x22;
   d->bus_resp_rdata = 0xabcd; d->lsu_resp_ready = 0; d->fetch_resp_ready = 1;
   d->eval();
@@ -78,6 +84,22 @@ int main(int argc, char** argv) {
   check(d->fetch_ready == 1 && d->lsu_ready == 0, "locked fetch ready");
   tick(d);
   check(d->fetch_outstanding == 1, "stalled fetch accepted");
+  d->bus_resp_valid = 1; d->bus_resp_id = 7; d->bus_resp_gen = 0x77;
+  d->eval(); tick(d); d->bus_resp_valid = 0; set_fetch(d, 0, 7, 0x77); d->eval();
+
+  // A locked fetch request canceled before acceptance must not create a
+  // false owner; LSU can then use the bus.
+  d->bus_resp_valid = 0; set_fetch(d, 1, 4, 0x44); set_lsu(d, 0, 5, 0x55);
+  d->bus_ready = 0; d->eval(); tick(d);
+  set_fetch(d, 0, 4, 0x44); d->bus_ready = 1; d->eval();
+  check(d->fetch_outstanding == 0 && d->lsu_outstanding == 0,
+        "canceled lock no owner");
+  check(!d->bus_req_valid, "canceled lock no bus request");
+  tick(d);  // clear the canceled selection
+  set_lsu(d, 1, 5, 0x55); d->bus_ready = 1; d->eval(); tick(d);
+  check(d->lsu_outstanding == 1, "lsu after canceled lock");
+  d->bus_resp_valid = 1; d->bus_resp_id = 5; d->bus_resp_gen = 0x55;
+  d->eval(); tick(d); d->bus_resp_valid = 0; set_lsu(d, 0, 5, 0x55); d->eval();
 
   // Reset clears ownership; no old response is routed.
   d->reset = 1; tick(d); d->reset = 0; base_inputs(d); d->eval();

@@ -79,6 +79,18 @@ _start:
     lw x6, 32(x31)
 .Lwrong_done:
 
+    # Last legal RAM byte/half/word near RAM_END.
+    li x5, 0x8001fffc
+    li x6, 0x11223344
+    sw x6, 0(x5)
+    lw x21, 0(x5)
+    li x5, 0x8001fffe
+    sh x6, 0(x5)
+    lhu x22, 0(x5)
+    li x5, 0x8001ffff
+    sb x6, 0(x5)
+    lbu x23, 0(x5)
+
     li x20, 0x80018000
     lw x1, 0(x20)
     lw x2, 4(x20)

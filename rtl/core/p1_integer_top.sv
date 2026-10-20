@@ -40,6 +40,8 @@ module p1_integer_top (
     output logic                          ram_write_o,
     output logic                          fetch_req_valid_o,
     output logic                          fetch_req_ready_o,
+    output logic [31:0]                   fetch_req_va_o,
+    output logic [7:0]                    fetch_req_gen_o,
     output logic                          lsu_req_valid_o,
     output logic                          lsu_req_ready_o,
     output logic                          lsu_req_is_store_o,
@@ -165,6 +167,8 @@ module p1_integer_top (
   assign mem_resp_ready_o = bus_resp_ready;
   assign fetch_req_valid_o = fetch_req.valid;
   assign fetch_req_ready_o = fetch_req_ready;
+  assign fetch_req_va_o = fetch_req.va;
+  assign fetch_req_gen_o = fetch_req.gen;
   assign lsu_req_valid_o = lsu_req.valid;
   assign lsu_req_ready_o = lsu_req_ready;
   assign lsu_req_is_store_o = lsu_req.is_store;

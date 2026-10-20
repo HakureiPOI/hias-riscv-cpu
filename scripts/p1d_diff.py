@@ -281,7 +281,7 @@ def main(argv):
     ap.add_argument("--end-pc", required=True, type=lambda x: int(x, 0))
     ap.add_argument("--inject", default="",
                     choices=["", "pc", "instr", "rd", "next_pc", "missing",
-                             "duplicate", "token", "pc_extra"])
+                             "duplicate", "token", "pc_extra", "ram"])
     ap.add_argument("--ram-dump", default="")
     ap.add_argument("--ram-start", type=lambda x: int(x, 0), default=0)
     ap.add_argument("--ram-len", type=lambda x: int(x, 0), default=0)
@@ -291,6 +291,22 @@ def main(argv):
         records = read_dut(Path(args.dut), args.end_pc)
         regs = json.loads(Path(args.regs).read_text(encoding="utf-8"))
         n = baseline(records, rows, tail_next, regs, args.ram_dump, args.ram_start, args.ram_len)
+        if args.inject == "ram":
+            data = bytearray(Path(args.ram_dump).read_bytes())
+            if not data:
+                raise DiffError("empty RAM dump for ram injection")
+            data[0] ^= 1
+            tmp = Path(str(args.ram_dump) + ".inject")
+            tmp.write_bytes(data)
+            diffs = collect_ram(rows, str(tmp), args.ram_start, args.ram_len)
+            if len(diffs) == 1:
+                print(f"P1D_DIFF_NEGATIVE_RAM_DETECTED: {diffs[0]}")
+                return 1
+            if not diffs:
+                print("P1D_DIFF_NEGATIVE_RAM_NOT_DETECTED")
+                return 2
+            print(f"P1D_DIFF_INJECTION_EXTRA_ERRORS: {diffs[0]}")
+            return 3
         if args.inject:
             injected, expected = apply_injection(records, args.inject)
             diffs = collect_compare(injected, rows, tail_next)

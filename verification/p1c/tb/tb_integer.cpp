@@ -69,6 +69,8 @@ int main(int argc, char** argv) {
   d->reset = 1;
   d->accept_stall_i = 0;
   d->req_gate_i = 0;
+  d->lsu_gate_i = 0;
+  d->force_lsu_error_i = 0;
   d->load_valid = 1;
   d->resp_delay_i = 0;
   for (uint32_t w = 0; w < words; ++w) {
@@ -79,7 +81,6 @@ int main(int argc, char** argv) {
   }
   d->load_valid = 0;
   d->reset = 0;
-  d->clk = 1; d->eval();
   d->clk = 0; d->eval();
 
   std::ofstream tf(trace);
@@ -108,8 +109,10 @@ int main(int argc, char** argv) {
     if (stall_mode) {
       lfsr = lfsr * 1664525u + 1013904223u;
       d->accept_stall_i = ((lfsr >> 16) % 100u) < 18u;
+      d->lsu_gate_i = ((lfsr >> 24) % 100u) < 15u;
     } else {
       d->accept_stall_i = 0;
+      d->lsu_gate_i = 0;
     }
     if (recovery_mode >= 0) {
       const uint32_t instr = d->decoded_valid ? d->decoded_instr : 0;
@@ -252,6 +255,21 @@ int main(int argc, char** argv) {
     ++cycles;
   }
   tf.close();
+
+  // Drain any fetch/data transaction accepted at the endpoint edge. Fetch is
+  // gated so no new request can be accepted; responses are still counted.
+  if (done) {
+    d->req_gate_i = 1; d->lsu_gate_i = 1; d->accept_stall_i = 0;
+    d->resp_delay_i = 0;
+    for (int i = 0; i < 64 && (d->fetch_outstanding || d->lsu_outstanding ||
+                               fetch_req != fetch_resp ||
+                               data_req != data_resp); ++i) {
+      d->clk = 0; d->eval();
+      if (d->fetch_resp_valid) ++fetch_resp;
+      if (d->lsu_resp_valid) ++data_resp;
+      d->clk = 1; d->eval(); d->clk = 0; d->eval();
+    }
+  }
 
   if (!done) {
     std::fprintf(stderr, "P1C_DUT_FAIL: endpoint not reached in %u cycles "
