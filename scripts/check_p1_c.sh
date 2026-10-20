@@ -17,6 +17,10 @@ CROSS="${CROSS_PREFIX:-riscv64-unknown-elf-}"
 HOST_TIMEOUT="${P1_C_HOST_TIMEOUT:-900}"
 KILL_AFTER="${P1_C_KILL_AFTER:-5}"
 INJECT="${P1_C_INJECT:-}"
+DIFF_INJECT=""
+case "$INJECT" in
+  pc|instr|rd|next_pc|missing|duplicate|token|pc_extra) DIFF_INJECT="$INJECT" ;;
+esac
 
 if ! [[ "$HOST_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || ! [[ "$KILL_AFTER" =~ ^[1-9][0-9]*$ ]]; then
   printf 'P1-C_CONFIG_ERROR: invalid host timeout/kill-after\n' >&2
@@ -194,7 +198,9 @@ run_program() {
   fi
   local diff_args=(--dut "$dut" --spike "$commit_log" --regs "$regs" --end-pc "0x$end_pc")
   local diff_extra=()
-  if [ "$tag" = directed ] && [ -n "$INJECT" ]; then diff_extra+=(--inject "$INJECT"); fi
+  if [ "$tag" = directed ] && [ -n "$DIFF_INJECT" ]; then
+    diff_extra+=(--inject "$DIFF_INJECT")
+  fi
   local diff_rc
   run_logged "diff-$tag" python3 "$ROOT/scripts/p1c_diff.py" "${diff_args[@]}" "${diff_extra[@]}"
   diff_rc=$?

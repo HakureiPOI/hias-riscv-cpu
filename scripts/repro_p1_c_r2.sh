@@ -7,7 +7,10 @@ DATA="${P1_C_R2_BASE_DATA:-$ROOT/verification/evidence/P1-C-R2/software}"
 BUILD="$ROOT/build/p1-c-r2/old-repro"
 OLD_COMMIT=d8d7cabe9cad2b967ce7146feed6313848945ef9
 TIMEOUT="${P1_C_R2_REPRO_TIMEOUT:-120}"
+if [ -d "$DATA" ]; then DATA="$(cd "$DATA" && pwd)"; fi
 mkdir -p "$BASE/data" "$BUILD" || exit 1
+BASE="$(cd "$BASE" && pwd)"
+BUILD="$(cd "$BUILD" && pwd)"
 
 run_logged() {
   local name="$1"; shift
