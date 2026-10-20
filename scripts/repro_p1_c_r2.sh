@@ -9,6 +9,7 @@ OLD_COMMIT=d8d7cabe9cad2b967ce7146feed6313848945ef9
 TIMEOUT="${P1_C_R2_REPRO_TIMEOUT:-120}"
 if [ -d "$DATA" ]; then DATA="$(cd "$DATA" && pwd)"; fi
 mkdir -p "$BASE/data" "$BUILD" || exit 1
+rm -rf "$BUILD/obj"
 BASE="$(cd "$BASE" && pwd)"
 BUILD="$(cd "$BUILD" && pwd)"
 

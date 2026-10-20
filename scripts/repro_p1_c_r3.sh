@@ -8,6 +8,7 @@ BUILD="$ROOT/build/p1-c-r3/old-repro"
 OLD_COMMIT=3ed8ec9cc70a4145e08d3ebdda41dc805c98d9a7
 TIMEOUT="${P1_C_R3_REPRO_TIMEOUT:-120}"
 mkdir -p "$BASE" "$BUILD" || exit 1
+rm -rf "$BUILD/obj"
 BASE="$(cd "$BASE" && pwd)"
 BUILD="$(cd "$BUILD" && pwd)"
 
