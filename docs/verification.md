@@ -2,7 +2,7 @@
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
-P1-A 经 R2 [管理验收](progress/P1-A-R2-review.md)通过；`P1_A_EVIDENCE=verification/evidence/P1-A-R2 make check-p1-a` 正常 exit 0，独立注入运行总入口 exit 2，详见报告。P1-B 分支已实现并在容器执行 `check-p1-b`，日志 exit 0；[管理审查](progress/P1-B-review.md)发现译码、恢复与检查器问题，尚未验收或合入 main，当前执行 [P1-B-R1](tasks/P1-B-R1-译码与恢复修复.md)。main 的验证入口仍以已合入内容为准；Windows 管理侧未运行 RTL 或该入口。
+P1-A 经 R2 [管理验收](progress/P1-A-R2-review.md)通过；`P1_A_EVIDENCE=verification/evidence/P1-A-R2 make check-p1-a` 正常 exit 0，独立注入运行总入口 exit 2，详见报告。P1-B-R1 分支正常 `check-p1-b` 日志 exit 0，实际早期错误注入总入口 FAIL；[R1 复审](progress/P1-B-R1-review.md)接受 JAL/恢复及错误累计修复，发现构建退出码、独立 PC/完整请求检查与探针原因绑定仍需收尾，当前执行 [P1-B-R2](tasks/P1-B-R2-验证收尾.md)，尚未验收或合入 main。main 的验证入口仍以已合入内容为准；Windows 管理侧未运行 RTL 或该入口。
 
 ## 环境
 
