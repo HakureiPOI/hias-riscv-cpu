@@ -67,8 +67,8 @@ Token 身份 = `{idx, gen}`。代次在 ROB 项重新分配时递增；回绕前
 逐槽字段：
 
 - `fetch_slot_t`：`valid`、`pc`、`instr`、`pred_taken`、`pred_target`、`pred_index`、`fetch_exc_valid/cause/tval`、`fetch_gen`。第二槽取指失败只在该槽到达提交头时产生异常。
-- `decoded_slot_t`：粗粒度 `op_class_e` + 细粒度 `exec_op_e`、rd/rs1/rs2、立即数、读写使能、分支/跳转/访存/CSR/Fence/返回标记、非法指令 cause/tval、访存宽度、CSR 操作/地址/5 位 `csr_uimm`、`fetch_exc_*`、`pred_index`。
-- `renamed_slot_t`：Token、`exec_op_e`、源就绪/值/Tag、rd、PC、指令、预测/预测索引、架构下一 PC、取指异常、非法指令信息、访存/CSR/系统标记。
+- `decoded_slot_t`：粗粒度 `op_class_e` + 细粒度 `exec_op_e`、rd/rs1/rs2、立即数、读写使能、分支/跳转/访存/CSR/Fence/返回标记、非法指令 cause/tval、访存宽度、CSR 操作/地址/5 位 `csr_uimm`、`fetch_exc_*`、`fetch_gen`、`pred_index`。
+- `renamed_slot_t`：Token、`exec_op_e`、源就绪/值/Tag、rd、PC、指令、预测/预测索引、架构下一 PC、取指异常、`fetch_gen`、非法指令信息、访存/CSR/系统标记。
 - `issue_slot_t`：Token、FU、`exec_op_e` + 原指令、源操作数、立即数、PC、rd、CSR 地址/5 位立即数、预测索引、取指/非法异常、下一 PC。ALU/分支/Load 的子操作由 `exec_op_e` 区分（ADD/SUB、BEQ/BNE、LB/LBU 等），不依赖粗粒度 `op_class_e`。
 - `wb_msg_t`：Token、结果、异常、分支解析结果/真实下一 PC、访存写回数据。
 - `retire_record_t`/`trap_event_t`：见 `docs/architecture/retire-contract.md`。

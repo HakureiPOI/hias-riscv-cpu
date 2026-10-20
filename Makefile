@@ -5,7 +5,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help env-check lint-smoke rtl-smoke ref-smoke check-p0-01 r1-probes check-p0-02 check-p1-a platform-generate platform-check clean
+.PHONY: help env-check lint-smoke rtl-smoke ref-smoke check-p0-01 r1-probes check-p0-02 check-p1-a check-p1-b platform-generate platform-check clean
 
 help:
 	@printf '%s\n' \
@@ -20,6 +20,7 @@ help:
 	  '  make platform-check     validate platform config and generated files' \
 	  '  make check-p0-02   platform/types/retire checks + P0-01 regression' \
 	  '  make check-p1-a    P1-A skeleton, RAM/bridge, token joint and regression' \
+	  '  make check-p1-b    P1-B fetch/decode, real RAM integration and P1-A regression' \
 	  '  make clean         remove build/ (not evidence)'
 
 env-check:
@@ -56,6 +57,10 @@ check-p0-02:
 check-p1-a:
 	@set -o pipefail; \
 	./scripts/check_p1_a.sh
+
+check-p1-b:
+	@set -o pipefail; \
+	./scripts/check_p1_b.sh
 
 clean:
 	rm -rf build
