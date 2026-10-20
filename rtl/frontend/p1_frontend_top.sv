@@ -37,6 +37,9 @@ module p1_frontend_top #(
 
   mem_req_t  req;
   logic      req_ready;
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic      decoded_held_unused;
+  /* verilator lint_on UNUSEDSIGNAL */
   mem_resp_t resp;
   logic      resp_ready;
 
@@ -45,6 +48,7 @@ module p1_frontend_top #(
       .mem_req_o(req), .mem_req_ready_i(req_ready),
       .mem_resp_i(resp), .mem_resp_ready_o(resp_ready),
       .decoded_o(decoded_o), .decoded_valid_o(decoded_valid_o),
+      .decoded_held_o(decoded_held_unused),
       .decoded_accept_i(decoded_accept_i),
       .redirect_error_o(redirect_error_o), .accept_error_o(accept_error_o),
       .fetch_valid_o(fetch_valid_o), .fetch_pc_o(fetch_pc_o),

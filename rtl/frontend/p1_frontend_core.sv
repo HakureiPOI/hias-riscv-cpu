@@ -14,6 +14,7 @@ module p1_frontend_core #(
 
     output core_types_pkg::decoded_slot_t decoded_o,
     output logic                          decoded_valid_o,
+    output logic                          decoded_held_o,
     input  core_types_pkg::prefix_accept_t decoded_accept_i,
 
     output logic                          redirect_error_o,
@@ -61,6 +62,7 @@ module p1_frontend_core #(
     decoded_o = out_q;
     decoded_o.valid = out_valid_q && !redirect_effective;
     decoded_valid_o = out_valid_q && !redirect_effective;
+    decoded_held_o = out_valid_q;
     accept_error_o = decoded_accept_i.accept_count[1] | fetch_accept_error;
     fetch_valid_o = fetch_bundle.slot_valid[0] | fetch_result_valid;
     fetch_pc_o = fetch_slot.pc;

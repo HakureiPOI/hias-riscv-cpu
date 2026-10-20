@@ -30,6 +30,8 @@ int main(int argc, char** argv) {
   uint64_t max_retire = 200000;
   uint32_t max_cycles = 1000000;
   bool stall_mode = false, delay_mode = false;
+  int recovery_mode = -1;
+  int fixed_delay = -1;
   for (int i = 1; i < argc; ++i) {
     const char* a = argv[i];
     if (std::strncmp(a, "+image=", 7) == 0) image = a + 7;
@@ -40,6 +42,10 @@ int main(int argc, char** argv) {
     else if (std::strncmp(a, "+max_cycles=", 12) == 0) max_cycles = (uint32_t)parse_u64(a + 12, max_cycles);
     else if (std::strcmp(a, "+stall") == 0) stall_mode = true;
     else if (std::strcmp(a, "+delay") == 0) delay_mode = true;
+    else if (std::strncmp(a, "+recovery=", 10) == 0)
+      recovery_mode = (int)parse_u64(a + 10, 0);
+    else if (std::strncmp(a, "+resp_delay=", 12) == 0)
+      fixed_delay = (int)parse_u64(a + 12, 0);
   }
   Verilated::commandArgs(argc, argv);
   if (image.empty() || trace.empty() || regs_path.empty() || end_pc == 0) {
@@ -56,6 +62,7 @@ int main(int argc, char** argv) {
   Vinteger_tb_top* d = new Vinteger_tb_top;
   d->reset = 1;
   d->accept_stall_i = 0;
+  d->req_gate_i = 0;
   d->load_valid = 1;
   d->resp_delay_i = 0;
   for (uint32_t w = 0; w < words; ++w) {
@@ -75,9 +82,11 @@ int main(int argc, char** argv) {
   uint32_t cycles = 0;
   uint32_t last_commit_pc = 0;
   uint32_t lfsr = 0x1a2b3c4du ^ words;
-  uint64_t redirect_pending = 0, redirect_resp = 0, redirect_dec = 0,
-           redirect_stall = 0;
+  uint64_t redirect_req_wait = 0, redirect_resp_wait = 0,
+           redirect_resp_same = 0, redirect_dec = 0, redirect_stall = 0;
+  uint32_t recovery_start = 0xffffffffu;
   bool prev_dec_valid = false;
+  bool prev_req_wait = false;
   bool pending_commit = false;
   uint32_t pending_rd = 0, pending_wdata = 0;
   bool pending_rd_we = false;
@@ -89,12 +98,24 @@ int main(int argc, char** argv) {
     } else {
       d->accept_stall_i = 0;
     }
-    d->resp_delay_i = delay_mode ? (lfsr & 3u) : 0;
+    if (recovery_mode >= 0) {
+      const uint32_t instr = d->decoded_valid ? d->decoded_instr : 0;
+      const uint32_t opcode = instr & 0x7f;
+      if (d->decoded_valid &&
+          (opcode == 0x63 || opcode == 0x6f || opcode == 0x67))
+        recovery_start = cycles + static_cast<uint32_t>(recovery_mode);
+      d->req_gate_i = (cycles >= recovery_start && cycles < recovery_start + 6);
+    } else {
+      d->req_gate_i = stall_mode ? (((lfsr >> 20) % 100u) < 30u) : 0;
+    }
+    d->resp_delay_i = fixed_delay >= 0 ? static_cast<uint8_t>(fixed_delay) :
+                      (delay_mode ? (lfsr & 3u) : 0);
     d->clk = 0; d->eval();
     if (d->redirect_valid) {
-      if (d->req_pending) ++redirect_pending;
-      if (d->mem_resp_valid) ++redirect_resp;
-      if (prev_dec_valid) ++redirect_dec;
+      if (prev_req_wait) ++redirect_req_wait;
+      if (d->req_pending && !d->mem_resp_valid) ++redirect_resp_wait;
+      if (d->mem_resp_valid) ++redirect_resp_same;
+      if (d->decoded_held) ++redirect_dec;
       if (d->accept_stall_i) ++redirect_stall;
     }
 
@@ -159,6 +180,7 @@ int main(int argc, char** argv) {
     }
 
     prev_dec_valid = d->decoded_valid;
+    prev_req_wait = d->mem_req_valid && !d->mem_req_ready;
     d->clk = 1; d->eval();
     d->clk = 0; d->eval();
     if (pending_commit) {
@@ -195,11 +217,12 @@ int main(int argc, char** argv) {
   rf << "]}\n";
   rf.close();
   std::printf("P1C_DUT_PASS retires=%llu endpoint=0x%08x cycles=%u "
-              "redirect_pending=%llu redirect_resp=%llu redirect_dec=%llu "
-              "redirect_stall=%llu\n",
+              "redirect_req_wait=%llu redirect_resp_wait=%llu "
+              "redirect_resp_same=%llu redirect_dec=%llu redirect_stall=%llu\n",
               (unsigned long long)seq, end_pc, cycles,
-              (unsigned long long)redirect_pending,
-              (unsigned long long)redirect_resp,
+              (unsigned long long)redirect_req_wait,
+              (unsigned long long)redirect_resp_wait,
+              (unsigned long long)redirect_resp_same,
               (unsigned long long)redirect_dec,
               (unsigned long long)redirect_stall);
   d->final();

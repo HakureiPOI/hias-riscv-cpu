@@ -99,6 +99,20 @@ _start:
     # Taken-vs-untaken alignment distinction: this +6 target is not taken.
     beq  x0, x1, . + 6
 
+    # Taken BLT/BGE anchors with x31=0x55 and x20=-3.
+    blt  x20, x31, .Lbt1
+    addi x26, x26, 0x7f
+.Lbt1:
+    bge  x31, x20, .Lbt2
+    addi x26, x26, 0x7f
+.Lbt2:
+
+    # Untaken direction matrix after x19 was changed to -1 by SRAI.
+    blt  x19, x20, .Lbad       # -1 < -3 is false
+    bge  x20, x19, .Lbad       # -3 >= -1 is false
+    bltu x27, x28, .Lbad       # 0xffffffff < 1 is false
+    bgeu x28, x27, .Lbad       # 1 >= 0xffffffff is false
+
     jal  x1, .Ljal1
     addi x26, x26, 0x777
 .Ljal1:

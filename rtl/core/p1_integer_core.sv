@@ -40,8 +40,9 @@ module p1_integer_core #(
     S_IDLE   = 3'd0,
     S_EXEC   = 3'd1,
     S_EXEC2  = 3'd2,
-    S_COMMIT = 3'd3,
-    S_FAULT  = 3'd4
+    S_EXEC3  = 3'd3,
+    S_COMMIT = 3'd4,
+    S_FAULT  = 3'd5
   } state_e;
 
   // Fault kinds: 0 fetch exception, 1 illegal encoding, 2 unsupported but
@@ -253,6 +254,8 @@ module p1_integer_core #(
       end else if (state_q == S_EXEC) begin
         state_q <= S_EXEC2;
       end else if (state_q == S_EXEC2) begin
+        state_q <= S_EXEC3;
+      end else if (state_q == S_EXEC3) begin
         state_q <= S_COMMIT;
       end else if (state_q == S_COMMIT) begin
         state_q <= S_IDLE;

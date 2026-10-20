@@ -23,7 +23,7 @@ if ! [[ "$HOST_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || ! [[ "$KILL_AFTER" =~ ^[1-9][0-9]
   exit 2
 fi
 case "$INJECT" in
-  ""|pc|rd|next_pc|missing|duplicate|token) ;;
+  ""|pc|instr|rd|next_pc|missing|duplicate|token|pc_extra) ;;
   *) printf 'P1-C_CONFIG_ERROR: invalid P1_C_INJECT=%s\n' "$INJECT" >&2; exit 2 ;;
 esac
 
@@ -205,17 +205,6 @@ run_program() {
   if ! grep -qF 'P1C_DIFF_PASS' "$LOG_DIR/diff-$tag.log"; then
     bad "subset diff $tag missing PASS"; return 1
   fi
-  if [ "$tag" = "directed" ]; then
-    local line
-    line="$(grep 'P1C_DUT_PASS' "$LOG_DIR/dut-$tag.log" || true)"
-    for key in redirect_pending redirect_resp redirect_dec redirect_stall; do
-      local value
-      value="$(printf '%s\n' "$line" | sed -n "s/.*$key=\([0-9][0-9]*\).*/\1/p")"
-      if [ -z "$value" ] || [ "$value" -eq 0 ]; then
-        bad "directed redirect coverage missing $key (line: $line)"
-      fi
-    done
-  fi
   local retires
   retires="$(sed -n 's/.*retires=\([0-9][0-9]*\).*/\1/p' "$LOG_DIR/dut-$tag.log" | head -1)"
   if [ -z "$retires" ] || [ "$retires" -lt 1 ]; then bad "DUT $tag retire count missing"; return 1; fi
@@ -230,7 +219,57 @@ run_program() {
 if [ "$integer_ok" -eq 1 ]; then
   if build_program directed "$ROOT/software/p1c/directed.S"; then
     run_program directed || true
+    directed_end="$("${CROSS}nm" "$SOFT_DIR/directed.elf" | awk '$3=="end"{print $1}')"
+    if run_logged branch-matrix python3 "$ROOT/scripts/p1c_branch_matrix.py" \
+         --spike "$SOFT_DIR/directed.spike.log" --end-pc "0x$directed_end"; then
+      if grep -qF 'P1C_BRANCH_MATRIX_PASS' "$LOG_DIR/branch-matrix.log"; then
+        pass "six-branch taken/untaken matrix"
+      else bad "branch matrix missing PASS"; fi
+    else bad "branch matrix"; fi
+
+    # Real recovery timing sweep: request not accepted, accepted response
+    # waiting, held decoded result, and response in the redirect cycle.
+    for spec in "0 0 redirect_req_wait" "1 2 redirect_resp_wait" \
+                "2 0 redirect_dec" "3 0 redirect_resp_same"; do
+      set -- $spec
+      rr="$1"; dd="$2"; key="$3"
+      rtag="recovery-$rr-$dd"
+      rtrace="$SOFT_DIR/directed-$rtag.jsonl"
+      rregs="$SOFT_DIR/directed-$rtag.regs.json"
+      if ! run_logged "dut-$rtag" "$BUILD/integer/obj/integer_tb" \
+           +image="$SOFT_DIR/directed.bin" +trace="$rtrace" +regs="$rregs" \
+           +end_pc=0x"$directed_end" +max_retire=200000 +max_cycles=1000000 \
+           +recovery="$rr" +resp_delay="$dd"; then
+        bad "recovery $rtag run"; continue
+      fi
+      if ! run_logged "contract-$rtag" python3 "$ROOT/scripts/check_retire_contract.py" \
+           --validate-file "$rtrace"; then bad "recovery $rtag contract"; continue; fi
+      if ! run_logged "diff-$rtag" python3 "$ROOT/scripts/p1c_diff.py" \
+           --dut "$rtrace" --spike "$SOFT_DIR/directed.spike.log" \
+           --regs "$rregs" --end-pc "0x$directed_end"; then
+        bad "recovery $rtag diff"; continue
+      fi
+      value="$(sed -n "s/.*$key=\([0-9][0-9]*\).*/\1/p" "$LOG_DIR/dut-$rtag.log" | head -1)"
+      if [ -z "$value" ] || [ "$value" -eq 0 ]; then
+        bad "recovery $rtag missing $key"
+      else
+        pass "recovery $rtag $key=$value"
+      fi
+    done
   fi
+  # Targeted old-checker reproduction (F01/F02) using current trace data.
+  if run_logged old-repro env \
+       P1_C_R1_REPRO_EVIDENCE="$BASE/old-repro" \
+       P1_C_R1_BASE_DATA="$SOFT_DIR" \
+       P1_C_R1_END_PC="$directed_end" \
+       "$ROOT/scripts/repro_p1_c_r1.sh"; then
+    if grep -qF 'P1-C-R1_OLD_REPRO_ALL_PASS' "$LOG_DIR/old-repro.log"; then
+      pass "old-checker F01/F02 reproduction"
+    else bad "old-checker reproduction missing PASS"; fi
+  else
+    bad "old-checker F01/F02 reproduction"
+  fi
+
   seeds=(0x1a2b3c4d 0x5e6f7a8b 0x9c0d1e2f)
   for idx in 0 1 2; do
     tag="random$idx"
@@ -247,7 +286,7 @@ fi
 
 # V02 stopped faults and control alignment boundaries.
 if [ "$fault_ok" -eq 1 ]; then
-  for c in illegal unsupported unaligned unaligned_branch fetch branch_untaken jalr_clear; do
+  for c in illegal unsupported unaligned unaligned_branch jalr_unaligned fetch branch_untaken jalr_clear; do
     if run_logged "fault-$c" "$BUILD/fault/obj/fault_tb" +case="$c"; then
       if grep -qF "P1C_FAULT_PASS case=$c" "$LOG_DIR/fault-$c.log"; then
         pass "fault/control probe $c"
@@ -266,11 +305,41 @@ if [ -f "$SOFT_DIR/directed.dut.jsonl" ] && [ -f "$SOFT_DIR/directed.spike.log" 
   regs="$SOFT_DIR/directed.regs.json"
   dut="$SOFT_DIR/directed.dut.jsonl"
   spike_log="$SOFT_DIR/directed.spike.log"
-  for kind in pc rd next_pc missing duplicate token; do
+  for kind in pc instr rd next_pc missing duplicate token; do
     run_expected "diff-inject-$kind" 1 "P1C_DIFF_NEGATIVE_${kind^^}_DETECTED" \
       python3 "$ROOT/scripts/p1c_diff.py" --dut "$dut" --spike "$spike_log" \
       --regs "$regs" --end-pc "0x$end_pc" --inject "$kind"
   done
+  run_expected diff-inject-pc-extra 3 "P1C_DIFF_INJECTION_EXTRA_ERRORS" \
+    python3 "$ROOT/scripts/p1c_diff.py" --dut "$dut" --spike "$spike_log" \
+    --regs "$regs" --end-pc "0x$end_pc" --inject pc_extra
+
+  variant_dir="$INJECT_DIR/traces"
+  mkdir -p "$variant_dir"
+  for spec in extra_endpoint:extra-endpoint:not\ unique/final \
+              extra_other:extra-other:never\ ended \
+              bad_line:bad-line:invalid\ JSON \
+              priv:priv:field=priv \
+              last_next:last-next:field=next_pc; do
+    mode="${spec%%:*}"; rest="${spec#*:}"; vname="${rest%%:*}"
+    pattern="${rest#*:}"
+    variant="$variant_dir/$vname.jsonl"
+    python3 "$ROOT/scripts/p1c_make_trace_variant.py" --in "$dut" --out "$variant" --mode "$mode"
+    run_expected "variant-$vname" 4 "P1C_DIFF_BASELINE_FAIL" \
+      python3 "$ROOT/scripts/p1c_diff.py" --dut "$variant" --spike "$spike_log" \
+      --regs "$regs" --end-pc "0x$end_pc"
+    if ! grep -qF "$pattern" "$INJECT_DIR/variant-$vname.log"; then
+      bad "variant $vname missing reason '$pattern'"
+    fi
+  done
+  dirty="$variant_dir/dirty-pc.jsonl"
+  python3 "$ROOT/scripts/p1c_make_trace_variant.py" --in "$dut" --out "$dirty" --mode dirty_pc
+  run_expected variant-dirty-pc-inject-rd 4 "P1C_DIFF_BASELINE_FAIL" \
+    python3 "$ROOT/scripts/p1c_diff.py" --dut "$dirty" --spike "$spike_log" \
+    --regs "$regs" --end-pc "0x$end_pc" --inject rd
+  if grep -qF 'NEGATIVE_RD_DETECTED' "$INJECT_DIR/variant-dirty-pc-inject-rd.log"; then
+    bad "dirty baseline incorrectly produced RD detection"
+  fi
 else
   bad "directed trace missing for negative probes"
 fi

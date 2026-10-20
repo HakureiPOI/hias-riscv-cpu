@@ -106,6 +106,9 @@ module frontend_tb_top #(
   /* verilator lint_off UNUSEDSIGNAL */
   decoded_slot_t decoded;
   /* verilator lint_on UNUSEDSIGNAL */
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic           decoded_held_unused;
+  /* verilator lint_on UNUSEDSIGNAL */
   logic           decoded_valid;
   redirect_t      redirect;
   commit_bundle_t commit_unused;
@@ -131,6 +134,7 @@ module frontend_tb_top #(
       .mem_req_o(core_req), .mem_req_ready_i(core_req_ready),
       .mem_resp_i(core_resp), .mem_resp_ready_o(core_resp_ready),
       .decoded_o(decoded), .decoded_valid_o(decoded_valid),
+      .decoded_held_o(decoded_held_unused),
       .decoded_accept_i(prefix_accept_t'(decoded_accept)),
       .redirect_error_o(redirect_error_o), .accept_error_o(accept_error_o),
       .fetch_valid_o(fetch_valid_o), .fetch_pc_o(fetch_pc_o),

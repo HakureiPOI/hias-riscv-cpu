@@ -34,12 +34,13 @@ P1-D/E 边界：Load/Store 由 P1-D 接入；CSR/Trap/MRET/WFI/Fence 由 P1-E/F 
 
 ## 2 顺序后端与身份
 
-- 状态：`IDLE → EXEC → EXEC2 → COMMIT → IDLE`；每条非 fault 指令接受后固定三拍提交，给前端预取/译码一个稳定窗口。单指令在途，无旁路。
+- 状态：`IDLE → EXEC → EXEC2 → EXEC3 → COMMIT → IDLE`；每条非 fault 指令接受后固定四拍提交，给前端预取/译码一个稳定窗口。单指令在途，无旁路。
 - `decoded_accept_o` 仅在 IDLE 且 `decoded_valid_i` 且 `!accept_stall_i` 时返回 1；frontend 保持完整 payload。
 - 每次接受分配 `rob_token_t{idx=0, gen=next_gen}`，gen 每次接受递增；单指令在途保证回绕前旧项已提交或停止。Token 随真实提交/fault 输出，不在日志端用 seq 伪造。
 - ARF 读在 IDLE 组合读取（x0 为 0）；提交边沿写 `rd`/`rd_data`。JALR 的 `rd=rs1` 使用提交前旧值；RAW/WAW 由单在途顺序自然满足。
 - `COMMIT` 拍输出 S0 正常退休，更新 ARF；所有正常项（包括 rd=x0、非写回分支）恰好一次。Trap/mem/csr 字段恒无效。
 - 控制转移（JAL/JALR/六分支）提交时同时输出 `redirect_o`，目标为真实 `next_pc`；该条自身的提交/链接写入不受 redirect 影响，前端年轻项被清除。未 taken 分支也保守重取 PC+4。
+- 集成顶层提供测试专用 `req_gate_i`：同一真实请求握手在核心侧看到 `ready=0`、桥侧看到 `valid=0`，生产桥/RAM 不变；TB 用控制流提交实际触发四种恢复时序（未接受请求、已接受响应等待、响应同拍、held 译码），并观察原控制流自身提交/链接写与旧路径不退休。
 - 目标对齐：JAL/ taken 分支检查 bit1:0；JALR 先清 bit0 再检查 bit1。未对齐 taken 目标进入 fault kind=3、cause=0、tval=错误目标；未 taken 同一目标不 fault，不写 ARF、不提交。
 - 故障优先级：fetch exception > illegal encoding > legal-but-unsupported > misaligned target。fault 进入停止状态并保持 PC/instr/cause/tval/Token/fetch_gen；当前不更新 `mepc/mcause/mtval/mstatus`，也不产生 Trap 事件，Trap 留给 P1-E。
 
@@ -58,4 +59,6 @@ P1-D/E 边界：Load/Store 由 P1-D 接入；CSR/Trap/MRET/WFI/Fence 由 P1-E/F 
 - 软件链接复用 `software/smoke/link.ld` 与平台单一来源；只用 rv32i/ilp32、无 C/M/访存/CSR。
 - Spike 使用 `config/platform.spike.args`、`--pc=0x80000000` 直接进入目标 ELF，`--instructions=5000` 有限运行，`--log-commits` 记录参考提交。脚本在第一个 `end` PC 截断参考流（无启动 ROM 指令），不丢弃任何 DUT 退休。
 - DUT TB 从 `commit_o` 记录 source=dut 正常记录（真实 Token/next_pc/seq），停止于同一 `end` PC；`scripts/p1c_diff.py` 比较 PC、原指令、priv、rd 写/值、DUT next_pc 与相邻参考 PC（最后一条用 end 快照，标记 derived）、最终 32 个 ARF 寄存器和退休数。参考 Token 不可观测，只断言 DUT idx=0 与 gen 递增/回绕。
-- 差分负向：改一次 PC、instr、rd、next_pc、删记录、复制记录、改 Token gen，均报告首差异并退出 1；正常对照退出 0。
+- 差分完整消费 DUT 文件：恰好一个末尾终点退休，拒绝其后额外正常记录/Trap/坏行；真实 `priv` 来自 DUT 记录；参考后缀只允许终点自循环，最后 `next_pc` 由实际后继参考 PC 推导。最终寄存器/提交终点/提交后 next_pc/退休数分别校验。
+- 差分负向：`pc`、`instr`、`rd`、`next_pc`、`missing`、`duplicate`、`token` 七类先验证干净基线，只有指定字段/位置/计数差异才产生成功标记；脏基线、目标错误伴随额外错误、错误原因不符分别拒绝。实际总入口在注入原正常步骤后自行 FAIL。
+- 恢复/停止验证：真实定向程序覆盖六分支 taken/untaken 矩阵；请求门控四类恢复场景；fault 保持 16 个实际边沿并核对完整身份/元数据、ARF 不变、无 commit/Trap/RAM 写；新增 JALR 清 bit0 后 bit1 仍非对齐的停止用例。

@@ -71,15 +71,36 @@ static void run(Valu_tb_top* d, uint32_t op, uint32_t a, uint32_t b,
   check(d->is_control == r.control, "is_control", d->is_control, r.control);
 }
 
+static uint32_t sext12(uint32_t v) {
+  v &= 0xfffu;
+  return (v & 0x800u) ? (v | 0xfffff000u) : v;
+}
+
 int main(int argc, char** argv) {
   Verilated::commandArgs(argc, argv);
   Valu_tb_top* d = new Valu_tb_top;
   const uint32_t base = 0x80000123u;
+
+  // Explicit imm12 sign-extension and high-imm anchors.
+  const int32_t anchors[4] = {-2048, -1, 0, 2047};
+  for (uint32_t op = 10; op <= 15; ++op)
+    for (int32_t av : anchors)
+      run(d, op, 0x80000001u, 0, base, static_cast<uint32_t>(av));
+  run(d, 16, 0x80000001u, 0, base, 0);
+  run(d, 16, 0x80000001u, 0, base, 31);
+  run(d, 16, 0x80000001u, 0, base, 63);
+  run(d, 17, 0x80000001u, 0, base, 31);
+  run(d, 18, 0x80000001u, 0, base, 31);
+  run(d, 19, 0, 0, base, 0x80000000u);
+  run(d, 19, 0, 0, base, 0xfffff000u);
+  run(d, 19, 0, 0, base, 0x7ffff000u);
+  run(d, 20, 0, 0, 0x80000000u, 0x00001000u);
+  run(d, 20, 0, 0, 0xfffff000u, 0x00001000u);
+
   for (uint32_t op = 0; op <= 28; ++op) {
     for (uint32_t a : EDGE) {
       for (uint32_t b : EDGE) {
-        uint32_t imm = (op <= 18 || op == 19 || op == 20 || op == 21 || op == 22)
-                       ? (b & 0x1fffu) : (b & 0x1fffu);
+        uint32_t imm = (op <= 18) ? sext12(b) : (b & 0x1fffu);
         run(d, op, a, b, base, imm);
       }
     }
@@ -88,9 +109,11 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 20000; ++i) {
     uint32_t op = rng() % 29;
     uint32_t a = rng(), b = rng();
-    uint32_t imm = (i & 1) ? (rng() & 0x1fffu) : (uint32_t)(int32_t)(rng() & 0xfff);
-    if (op <= 18 || op == 19 || op == 20) imm &= 0x1fffu;
-    if (op == 21 || op == 22 || (op >= 23 && op <= 28)) imm &= 0x1fffEu;
+    uint32_t imm;
+    if (op <= 15) imm = sext12(rng());
+    else if (op <= 18) imm = rng() & 0x3fu;
+    else if (op == 19 || op == 20) imm = rng() & 0xfffff000u;
+    else imm = rng() & 0x1fffeu;
     run(d, op, a, b, rng(), imm);
     if (errors > 20) break;
   }
