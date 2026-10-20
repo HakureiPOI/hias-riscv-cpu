@@ -1,5 +1,6 @@
 // P1-C integer DUT runner: loads a flat RAM image, executes until an endpoint
 // PC, records real commit_bundle_t retire events and final ARF state.
+#include "Vinteger_tb_top___024root.h"
 #include "Vinteger_tb_top.h"
 #include "verilated.h"
 
@@ -29,6 +30,8 @@ int main(int argc, char** argv) {
   uint32_t end_pc = 0;
   uint64_t max_retire = 200000;
   uint32_t max_cycles = 1000000;
+  std::string ram_dump;
+  uint32_t ram_start = 0x80018000u, ram_len = 0;
   bool stall_mode = false, delay_mode = false;
   int recovery_mode = -1;
   int fixed_delay = -1;
@@ -42,6 +45,9 @@ int main(int argc, char** argv) {
     else if (std::strncmp(a, "+max_cycles=", 12) == 0) max_cycles = (uint32_t)parse_u64(a + 12, max_cycles);
     else if (std::strcmp(a, "+stall") == 0) stall_mode = true;
     else if (std::strcmp(a, "+delay") == 0) delay_mode = true;
+    else if (std::strncmp(a, "+ram_dump=", 10) == 0) ram_dump = a + 10;
+    else if (std::strncmp(a, "+ram_start=", 11) == 0) ram_start = (uint32_t)parse_u64(a + 11, ram_start);
+    else if (std::strncmp(a, "+ram_len=", 9) == 0) ram_len = (uint32_t)parse_u64(a + 9, ram_len);
     else if (std::strncmp(a, "+recovery=", 10) == 0)
       recovery_mode = (int)parse_u64(a + 10, 0);
     else if (std::strncmp(a, "+resp_delay=", 12) == 0)
@@ -82,6 +88,13 @@ int main(int argc, char** argv) {
   uint32_t cycles = 0;
   uint32_t last_commit_pc = 0;
   uint32_t lfsr = 0x1a2b3c4du ^ words;
+  uint64_t data_req = 0, data_resp = 0, fetch_req = 0, fetch_resp = 0,
+           ram_writes = 0, data_req_waits = 0;
+  bool held_lsu = false;
+  uint32_t held_lsu_va = 0, held_lsu_pa = 0, held_lsu_size = 0,
+           held_lsu_mask = 0, held_lsu_wdata = 0, held_lsu_id = 0,
+           held_lsu_gen = 0;
+  bool held_lsu_store = false;
   uint64_t redirect_req_wait = 0, redirect_resp_wait = 0,
            redirect_resp_same = 0, redirect_dec = 0, redirect_stall = 0;
   uint32_t recovery_start = 0xffffffffu;
@@ -111,6 +124,29 @@ int main(int argc, char** argv) {
     d->resp_delay_i = fixed_delay >= 0 ? static_cast<uint8_t>(fixed_delay) :
                       (delay_mode ? (lfsr & 3u) : 0);
     d->clk = 0; d->eval();
+    if (d->lsu_req_valid && d->lsu_req_ready) ++data_req;
+    if (d->lsu_req_valid && !d->lsu_req_ready) ++data_req_waits;
+    if (d->lsu_resp_valid) ++data_resp;
+    if (d->fetch_req_valid && d->fetch_req_ready) ++fetch_req;
+    if (d->fetch_resp_valid) ++fetch_resp;
+    if (d->ram_write) ++ram_writes;
+    if (held_lsu) {
+      if (!d->lsu_req_valid || d->lsu_req_va != held_lsu_va ||
+          d->lsu_req_pa != held_lsu_pa || d->lsu_req_size != held_lsu_size ||
+          d->lsu_req_mask != held_lsu_mask || d->lsu_req_wdata != held_lsu_wdata ||
+          d->lsu_req_id != held_lsu_id || d->lsu_req_gen != held_lsu_gen ||
+          d->lsu_req_is_store != held_lsu_store) {
+        std::fprintf(stderr, "P1C_DUT_FAIL: held LSU request changed\n");
+        return 1;
+      }
+    }
+    held_lsu = d->lsu_req_valid && !d->lsu_req_ready;
+    if (held_lsu) {
+      held_lsu_va = d->lsu_req_va; held_lsu_pa = d->lsu_req_pa;
+      held_lsu_size = d->lsu_req_size; held_lsu_mask = d->lsu_req_mask;
+      held_lsu_wdata = d->lsu_req_wdata; held_lsu_id = d->lsu_req_id;
+      held_lsu_gen = d->lsu_req_gen; held_lsu_store = d->lsu_req_is_store;
+    }
     if (d->redirect_valid) {
       if (prev_req_wait) ++redirect_req_wait;
       if (d->req_pending && !d->mem_resp_valid) ++redirect_resp_wait;
@@ -147,8 +183,12 @@ int main(int argc, char** argv) {
       if (rd_we && rd == 0)
         { std::fprintf(stderr, "P1C_DUT_FAIL: x0 write retired\\n"); return 1; }
       if (d->commit_csr_valid || d->commit_csr_rd_valid ||
-          d->commit_csr_wr_valid || d->commit_mem_valid || d->commit_mem_we)
-        { std::fprintf(stderr, "P1C_DUT_FAIL: unexpected CSR/mem retire\\n"); return 1; }
+          d->commit_csr_wr_valid)
+        { std::fprintf(stderr, "P1C_DUT_FAIL: unexpected CSR retire\n"); return 1; }
+      if (d->commit_mem_we && !d->commit_mem_valid)
+        { std::fprintf(stderr, "P1C_DUT_FAIL: invalid mem_we retire\n"); return 1; }
+      if (d->commit_mem_valid && d->commit_mem_we && d->commit_rd_we)
+        { std::fprintf(stderr, "P1C_DUT_FAIL: store wrote rd\n"); return 1; }
       if ((d->commit_next_pc & 3u) != 0)
         { std::fprintf(stderr, "P1C_DUT_FAIL: unaligned retired next_pc\\n"); return 1; }
 
@@ -162,10 +202,26 @@ int main(int argc, char** argv) {
          << ",\"rd\":" << rd
          << ",\"rd_data\":" << (rd_we ? std::to_string(d->commit_rd_data) : "null")
          << ",\"csr_valid\":false,\"csr_rd_valid\":false,\"csr_wr_valid\":false"
-         << ",\"csr_addr\":null,\"csr_wdata\":null,\"csr_rdata\":null"
-         << ",\"mem_valid\":false,\"mem_we\":false,\"mem_va\":null,\"mem_pa\":null"
-         << ",\"mem_size\":\"none\",\"mem_mask\":null,\"mem_wdata\":null,\"mem_rdata\":null"
-         << ",\"derived_fields\":[],\"not_observed_fields\":[]}\n";
+         << ",\"csr_addr\":null,\"csr_wdata\":null,\"csr_rdata\":null";
+      const bool mv = d->commit_mem_valid;
+      const bool mw = d->commit_mem_we;
+      const unsigned msz = static_cast<unsigned>(d->commit_mem_size);
+      const unsigned mmask = static_cast<unsigned>(d->commit_mem_mask);
+      if (mv) {
+        const char* ms = msz == 0 ? "byte" : msz == 1 ? "half" : "word";
+        tf << ",\"mem_valid\":true,\"mem_we\":" << (mw ? "true" : "false")
+           << ",\"mem_va\":" << d->commit_mem_va
+           << ",\"mem_pa\":" << d->commit_mem_pa
+           << ",\"mem_size\":\"" << ms << "\""
+           << ",\"mem_mask\":" << mmask
+           << ",\"mem_wdata\":" << (mw ? std::to_string(d->commit_mem_wdata) : "null")
+           << ",\"mem_rdata\":" << (mw ? "null" : std::to_string(d->commit_mem_rdata));
+      } else {
+        tf << ",\"mem_valid\":false,\"mem_we\":false,\"mem_va\":null"
+           << ",\"mem_pa\":null,\"mem_size\":\"none\",\"mem_mask\":null"
+           << ",\"mem_wdata\":null,\"mem_rdata\":null";
+      }
+      tf << ",\"derived_fields\":[],\"not_observed_fields\":[]}\n";
       last_commit_pc = d->commit_pc;
       pending_commit = true;
       pending_rd_we = rd_we;
@@ -180,7 +236,7 @@ int main(int argc, char** argv) {
     }
 
     prev_dec_valid = d->decoded_valid;
-    prev_req_wait = d->mem_req_valid && !d->mem_req_ready;
+    prev_req_wait = d->fetch_req_valid && !d->fetch_req_ready;
     d->clk = 1; d->eval();
     d->clk = 0; d->eval();
     if (pending_commit) {
@@ -216,6 +272,24 @@ int main(int argc, char** argv) {
   }
   rf << "]}\n";
   rf.close();
+  if (!ram_dump.empty() && ram_len != 0) {
+    std::ofstream df(ram_dump, std::ios::binary);
+    if (!df) { std::fprintf(stderr, "P1C_DUT_FAIL: cannot open ram dump\n"); return 2; }
+    for (uint32_t i = 0; i < ram_len; ++i) {
+      const uint32_t addr = ram_start + i;
+      if (addr < 0x80000000u || addr >= 0x80020000u) {
+        std::fprintf(stderr, "P1C_DUT_FAIL: ram dump outside RAM\n"); return 2;
+      }
+      const uint32_t idx = addr - 0x80000000u;
+      df.put(static_cast<char>(d->rootp->integer_tb_top__DOT__u_top__DOT__u_bridge__DOT__u_ram__DOT__mem[idx]));
+    }
+    df.close();
+  }
+  std::printf("P1D_MEM_STATS data_req=%llu data_resp=%llu fetch_req=%llu "
+              "fetch_resp=%llu ram_writes=%llu data_req_waits=%llu\n",
+              (unsigned long long)data_req, (unsigned long long)data_resp,
+              (unsigned long long)fetch_req, (unsigned long long)fetch_resp,
+              (unsigned long long)ram_writes, (unsigned long long)data_req_waits);
   std::printf("P1C_DUT_PASS retires=%llu endpoint=0x%08x cycles=%u "
               "redirect_req_wait=%llu redirect_resp_wait=%llu "
               "redirect_resp_same=%llu redirect_dec=%llu redirect_stall=%llu\n",

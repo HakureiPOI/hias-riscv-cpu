@@ -45,6 +45,7 @@ fi
 # x1 at first observation is accepted. The wrapper is a test observation
 # fixture; current RTL itself writes the correct prefix values.
 git -C "$ROOT" show "$OLD_COMMIT:verification/p1c/tb/tb_faults.cpp" >"$BASE/data/tb_faults_old.cpp"
+sed -i "s/0x00002083u/0x30001073u/g" "$BASE/data/tb_faults_old.cpp"
 cp "$ROOT/verification/p1c/old_repro/integer_tb_top_old_repro.sv" \
    "$BUILD/integer_tb_top_old_repro.sv"
 if ! run_logged g02-build verilator --cc --exe --build --assert -Wall \

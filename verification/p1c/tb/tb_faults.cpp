@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
   if (name == "illegal") {
     c = {{0xffffffffu}, 1, 2, 0xffffffffu, 0x80000000u, 0xffffffffu, {}, {}};
   } else if (name == "unsupported") {
-    c = {{0x00002083u}, 2, 0, 0x00002083u, 0x80000000u, 0x00002083u, {}, {}};
+    c = {{0x30001073u}, 2, 0, 0x30001073u, 0x80000000u, 0x30001073u, {}, {}};
   } else if (name == "unaligned") {
     c = {{0x006000efu}, 3, 0, 0x80000006u, 0x80000000u, 0x006000efu, {}, {}};
   } else if (name == "unaligned_branch") {

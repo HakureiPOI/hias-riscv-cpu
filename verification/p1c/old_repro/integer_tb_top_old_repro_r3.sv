@@ -3,6 +3,8 @@ module integer_tb_top (
     input  logic        reset,
     input  logic        accept_stall_i,
     input  logic        req_gate_i,
+    input  logic        lsu_gate_i,
+    input  logic        force_lsu_error_i,
     input  logic        load_valid,
     input  logic [14:0] load_word_addr,
     input  logic [31:0] load_data,
@@ -36,7 +38,7 @@ module integer_tb_top (
     output logic        commit_trap_valid,
 
     output logic        fault_valid,
-    output logic [1:0]  fault_kind,
+    output logic [2:0]  fault_kind,
     output logic [31:0] fault_pc,
     output logic [31:0] fault_instr,
     output logic [4:0]  fault_cause,
@@ -59,22 +61,37 @@ module integer_tb_top (
     output logic [7:0]  mem_req_gen,
     output logic        mem_resp_valid,
     output logic        mem_resp_ready,
-    output logic        ram_write
+    output logic        ram_write,
+    output logic        fetch_req_valid,
+    output logic        fetch_req_ready,
+    output logic        lsu_req_valid,
+    output logic        lsu_req_ready,
+    output logic        lsu_req_is_store,
+    output logic [31:0] lsu_req_va,
+    output logic [33:0] lsu_req_pa,
+    output logic [1:0]  lsu_req_size,
+    output logic [3:0]  lsu_req_mask,
+    output logic [31:0] lsu_req_wdata,
+    output logic [5:0]  lsu_req_id,
+    output logic [7:0]  lsu_req_gen,
+    output logic        lsu_resp_valid,
+    output logic        lsu_resp_ready,
+    output logic        fetch_resp_valid,
+    output logic        fetch_outstanding,
+    output logic        lsu_outstanding
 );
   import core_types_pkg::*;
   logic [4:0] fault_cause_raw;
-
-  // Old-checker reproduction fixture: corrupt the observed fault cause while
-  // leaving the actual RTL metadata correct.
   always_comb fault_cause = fault_cause_raw ^ (fault_valid ? 5'd1 : 5'd0);
-
   /* verilator lint_off UNUSEDSIGNAL */
   commit_bundle_t commit;
   /* verilator lint_on UNUSEDSIGNAL */
   rob_token_t fault_token;
   p1_integer_top u_top (
       .clk(clk), .reset(reset), .accept_stall_i(accept_stall_i),
-      .req_gate_i(req_gate_i), .load_valid(load_valid), .load_word_addr(load_word_addr),
+      .req_gate_i(req_gate_i), .lsu_gate_i(lsu_gate_i),
+      .force_lsu_error_i(force_lsu_error_i),
+      .load_valid(load_valid), .load_word_addr(load_word_addr),
       .load_data(load_data), .resp_delay_i(resp_delay_i),
       .commit_o(commit), .fault_valid_o(fault_valid), .fault_kind_o(fault_kind),
       .fault_pc_o(fault_pc), .fault_instr_o(fault_instr),
@@ -88,7 +105,16 @@ module integer_tb_top (
       .mem_req_valid_o(mem_req_valid), .mem_req_ready_o(mem_req_ready),
       .mem_req_va_o(mem_req_va), .mem_req_gen_o(mem_req_gen),
       .mem_resp_valid_o(mem_resp_valid), .mem_resp_ready_o(mem_resp_ready),
-      .ram_write_o(ram_write));
+      .ram_write_o(ram_write),
+      .fetch_req_valid_o(fetch_req_valid), .fetch_req_ready_o(fetch_req_ready),
+      .lsu_req_valid_o(lsu_req_valid), .lsu_req_ready_o(lsu_req_ready),
+      .lsu_req_is_store_o(lsu_req_is_store), .lsu_req_va_o(lsu_req_va),
+      .lsu_req_pa_o(lsu_req_pa), .lsu_req_size_o(lsu_req_size),
+      .lsu_req_mask_o(lsu_req_mask), .lsu_req_wdata_o(lsu_req_wdata),
+      .lsu_req_id_o(lsu_req_id), .lsu_req_gen_o(lsu_req_gen),
+      .lsu_resp_valid_o(lsu_resp_valid), .lsu_resp_ready_o(lsu_resp_ready),
+      .fetch_resp_valid_o(fetch_resp_valid),
+      .fetch_outstanding_o(fetch_outstanding), .lsu_outstanding_o(lsu_outstanding));
 
   assign commit_slot_valid = commit.slot_valid;
   assign commit_valid = commit.slot_valid[0];

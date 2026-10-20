@@ -9,3 +9,4 @@ rtl/core/p1_arf.sv
 rtl/core/p1_alu.sv
 rtl/core/p1_integer_core.sv
 rtl/core/p1_integer_top.sv
+rtl/core/p1_bus_arbiter.sv

@@ -25,6 +25,7 @@ run_logged() {
 }
 
 git -C "$ROOT" show "$OLD_COMMIT:verification/p1c/tb/tb_faults.cpp" >"$BASE/tb_faults_old.cpp"
+sed -i "s/0x00002083u/0x30001073u/g" "$BASE/tb_faults_old.cpp"
 cp "$ROOT/verification/p1c/old_repro/integer_tb_top_old_repro_r3.sv" \
    "$BUILD/integer_tb_top_old_repro_r3.sv"
 if ! run_logged build verilator --cc --exe --build --assert -Wall \
