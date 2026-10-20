@@ -611,6 +611,30 @@ struct Tb {
     finish_stage();
   }
 
+  void held_output_redirect_test(uint32_t target, uint32_t final_target) {
+    begin_stage("directed-held-redirect-accept");
+    redirect_once(target);
+    Inputs in{};
+    in.accept = 0;
+    for (int i = 0; i < 300 && !dut->dec_valid; ++i) cycle(in);
+    check(dut->dec_valid, "held redirect: no decoded result to hold");
+    in.redirect = true;
+    in.target = final_target;
+    in.accept = 1;  // consumer is continuously ready on the redirect edge
+    Pre p = begin_cycle(in);
+    check(!p.dec_valid, "effective redirect did not suppress held decode valid");
+    commit(p, in);
+    in.redirect = false;
+    in.accept = 0;
+    for (int i = 0; i < 300 && !dut->dec_valid; ++i) cycle(in);
+    check(dut->dec_valid, "held redirect: no new decode");
+    check(dut->dec_pc == final_target, "held redirect: old result leaked",
+          dut->dec_pc, final_target);
+    in.accept = 1;
+    cycle(in);
+    finish_stage();
+  }
+
   void request_stall_test(uint32_t target, uint32_t final_target) {
     begin_stage("directed-request-stall");
     redirect_once(target);
@@ -818,8 +842,11 @@ struct Tb {
     finish_stage();
   }
 
-  void cancel_wrong_response_wrap_test() {
-    begin_stage("directed-cancel-wrong-wrap");
+  void cancel_wrong_response_wrap_test(uint8_t mode) {
+    const char* name = (mode == 1) ? "directed-cancel-wrong-wrap-id-gen" :
+                       (mode == 2) ? "directed-cancel-wrong-wrap-id" :
+                                     "directed-cancel-wrong-wrap-gen";
+    begin_stage(name);
     Inputs in{};
     in.accept = 1;
     in.delay = 3;
@@ -835,7 +862,7 @@ struct Tb {
       }
     }
     check(got_last_gen, "wrap cancel: last generation not accepted");
-    in.fault = 1;       // arm only after the last-generation request
+    in.fault = mode;    // arm only after the last-generation request
     in.fault_delay = 4; // hold the real response for several cycles
     in.redirect = true;
     in.target = RESET_VECTOR + 4u * 70u;
@@ -919,6 +946,8 @@ int main(int argc, char** argv) {
   std::printf("P1-B_FRONTEND_BASIC_PASS cases=%u\n", kDecodeCaseCount);
 
   tb.backpressure_test(RESET_VECTOR + 4u * 10u, inject_directed);
+  tb.held_output_redirect_test(RESET_VECTOR + 4u * 11u,
+                               RESET_VECTOR + 4u * 12u);
   tb.request_stall_test(RESET_VECTOR + 4u * 20u, RESET_VECTOR + 4u * 21u);
   tb.response_redirect_test(RESET_VECTOR + 4u * 30u, RESET_VECTOR + 4u * 31u);
   tb.same_cycle_redirect_test(RESET_VECTOR + 4u * 40u, RESET_VECTOR + 4u * 41u);
@@ -930,7 +959,11 @@ int main(int argc, char** argv) {
                                       RESET_VECTOR + 4u * 61u);
   tb.continuous_redirect_test(RESET_VECTOR + 4u * 2u, RESET_VECTOR + 4u * 3u,
                               RESET_VECTOR + 4u * 4u);
-  if (P1B_GEN_W <= 4) tb.cancel_wrong_response_wrap_test();
+  if (P1B_GEN_W <= 4) {
+    tb.cancel_wrong_response_wrap_test(1);
+    tb.cancel_wrong_response_wrap_test(2);
+    tb.cancel_wrong_response_wrap_test(3);
+  }
 
   // Forced generation wrap; with the default GEN_W=8 this also runs the full
   // 256-generation sequence, while the small build forces an early wrap.
