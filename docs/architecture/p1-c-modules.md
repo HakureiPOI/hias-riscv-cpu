@@ -1,6 +1,6 @@
 # P1-C 整数执行与顺序提交
 
-状态：P1-C 实施模块说明。复用已验收 P1-B 前端与 P1-A RAM/桥；实现 29 条 RV32I 整数/控制流指令、32×32 ARF、单项顺序提交和子集 Spike 差分。未实现 Load/Store、CSR/Trap、M/A/C/F、OoO、Cache/MMU/FPU、真实完整 DiffTest 或 SoC 替换。
+状态：P1-C 经 [R3 管理验收](../progress/P1-C-R3-review.md)通过并合入，以下描述该验收基线。复用已验收 P1-B 前端与 P1-A RAM/桥；实现 29 条 RV32I 整数/控制流指令、32×32 ARF、单项顺序提交和子集 Spike 差分。未实现 Load/Store、CSR/Trap、M/A/C/F、OoO、Cache/MMU/FPU、真实完整 DiffTest 或 SoC 替换。
 
 ## 1 文件与端口
 

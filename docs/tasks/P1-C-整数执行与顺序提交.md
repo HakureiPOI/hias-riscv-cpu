@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | R2 已交付，格式/镜像等主要修复接受；执行 [P1-C-R3 收尾](P1-C-R3-fault探针失败传播.md)，不合入、不进入 P1-D/E |
+| 状态 | 经 [P1-C-R3 管理验收](../progress/P1-C-R3-review.md)整体通过并合入；后续执行 [P1-D](P1-D-LoadStore与访存仲裁.md)，以下保留原任务范围 |
 | 前置 | [P1-B-R2 管理验收](../progress/P1-B-R2-review.md)，P0/P1-A/P1-B 已合入 |
 | 分支 | 从包含本任务的最新 origin/main 新建 `codex/p1-c-integer-execute` |
 | 起点 | 已验收实现 `3df13084c23d41d1a3ad5e3c08640fb5ea3d85ba` 加管理验收/任务单，记录实际基线 |

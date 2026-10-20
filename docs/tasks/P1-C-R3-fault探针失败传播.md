@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | 已下达，待手动转交；P1-C 暂不验收，不进入 P1-D/E |
+| 状态 | 已交付并经 [R3 管理验收](../progress/P1-C-R3-review.md)通过，H01 关闭，P1-C 已合入；以下保留原收尾要求 |
 | 输入 | [P1-C-R2 管理复审](../progress/P1-C-R2-review.md)，唯一阻塞组 H01 |
 | 分支 | 继续 `codex/p1-c-integer-execute` |
 | 修复起点 | `ac827066925c6b71ad8ffe8fb0949c24d0f33ffb`，纳入含本任务的最新 origin/main，分别记录变更前起点与被测试实现 |

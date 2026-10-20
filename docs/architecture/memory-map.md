@@ -1,6 +1,6 @@
 # 地址图、PMA 与参考模型配置（P0-02 冻结基线）
 
-状态：**规格已冻结，见 [管理验收](../progress/P0-02-R2-review.md)。** 单一事实来源为 `config/platform.json`；生成文件与检查器见第 6 节。当前 CPU 未实现地址译码、PMA 或总线。P1 栏表示整个 P1 的目标，本轮 P1-A 仅实现 RAM/桥，不表示其余 MMIO 已存在。
+状态：**规格已冻结，见 [管理验收](../progress/P0-02-R2-review.md)。** 单一事实来源为 `config/platform.json`；生成文件与检查器见第 6 节。P1-A 已实现 RAM 地址/合法性检查和桥，P1-C 已接通真实取指/整数执行，CPU 数据访问在 P1-D 待实现。P1 栏表示整个 P1 的目标，实际 UART/test_result 在 P1-F 实现；当前未实现 MMIO 不能假成功。
 
 ## 1 位宽与地址空间
 

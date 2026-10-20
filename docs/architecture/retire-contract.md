@@ -1,6 +1,6 @@
 # 退休 / Trap 契约（P0-02 冻结基线）
 
-状态：**规格已冻结，见 [管理验收](../progress/P0-02-R2-review.md)。** 当前没有 DUT 退休记录，也没有 DiffTest。协议版本 `hias-retire/2`；DUT、Spike 派生、合成三种来源边界严格区分。
+状态：**规格已冻结，见 [管理验收](../progress/P0-02-R2-review.md)。** 当前 P1-C 已有 29 条整数/控制流的 DUT 真实退休与子集 Spike 差分，见 [P1-C 验收](../progress/P1-C-R3-review.md)；访存/CSR/Trap 与完整 DiffTest 未完成。协议版本 `hias-retire/2`；DUT、Spike 派生、合成三种来源边界严格区分。
 
 ## 1 正常退休记录
 

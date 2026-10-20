@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | 已交付并经 [R2 复审](../progress/P1-C-R2-review.md)，格式/镜像修复接受；执行 [R3 单项收尾](P1-C-R3-fault探针失败传播.md)，P1-C 尚未整体验收 |
+| 状态 | R2 格式/镜像修复已接受，剩余 H01 经 [R3 验收](../progress/P1-C-R3-review.md)关闭，P1-C 已整体通过并合入；以下保留原修订范围 |
 | 输入 | [P1-C-R1 管理复审](../progress/P1-C-R1-review.md)，G01/G02 |
 | 分支 | 继续 `codex/p1-c-integer-execute` |
 | 起点 | `50221625c6038c843382130acb111877298f396d` 纳入含本任务的最新 origin/main，记录实际修复基线 |

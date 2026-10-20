@@ -1,8 +1,8 @@
-# 验证入口（P0 / P1-A / P1-B 实测）
+# 验证入口（P0 / P1-A / P1-B / P1-C 实测）
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
-P1-A 与 P1-B 均经 R2 管理验收通过并合入，详见 [P1-B-R2 验收](progress/P1-B-R2-review.md)。P1-C-R2 分支 `3ed8ec9` 正常总入口 exit 0，定向 124 条、随机合计 3844 条，fault_initial/fault_hold 注入原正常步骤后总入口 FAIL；[R2 复审](progress/P1-C-R2-review.md)接受格式门禁与独立镜像等修复，fault 负向仍可能绕过已有错误，当前执行 [P1-C-R3](tasks/P1-C-R3-fault探针失败传播.md)，尚未验收/合入。main 的已验收入口仍到 P1-B；Windows 管理侧未运行 RTL 或这些入口。
+P1-A/P1-B/P1-C 均已通过管理验收并合入。P1-C-R3 被测试实现 `aa4272c` 正常总入口 exit 0，定向 124、随机合计 3844 条；目标加其他错误的 fault 探针返回 EXTRA_ERRORS，原预期检出步骤被拒绝且两次实际总入口 FAIL。详见 [R3 验收](progress/P1-C-R3-review.md)。当前下达 [P1-D](tasks/P1-D-LoadStore与访存仲裁.md)，尚未实现；Windows 管理侧只核验实现与证据，未运行 RTL 或这些入口。
 
 后续执行检查须显式设置本轮证据目录；例如 P1-C 内部将 P1_B_EVIDENCE 指向本轮 regression 子目录，不覆盖已验收的 P1-B-R2 原始证据。
 
@@ -36,6 +36,7 @@ make check-p0-01
 | `make platform-check` | 校验配置、生成文件漂移、链接/ELF 布局与 Spike 参数一致 |
 | `make check-p0-02` | 平台正/负向/漂移、共享类型、接口/事件夹具、退休契约检查 + P0-01/R1 回归（R2 默认日志写入 P0-02-R2 目录） |
 | `make check-p1-b` | 92 项译码/JAL 锚点、真实 RAM 前端、独立 PC/完整请求监视、默认/强制回绕、分类负向/看门狗/旧版复现，含 P1-A/P0 回归；不是 CPU 执行或退休测试 |
+| `make check-p1-c` | 29 条 ALU/ARF、真实整数提交/Token/next_pc、定向与三个种子的 Spike 子集差分、格式/负向原因隔离、真实分支恢复、独立 fault 镜像/16 边沿保持、原探针拒绝额外错误与 P1-B/P1-A/P0 回归；不是完整 RV32I/P1 |
 | `make check-p1-a` | P1-A RTL Lint、空闲骨架、RAM/桥定向+随机、DUT 物理回读、稳定性/final-handshake/错误/超时/忽略 TERM 探针、Token 联合补测，并回归 `check-p0-02`；`P1_A_INJECT_MISMATCH_HANG=1` 用于证明意外比较挂起会使总入口 FAIL |
 | `make clean` | 删除 `build/`，不删除证据 |
 
@@ -82,5 +83,7 @@ make check-p0-01
 `SMOKE_FAIL=1` 反转判定作为错误结果负向用例；`SMOKE_HANG=1` 进入死循环作为超时负向用例。Spike 观察接口使用 `--log-commits` 与 `-d --debug-cmd`（`reg`/`until pc`），为后续退休差分提供基础；本轮不实现 DiffTest。
 
 ## 证据
+
+P1-C 最新验收证据位于 `verification/evidence/P1-C-R3/`，1008 项（含清单），SHA256SUMS=`ba8a19a8f2251e0a6dec6b0568bcc497d2926ee3339190513daf881ae88b6e05`。后续执行必须显式改设 P1_C_EVIDENCE，保护默认指向的已验收证据。P1-D 总入口属于待实现任务，不列为已实测入口。
 
 原始小型日志位于 `verification/evidence/P0-01/`、`P0-01-R1/`、`P0-02/`、`P0-02-R1/`、`P0-02-R2/`、`P1-A/`，与对应报告的 Commit、命令和退出码对应。P1-A 入口使用 `P1_A_EVIDENCE=verification/evidence/P1-A`，P0 回归的嵌套日志写入其 `regression/` 子目录。`build/` 产物不入库。R2 运行使用 `P0_02_EVIDENCE=verification/evidence/P0-02-R2`，回归的 `P0_01_LOG_DIR`/`P0_01_R1_PROBE_DIR` 指向其 `regression/` 子目录。

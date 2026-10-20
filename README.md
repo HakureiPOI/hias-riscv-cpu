@@ -2,14 +2,16 @@
 
 本项目计划实现 RV32 双发射乱序处理器，完成动态分支预测、Cache、Sv32 MMU/TLB、独立 FP32 运算部件及 FPGA 验证。
 
-P0-01、P0-02、P1-A 基础框架/RAM 总线及 P1-B 取指/译码已通过管理验收并合入 main。P1-C 分支已有真实整数执行/退休，R2 的格式门禁和独立镜像修复已接受，当前下达 P1-C-R3，仅收尾 fault 负向失败传播，暂不合入、不进入 P1-D/E。main 仍以前端基线为准，完整访存/CSR/Trap、完整差分与 FPGA 均未完成。
+P0-01、P0-02、P1-A、P1-B 及 P1-C 已通过管理验收并合入 main。当前具备 29 条整数/控制流、ARF、单项真实退休与子集 Spike 差分；P1-C-R3 已关闭最后的 fault 探针失败传播问题。当前下达 P1-D：RAM Load/Store、取指/数据仲裁及访存退休；访存、CSR/Trap、MMIO 外设、完整 DiffTest 与 FPGA 仍未完成。
 
 ## 项目文档
 
 - [项目设计书](docs/项目设计书.md)：课程要求映射、架构方案、接口约定、验证门禁、里程碑与风险处理。
 - [技术调研记录](docs/research/技术调研-2026-10-19.md)：官方规范、开源参考、选型依据及调研边界。
 - [协作流程](docs/协作流程.md)：Windows 管理审查、Ubuntu 24 容器内 opencode 实施，用户手动转交。
-- [当前实施任务 P1-C-R3](docs/tasks/P1-C-R3-fault探针失败传播.md)：fault 负向不能绕过已有错误，补探针自身拒绝额外错误的证据。
+- [当前实施任务 P1-D](docs/tasks/P1-D-LoadStore与访存仲裁.md)：8 条 RAM 访存指令、共享通路、故障停止及访存退休对照，新分支实施。
+- [P1-C-R3 管理验收](docs/progress/P1-C-R3-review.md)：1008 项证据核对，H01 关闭，P1-C 整体通过并合入。
+- [上一轮任务 P1-C-R3](docs/tasks/P1-C-R3-fault探针失败传播.md)：统一 fault 监视与失败传播，已完成。
 - [P1-C-R2 管理复审](docs/progress/P1-C-R2-review.md)：987 项证据核对，版本口径澄清及唯一剩余阻塞 H01。
 - [上一轮任务 P1-C-R2](docs/tasks/P1-C-R2-验证收尾.md)：差分统一格式门禁、fault 独立已提交镜像与监视器负向。
 - [P1-C-R1 管理复审](docs/progress/P1-C-R1-review.md)：919 项证据核对，已接受进展及 G01/G02 剩余问题。
