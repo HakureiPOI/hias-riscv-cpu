@@ -1,0 +1,7 @@
+outer_command: timeout -k 5s 120s env P0_01_LOG_DIR=verification/evidence/P1-C-R3/probe-fail/probe-initial-extra/regression/P1-B/regression/P1-A/regression/p0-02/regression/p0-01-r1/checker-scoreboard/logs /workspace/hias-riscv-cpu/build/rtl-smoke/smoke_sim/obj/smoke_sim +checker_probe
+P0-01_RTL_SMOKE: start seed=0x5eed1234 random_cycles=10000
+P0-01_CHECKER_PROBE: injecting one wrong expected value
+P0-01_RTL_SMOKE_FAIL: P0-01_SCOREBOARD_MISMATCH: output got 0x1111 expected 0xeeee (cycle=70)
+P0-01_CHECKER_PROBE_DETECTED errors=1
+outer_exit: 1
+elapsed_seconds: 0

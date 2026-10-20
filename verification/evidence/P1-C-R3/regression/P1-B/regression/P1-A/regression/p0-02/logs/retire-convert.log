@@ -1,0 +1,3 @@
+command: python3 /workspace/hias-riscv-cpu/scripts/check_retire_contract.py --convert-spike /workspace/hias-riscv-cpu/verification/spec/retire/examples/spike_ok_excerpt.log
+RETIRE_CONTRACT_SPIKE_CONVERTED: lines=19 out=verification/spec/retire/examples/spike_derived_examples.jsonl
+exit: 0

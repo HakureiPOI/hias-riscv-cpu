@@ -1,0 +1,2 @@
+command: timeout -k 5s 900s riscv64-unknown-elf-objcopy -O binary /workspace/hias-riscv-cpu/verification/evidence/P1-C-R3/software/random0.elf /workspace/hias-riscv-cpu/verification/evidence/P1-C-R3/software/random0.bin
+exit: 0

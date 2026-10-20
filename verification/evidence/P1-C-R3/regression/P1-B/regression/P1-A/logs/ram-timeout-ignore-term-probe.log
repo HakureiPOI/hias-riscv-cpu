@@ -1,0 +1,5 @@
+command: timeout -k 5s 600s timeout -k 2s 5s /workspace/hias-riscv-cpu/build/p1-a/ram/obj/ram_tb +hang_ignore_term
+P1-A_RAM_TB_TIMEOUT_IGNORE_TERM_PROBE: entering intentional hang
+./scripts/check_p1_a.sh: line 48: 2090526 Killed                  timeout -k "${KILL_AFTER}s" "${HOST_TIMEOUT}s" "$@" 2>&1
+elapsed_seconds: 7
+exit: 137

@@ -1,0 +1,2 @@
+command: timeout -k 5s 900s bash -c exec "$0" -d "$1" > "$2" riscv64-unknown-elf-objdump /workspace/hias-riscv-cpu/verification/evidence/P1-C-R3/software/random2.elf /workspace/hias-riscv-cpu/verification/evidence/P1-C-R3/software/random2.objdump
+exit: 0

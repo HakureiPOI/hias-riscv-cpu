@@ -1,0 +1,23 @@
+command: timeout -k 5s 900s riscv64-unknown-elf-objdump -D -b binary -m riscv:rv32 -M no-aliases /workspace/hias-riscv-cpu/build/p1-b-r2/jal/jal_anchor.bin
+
+/workspace/hias-riscv-cpu/build/p1-b-r2/jal/jal_anchor.bin:     file format binary
+
+
+Disassembly of section .data:
+
+00000000 <.data>:
+   0:	000010ef          	jal	ra,0x1000
+   4:	000012ef          	jal	t0,0x1004
+   8:	0020006f          	jal	zero,0xa
+   c:	ffdfffef          	jal	t6,0x8
+  10:	7fffffef          	jal	t6,0x10000e
+  14:	800002ef          	jal	t0,0xfff00014
+  18:	000000ef          	jal	ra,0x18
+  1c:	0000116f          	jal	sp,0x101c
+  20:	000021ef          	jal	gp,0x2020
+  24:	0000326f          	jal	tp,0x3024
+  28:	000042ef          	jal	t0,0x4028
+  2c:	0000536f          	jal	t1,0x502c
+  30:	000063ef          	jal	t2,0x6030
+  34:	0000f46f          	jal	s0,0xf034
+exit: 0

@@ -1,0 +1,26 @@
+command: timeout -k 5s 900s /workspace/hias-riscv-cpu/build/p1-c/fault/obj/fault_tb +case=jalr_unaligned +negative=initial_arf_extra
+P1C_FAULT_FAIL: case=jalr_unaligned phase=injected_extra metadata mismatch kind=3/3 cause=1/0 tval=0x6/0x6 pc=0x80000008/0x80000008 instr=0x280e7/0x280e7
+P1C_FAULT_MONITOR_MISMATCH phase=negative_initial x1 got=0x8000000c want=0x00000055
+P1C_FAULT_TRACE case=jalr_unaligned phase=commit index=0 pc=0x80000000 instr=0x05500093 rd_we=1 rd=1 data=0x00000055
+P1C_FAULT_TRACE case=jalr_unaligned phase=commit index=1 pc=0x80000004 instr=0x00700293 rd_we=1 rd=5 data=0x00000007
+P1C_FAULT_TRACE case=jalr_unaligned phase=fault_first kind=3 cause=0 tval=0x00000006 pc=0x80000008 instr=0x000280e7 token=0/2 fetch_gen=2
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=0 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=1 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=2 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=3 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=4 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=5 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=6 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=7 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=8 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=9 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=10 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=11 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=12 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=13 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=14 arf_ok
+P1C_FAULT_TRACE case=jalr_unaligned phase=hold edge=15 arf_ok
+P1C_FAULT_PROBE_STATS probe=initial_arf_extra target_errors=1 other_errors=1 scenario=complete
+P1C_FAULT_NEGATIVE_INITIAL_ARF_EXTRA_ERRORS target_errors=1 other_errors=1
+elapsed_seconds: 0
+exit: 3

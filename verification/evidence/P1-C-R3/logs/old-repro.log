@@ -1,0 +1,6 @@
+command: timeout -k 5s 900s env P1_C_R1_REPRO_EVIDENCE=/workspace/hias-riscv-cpu/verification/evidence/P1-C-R3/old-repro P1_C_R1_BASE_DATA=/workspace/hias-riscv-cpu/verification/evidence/P1-C-R3/software P1_C_R1_END_PC=800001cc /workspace/hias-riscv-cpu/scripts/repro_p1_c_r1.sh
+P1-C-R1_OLD_REPRO_PASS: f01-extra-endpoint rc=0 marker=P1C_DIFF_PASS
+P1-C-R1_OLD_REPRO_PASS: f01-priv-s rc=0 marker=P1C_DIFF_PASS
+P1-C-R1_OLD_REPRO_PASS: f02-dirty-baseline-rd rc=1 marker=P1C_DIFF_NEGATIVE_RD_DETECTED
+P1-C-R1_OLD_REPRO_ALL_PASS
+exit: 0

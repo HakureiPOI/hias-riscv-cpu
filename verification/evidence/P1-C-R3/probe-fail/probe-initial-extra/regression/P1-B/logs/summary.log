@@ -1,0 +1,9 @@
+P1-B-R2 check summary
+date_utc: 2026-10-20T09:23:00Z
+git_head: aa4272c8c3d64f3319650ec60c12dcb98ebe9587
+git_branch: codex/p1-c-integer-execute
+log_dir: verification/evidence/P1-C-R3/probe-fail/probe-initial-extra/regression/P1-B/logs
+inject: none
+git_status:
+  ?? verification/evidence/P1-C-R3/
+result: PASS
