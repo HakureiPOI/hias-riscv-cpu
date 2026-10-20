@@ -4,7 +4,7 @@
 set -u
 export LC_ALL=C
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="${P1_D_EVIDENCE:-$ROOT/verification/evidence/P1-D}"
+BASE="${P1_D_EVIDENCE:-$ROOT/verification/evidence/P1-D-R1}"
 LOG_DIR="$BASE/logs"; SOFT_DIR="$BASE/software"; FAULT_DIR="$BASE/faults"
 INJECT_DIR="$BASE/injection"; BUILD="$ROOT/build/p1-d"
 VERILATOR="${VERILATOR:-verilator}"; SPIKE="${SPIKE:-spike}"
