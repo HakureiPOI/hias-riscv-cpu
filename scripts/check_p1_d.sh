@@ -56,10 +56,12 @@ if [ "$fault_ok" -eq 1 ]; then
       if grep -qF "P1D_FAULT_PASS case=$c" "$LOG_DIR/fault-$c.log"; then pass "data fault $c"; else bad "fault $c missing PASS"; fi
     else bad "fault $c"; fi
   done
+  run_expected fault-negative-first-event 1 "P1D_FAULT_NEGATIVE_FIRST_EVENT_DETECTED" "$BUILD/fault/obj/data_fault_tb" +case=load_misalign +negative=first_event
+  run_expected fault-negative-hold-change 1 "P1D_FAULT_NEGATIVE_HOLD_CHANGE_DETECTED" "$BUILD/fault/obj/data_fault_tb" +case=load_misalign +negative=hold_change
 else bad "fault probes skipped"; fi
 
 if [ -f "$SOFT_DIR/directed.dut.jsonl" ]; then
-  end="$("${CROSS}nm" "$SOFT_DIR/directed.elf" | awk '$3=="end"{print $1}')"; dut="$SOFT_DIR/directed.dut.jsonl"; regs="$SOFT_DIR/directed.regs.json"; spike="$SOFT_DIR/directed.spike.log"; dump="$SOFT_DIR/directed.ram"
+  end="$(awk '$3=="end"{print $1}' "$SOFT_DIR/directed.nm")"; dut="$SOFT_DIR/directed.dut.jsonl"; regs="$SOFT_DIR/directed.regs.json"; spike="$SOFT_DIR/directed.spike.log"; dump="$SOFT_DIR/directed.ram"
   probe_pc=pc
   if [ "$PROBE_EXTRA" = "1" ]; then probe_pc=pc_extra; fi
   for kind in pc instr rd next_pc missing duplicate token ram; do
