@@ -1,0 +1,9 @@
+P0-01_REF_STEP_PASS: build ok.elf
+P0-01_REF_STEP_PASS: build fail.elf
+P0-01_REF_STEP_PASS: build hang.elf
+P0-01_REF_STEP_PASS: ELF inspection (log: verification/evidence/P1-B/regression/P1-A/regression/p0-02/regression/p0-01-r1/total-entry-build-fault/logs/elf-inspection.log)
+P0-01_REF_STEP_PASS: Spike normal run reached PASS signature
+P0-01_REF_STEP_PASS: Spike negative control detected wrong result (exit=1)
+P0-01_REF_STEP_PASS: Spike timeout control detected hang (exit=124)
+P0-01_REF_STEP_PASS: Spike observation interface (-d reg/until, --log-commits)
+P0-01_REF_SMOKE_ALL_PASS

@@ -1,0 +1,7 @@
+command: timeout -k 5s 600s timeout -k 2s 5s /workspace/hias-riscv-cpu/build/p1-a/ram/obj/ram_tb +mismatch_hang
+  expect=0x7a55300a got=0x7a55300b pa=0x80000000 size=2
+P1-A_RAM_TB_FAIL: read data mismatch (0x7a55300b)
+P1-A_RAM_TB_NEGATIVE_MISMATCH_DETECTED
+P1-A_RAM_TB_MISMATCH_HANG_PROBE: entering comparison-path hang
+elapsed_seconds: 5
+exit: 124

@@ -1,0 +1,5 @@
+command: timeout -k 5s 600s /workspace/hias-riscv-cpu/build/p1-b/frontend/obj/frontend_tb +mismatch
+P1-B_FRONTEND_FAIL: op got=0x0 want=0x1 pc=0x80000000
+P1-B_FRONTEND_NEGATIVE_MISMATCH_DETECTED
+elapsed_seconds: 1
+exit: 1

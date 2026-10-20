@@ -1,0 +1,4 @@
+command: timeout -k 5s 600s timeout -k 2s 3s /workspace/hias-riscv-cpu/build/p1-b/frontend/obj/frontend_tb +hang
+P1-B_FRONTEND_TIMEOUT_PROBE
+elapsed_seconds: 3
+exit: 124

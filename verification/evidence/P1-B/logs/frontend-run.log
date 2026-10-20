@@ -1,0 +1,6 @@
+command: timeout -k 5s 600s /workspace/hias-riscv-cpu/build/p1-b/frontend/obj/frontend_tb
+P1-B_FRONTEND_BASIC_PASS cases=76 accepted=77
+P1-B_FRONTEND_WRAP_PASS gen_w=2
+P1-B_FRONTEND_RANDOM_PASS seeds=3 accepted=1020
+P1-B_FRONTEND_PASS accepted=340 requests=453 responses=453 redirects=121 cycles=2814
+exit: 0

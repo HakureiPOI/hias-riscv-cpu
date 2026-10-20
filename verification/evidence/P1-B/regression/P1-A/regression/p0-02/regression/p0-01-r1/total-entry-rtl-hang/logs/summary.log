@@ -1,0 +1,14 @@
+P0-01 check summary
+date_utc: 2026-10-20T00:56:07Z
+git_head: 278f6f7e13eb423952c1119a28d1900f3ac57356
+git_branch: codex/p1-b-fetch-decode
+host_timeout_seconds: 60
+step_timeout_seconds: 60
+log_dir: verification/evidence/P1-B/regression/P1-A/regression/p0-02/regression/p0-01-r1/total-entry-rtl-hang/logs
+git_status:
+  ?? verification/evidence/P1-B/
+steps:
+  env-check    exit=0
+  rtl-smoke    exit=1
+  ref-smoke    exit=0
+result: FAIL

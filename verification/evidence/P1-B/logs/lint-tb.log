@@ -1,0 +1,2 @@
+command: timeout -k 5s 600s verilator --lint-only -Wall --assert -I/workspace/hias-riscv-cpu/rtl/include --top-module frontend_tb_top /workspace/hias-riscv-cpu/rtl/include/core_config_pkg.sv /workspace/hias-riscv-cpu/rtl/include/core_types_pkg.sv /workspace/hias-riscv-cpu/rtl/soc/ram_128k.sv /workspace/hias-riscv-cpu/rtl/soc/ram_bridge.sv /workspace/hias-riscv-cpu/rtl/frontend/p1_decode.sv /workspace/hias-riscv-cpu/rtl/frontend/p1_fetch.sv /workspace/hias-riscv-cpu/rtl/frontend/p1_frontend_core.sv /workspace/hias-riscv-cpu/verification/p1b/tb/frontend_tb_top.sv
+exit: 0
