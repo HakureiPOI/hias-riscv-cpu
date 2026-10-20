@@ -2,7 +2,7 @@
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
-P1-A 与 P1-B 均经 R2 管理验收通过并合入，详见 [P1-B-R2 验收](progress/P1-B-R2-review.md)。P1-C 分支 `7643d36` 已运行真实执行/退休和子集差分，总入口日志 exit 0，定向 118 条、随机合计 3844 条，pc 注入总入口 FAIL；[管理审查](progress/P1-C-review.md)发现 DUT 尾部截断、priv/负向原因及恢复/停止覆盖缺口，尚未验收/合入，当前执行 [P1-C-R1](tasks/P1-C-R1-差分与边界验证修复.md)。main 的已验收入口仍到 P1-B；Windows 管理侧未运行 RTL 或这些入口。
+P1-A 与 P1-B 均经 R2 管理验收通过并合入，详见 [P1-B-R2 验收](progress/P1-B-R2-review.md)。P1-C-R1 分支 `d8d7cab` 正常总入口 exit 0，定向 124 条、随机合计 3844 条，pc/pc_extra 注入总入口 FAIL；[R1 复审](progress/P1-C-R1-review.md)接受主要差分/恢复改进，但统一格式门禁与 fault 初次副作用判断仍需收尾，当前执行 [P1-C-R2](tasks/P1-C-R2-验证收尾.md)，尚未验收/合入。main 的已验收入口仍到 P1-B；Windows 管理侧未运行 RTL 或这些入口。
 
 后续执行检查须显式设置本轮证据目录；例如 P1-C 内部将 P1_B_EVIDENCE 指向本轮 regression 子目录，不覆盖已验收的 P1-B-R2 原始证据。
 

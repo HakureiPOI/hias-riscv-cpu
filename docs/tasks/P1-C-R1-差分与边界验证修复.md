@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | 已下达，待手动转交；P1-C 暂不验收，不进入 P1-D/E |
+| 状态 | 已交付并经 [R1 复审](../progress/P1-C-R1-review.md)，主要修复接受；执行 [R2 验证收尾](P1-C-R2-验证收尾.md)，P1-C 尚未整体验收 |
 | 输入 | [P1-C 管理审查](../progress/P1-C-review.md)，F01—F03；原 P1-C 范围继续有效 |
 | 分支 | 继续 `codex/p1-c-integer-execute` |
 | 起点 | `e73c8641a7a27ef9822fc8ab6ddbb12a43f76ecd` 纳入包含本任务的最新 origin/main，记录实际修复基线 |
