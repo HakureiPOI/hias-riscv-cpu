@@ -1,0 +1,3 @@
+command: timeout -k 5s 900s /workspace/hias-riscv-cpu/build/p1-c/fault/obj/fault_tb +case=jalr_clear
+P1C_FAULT_PASS case=jalr_clear kind=-1 commits=2
+exit: 0

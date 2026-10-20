@@ -1,0 +1,6 @@
+command: timeout -k 5s 120s /workspace/hias-riscv-cpu/build/p1-b-r1/old-repro/f02/f02
+OLD_F02A old_pc=0x80000008 dec_valid=1 dec_pc=0x80000008 leak=1
+OLD_F02A_REDIRECT_ACCEPT_LEAK
+OLD_F02B saw_wrong=1 pending_after_wrong=0 early_release=1
+OLD_F02B_CANCEL_WRONG_RESPONSE_RELEASED
+exit: 0

@@ -1,0 +1,6 @@
+== smoke_buffer ==
+command: timeout -k 5s 60s verilator --lint-only -Wall --assert --top-module smoke_buffer verification/smoke/rtl/smoke_buffer.sv
+exit: 0
+== assert_probe ==
+command: timeout -k 5s 60s verilator --lint-only -Wall --assert --top-module assert_probe verification/smoke/rtl/assert_probe.sv
+exit: 0

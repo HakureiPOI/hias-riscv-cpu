@@ -1,0 +1,39 @@
+P1-C_STEP_PASS: P1-C integer RTL lint
+P1-C_STEP_PASS: P1-C integer TB lint
+P1-C_STEP_PASS: 29-op ALU unit
+P1-C_STEP_PASS: ARF x0/reset/write/read
+P1-C_STEP_PASS: integer DUT build
+P1-C_STEP_PASS: fault-probe build
+P1-C_STEP_PASS: software directed
+P1-C_STEP_FAIL: subset diff directed (see verification/evidence/P1-C/probe-fail/retire/logs/diff-directed.log)
+P1-C_STEP_PASS: software random0
+P1-C_STEP_PASS: DUT/Spike diff random0 retires=1281
+P1-C_STEP_PASS: software random1
+P1-C_STEP_PASS: DUT/Spike diff random1 retires=1281
+P1-C_STEP_PASS: software random2
+P1-C_STEP_PASS: DUT/Spike diff random2 retires=1282
+P1-C_STEP_PASS: fault/control probe illegal
+P1-C_STEP_PASS: fault/control probe unsupported
+P1-C_STEP_PASS: fault/control probe unaligned
+P1-C_STEP_PASS: fault/control probe unaligned_branch
+P1-C_STEP_PASS: fault/control probe fetch
+P1-C_STEP_PASS: fault/control probe branch_untaken
+P1-C_STEP_PASS: fault/control probe jalr_clear
+P1-C_STEP_PASS: diff-inject-pc (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-rd (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-next_pc (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-missing (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-duplicate (exit=1, elapsed=1s, expected message present)
+P1-C_STEP_PASS: diff-inject-token (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: P1-B regression (including P1-A/P0)
+P1-C check summary
+date_utc: 2026-10-20T06:07:28Z
+git_head: 7643d36c7b4cd590e7b62226f08931b736d9ab7d
+git_branch: codex/p1-c-integer-execute
+log_dir: verification/evidence/P1-C/probe-fail/retire/logs
+inject: pc
+git_status:
+  ?? verification/evidence/P1-C/
+result: FAIL
+P1-C_CHECK_ALL_FAIL
+make: *** [Makefile:67: check-p1-c] Error 1

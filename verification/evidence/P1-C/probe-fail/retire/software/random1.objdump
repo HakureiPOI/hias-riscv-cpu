@@ -1,0 +1,120 @@
+
+verification/evidence/P1-C/probe-fail/retire/software/random1.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+80000000 <_start>:
+80000000:	b5b930b7          	lui	ra,0xb5b93
+80000004:	17408093          	addi	ra,ra,372 # b5b93174 <PLATFORM_STACK_TOP+0x35b73184>
+80000008:	96cde137          	lui	sp,0x96cde
+8000000c:	65110113          	addi	sp,sp,1617 # 96cde651 <PLATFORM_STACK_TOP+0x16cbe661>
+80000010:	45b501b7          	lui	gp,0x45b50
+80000014:	c1218193          	addi	gp,gp,-1006 # 45b4fc12 <PLATFORM_RAM_SIZE+0x45b2fc12>
+80000018:	9c327237          	lui	tp,0x9c327
+8000001c:	5ba20213          	addi	tp,tp,1466 # 9c3275ba <PLATFORM_STACK_TOP+0x1c3075ca>
+80000020:	ec5682b7          	lui	t0,0xec568
+80000024:	7dc28293          	addi	t0,t0,2012 # ec5687dc <PLATFORM_STACK_TOP+0x6c5487ec>
+80000028:	2c94e337          	lui	t1,0x2c94e
+8000002c:	de130313          	addi	t1,t1,-543 # 2c94dde1 <PLATFORM_RAM_SIZE+0x2c92dde1>
+80000030:	4157a3b7          	lui	t2,0x4157a
+80000034:	05038393          	addi	t2,t2,80 # 4157a050 <PLATFORM_RAM_SIZE+0x4155a050>
+80000038:	3c552437          	lui	s0,0x3c552
+8000003c:	39c40413          	addi	s0,s0,924 # 3c55239c <PLATFORM_RAM_SIZE+0x3c53239c>
+80000040:	40d444b7          	lui	s1,0x40d44
+80000044:	d8348493          	addi	s1,s1,-637 # 40d43d83 <PLATFORM_RAM_SIZE+0x40d23d83>
+80000048:	6961b537          	lui	a0,0x6961b
+8000004c:	12b50513          	addi	a0,a0,299 # 6961b12b <PLATFORM_RAM_SIZE+0x695fb12b>
+80000050:	d95935b7          	lui	a1,0xd9593
+80000054:	74f58593          	addi	a1,a1,1871 # d959374f <PLATFORM_STACK_TOP+0x5957375f>
+80000058:	bc8ab637          	lui	a2,0xbc8ab
+8000005c:	56960613          	addi	a2,a2,1385 # bc8ab569 <PLATFORM_STACK_TOP+0x3c88b579>
+80000060:	6fa5f6b7          	lui	a3,0x6fa5f
+80000064:	5dc68693          	addi	a3,a3,1500 # 6fa5f5dc <PLATFORM_RAM_SIZE+0x6fa3f5dc>
+80000068:	dcf51737          	lui	a4,0xdcf51
+8000006c:	4e770713          	addi	a4,a4,1255 # dcf514e7 <PLATFORM_STACK_TOP+0x5cf314f7>
+80000070:	203967b7          	lui	a5,0x20396
+80000074:	04b78793          	addi	a5,a5,75 # 2039604b <PLATFORM_RAM_SIZE+0x2037604b>
+80000078:	5cc43837          	lui	a6,0x5cc43
+8000007c:	52880813          	addi	a6,a6,1320 # 5cc43528 <PLATFORM_RAM_SIZE+0x5cc23528>
+80000080:	4ef608b7          	lui	a7,0x4ef60
+80000084:	32b88893          	addi	a7,a7,811 # 4ef6032b <PLATFORM_RAM_SIZE+0x4ef4032b>
+80000088:	f43e3937          	lui	s2,0xf43e3
+8000008c:	68a90913          	addi	s2,s2,1674 # f43e368a <PLATFORM_STACK_TOP+0x743c369a>
+80000090:	278729b7          	lui	s3,0x27872
+80000094:	c5c98993          	addi	s3,s3,-932 # 27871c5c <PLATFORM_RAM_SIZE+0x27851c5c>
+80000098:	1defda37          	lui	s4,0x1defd
+8000009c:	4c2a0a13          	addi	s4,s4,1218 # 1defd4c2 <PLATFORM_RAM_SIZE+0x1dedd4c2>
+800000a0:	03f5dab7          	lui	s5,0x3f5d
+800000a4:	855a8a93          	addi	s5,s5,-1963 # 3f5c855 <PLATFORM_RAM_SIZE+0x3f3c855>
+800000a8:	cf106b37          	lui	s6,0xcf106
+800000ac:	98cb0b13          	addi	s6,s6,-1652 # cf10598c <PLATFORM_STACK_TOP+0x4f0e599c>
+800000b0:	0efc9bb7          	lui	s7,0xefc9
+800000b4:	90ab8b93          	addi	s7,s7,-1782 # efc890a <PLATFORM_RAM_SIZE+0xefa890a>
+800000b8:	42ba9c37          	lui	s8,0x42ba9
+800000bc:	fd4c0c13          	addi	s8,s8,-44 # 42ba8fd4 <PLATFORM_RAM_SIZE+0x42b88fd4>
+800000c0:	05ef0cb7          	lui	s9,0x5ef0
+800000c4:	b0fc8c93          	addi	s9,s9,-1265 # 5eefb0f <PLATFORM_RAM_SIZE+0x5ecfb0f>
+800000c8:	98cefd37          	lui	s10,0x98cef
+800000cc:	54fd0d13          	addi	s10,s10,1359 # 98cef54f <PLATFORM_STACK_TOP+0x18ccf55f>
+800000d0:	81f8adb7          	lui	s11,0x81f8a
+800000d4:	252d8d93          	addi	s11,s11,594 # 81f8a252 <PLATFORM_STACK_TOP+0x1f6a262>
+800000d8:	51005e37          	lui	t3,0x51005
+800000dc:	9c0e0e13          	addi	t3,t3,-1600 # 510049c0 <PLATFORM_RAM_SIZE+0x50fe49c0>
+800000e0:	d4e2beb7          	lui	t4,0xd4e2b
+800000e4:	776e8e93          	addi	t4,t4,1910 # d4e2b776 <PLATFORM_STACK_TOP+0x54e0b786>
+800000e8:	ff622f37          	lui	t5,0xff622
+800000ec:	6f0f0f13          	addi	t5,t5,1776 # ff6226f0 <PLATFORM_STACK_TOP+0x7f602700>
+800000f0:	9f96cfb7          	lui	t6,0x9f96c
+800000f4:	213f8f93          	addi	t6,t6,531 # 9f96c213 <PLATFORM_STACK_TOP+0x1f94c223>
+800000f8:	02800f13          	li	t5,40
+800000fc:	40d48a33          	sub	s4,s1,a3
+80000100:	0f586b93          	ori	s7,a6,245
+80000104:	01353733          	sltu	a4,a0,s3
+80000108:	4044d4b3          	sra	s1,s1,tp
+8000010c:	00c49313          	slli	t1,s1,0xc
+80000110:	01155a13          	srli	s4,a0,0x11
+80000114:	40790433          	sub	s0,s2,t2
+80000118:	017a5b33          	srl	s6,s4,s7
+8000011c:	af3d7cb7          	lui	s9,0xaf3d7
+80000120:	001a5e13          	srli	t3,s4,0x1
+80000124:	2a6b2317          	auipc	t1,0x2a6b2
+80000128:	01d1b7b3          	sltu	a5,gp,t4
+8000012c:	011dd233          	srl	tp,s11,a7
+80000130:	01597e33          	and	t3,s2,s5
+80000134:	98527d13          	andi	s10,tp,-1659
+80000138:	017ca233          	slt	tp,s9,s7
+8000013c:	b3764e93          	xori	t4,a2,-1225
+80000140:	01627cb3          	and	s9,tp,s6
+80000144:	29688593          	addi	a1,a7,662
+80000148:	81e22613          	slti	a2,tp,-2018
+8000014c:	011e9833          	sll	a6,t4,a7
+80000150:	75ac8713          	addi	a4,s9,1882 # af3d775a <PLATFORM_STACK_TOP+0x2f3b776a>
+80000154:	40648ab3          	sub	s5,s1,t1
+80000158:	98fe8293          	addi	t0,t4,-1649
+8000015c:	427c6817          	auipc	a6,0x427c6
+80000160:	c5505817          	auipc	a6,0xc5505
+80000164:	e0952db7          	lui	s11,0xe0952
+80000168:	01cabeb3          	sltu	t4,s5,t3
+8000016c:	ffff0f13          	addi	t5,t5,-1
+80000170:	f80f16e3          	bnez	t5,800000fc <_start+0xfc>
+80000174:	41380833          	sub	a6,a6,s3
+80000178:	2b09c413          	xori	s0,s3,688
+8000017c:	017269b3          	or	s3,tp,s7
+80000180:	0174d6b3          	srl	a3,s1,s7
+80000184:	ca5ec713          	xori	a4,t4,-859
+80000188:	5eae8613          	addi	a2,t4,1514
+8000018c:	013c7e33          	and	t3,s8,s3
+80000190:	0121aab3          	slt	s5,gp,s2
+80000194:	31d12c93          	slti	s9,sp,797
+80000198:	0031a3b3          	slt	t2,gp,gp
+8000019c:	369cce13          	xori	t3,s9,873
+800001a0:	2d3cb313          	sltiu	t1,s9,723
+800001a4:	0074beb3          	sltu	t4,s1,t2
+800001a8:	0198d513          	srli	a0,a7,0x19
+800001ac:	e7077393          	andi	t2,a4,-400
+800001b0:	013e9933          	sll	s2,t4,s3
+800001b4:	0040006f          	j	800001b8 <end>
+
+800001b8 <end>:
+800001b8:	0000006f          	j	800001b8 <end>

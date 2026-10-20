@@ -1,0 +1,4 @@
+command: timeout -k 5s 900s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut verification/evidence/P1-C/probe-fail/retire/software/directed.dut.jsonl --spike verification/evidence/P1-C/probe-fail/retire/software/directed.spike.log --regs verification/evidence/P1-C/probe-fail/retire/software/directed.regs.json --end-pc 0x800001ac --inject rd
+P1C_DIFF_NEGATIVE_RD_DETECTED: first difference index=59 field=rd_wdata dut=6:15 ref=6:14
+elapsed_seconds: 0
+exit: 1

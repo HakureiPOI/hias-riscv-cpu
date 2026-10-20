@@ -1,0 +1,4 @@
+command: timeout -k 5s 900s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut verification/evidence/P1-C/probe-fail/retire/software/directed.dut.jsonl --spike verification/evidence/P1-C/probe-fail/retire/software/directed.spike.log --regs verification/evidence/P1-C/probe-fail/retire/software/directed.regs.json --end-pc 0x800001ac --inject duplicate
+P1C_DIFF_NEGATIVE_DUPLICATE_DETECTED: retire count: dut=119 ref=118
+elapsed_seconds: 1
+exit: 1
