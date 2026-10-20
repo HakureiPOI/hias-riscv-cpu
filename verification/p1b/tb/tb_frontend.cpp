@@ -82,15 +82,29 @@ struct Inputs {
   uint8_t fault = 0;
   uint8_t delay = 0;
   uint8_t fault_delay = 0;
+  bool req_mask_xor = false;
   bool reset = false;
+};
+
+struct ReqSnap {
+  bool valid = false;
+  bool is_store = false;
+  uint32_t va = 0;
+  uint64_t pa = 0;
+  uint32_t size = 0;
+  uint32_t byte_mask = 0;
+  uint32_t wdata = 0;
+  bool cacheable = false;
+  uint32_t priv = 0;
+  uint32_t id = 0;
+  uint32_t gen = 0;
 };
 
 struct Pre {
   bool dec_valid = false;
   DecodedSnap dec{};
-  bool req_valid = false, req_ready = false, req_fire = false;
-  uint64_t req_pa = 0;
-  uint32_t req_id = 0, req_gen = 0;
+  ReqSnap req{};
+  bool req_ready = false, req_fire = false;
   bool resp_valid = false, resp_ready = false, resp_fire = false;
   uint32_t resp_id = 0, resp_gen = 0, resp_rdata = 0;
   bool resp_error = false;
@@ -103,31 +117,66 @@ struct Tb {
   std::deque<ResRec> results;
   Stats total, stage_start;
   uint64_t errors = 0;
+  uint64_t op_errors = 0;
+  uint64_t other_errors = 0;
+  uint64_t pc_errors = 0;
+  uint64_t req_errors = 0;
   uint64_t stage_error_start = 0;
   uint64_t cycles = 0;
   uint64_t max_cycles = 1000000;
   uint32_t model_pc = RESET_VECTOR;
+  uint32_t next_req_pc = RESET_VECTOR;
   std::string stage = "init";
   bool compare_enabled = true;
+  bool inject_pc_skip = false;
+  bool inject_req_stability = false;
+  bool pc_injected = false;
+  bool flow_complete = false;
 
   bool held_dec_valid = false;
   DecodedSnap held_dec{};
   bool held_req_valid = false;
-  uint64_t held_req_pa = 0;
-  uint32_t held_req_id = 0, held_req_gen = 0;
+  ReqSnap held_req{};
 
   explicit Tb(Vfrontend_tb_top* d) : dut(d) {}
 
-  void fail(const char* msg, uint32_t got = 0, uint32_t want = 0) {
+  enum ErrCat { CAT_OTHER, CAT_OP, CAT_PC, CAT_REQ };
+
+  void fail_cat(ErrCat cat, const char* msg, uint32_t got = 0,
+                uint32_t want = 0) {
     std::fprintf(stderr,
-                 "P1-B_FRONTEND_FAIL: stage=%s %s got=0x%x want=0x%x pc=0x%x\n",
-                 stage.c_str(), msg, got, want, model_pc);
+                 "P1-B_FRONTEND_FAIL: stage=%s cat=%s %s got=0x%x want=0x%x pc=0x%x\n",
+                 stage.c_str(), cat == CAT_OP ? "op" :
+                 (cat == CAT_PC ? "pc" : (cat == CAT_REQ ? "req" : "other")),
+                 msg, got, want, model_pc);
     ++errors;
+    if (cat == CAT_OP) ++op_errors; else ++other_errors;
+    if (cat == CAT_PC) ++pc_errors;
+    if (cat == CAT_REQ) ++req_errors;
     if (errors > 200) std::exit(1);
   }
 
+  void fail(const char* msg, uint32_t got = 0, uint32_t want = 0) {
+    fail_cat(CAT_OTHER, msg, got, want);
+  }
+
   void check(bool cond, const char* msg, uint32_t got = 0, uint32_t want = 0) {
-    if (!cond) fail(msg, got, want);
+    if (!cond) fail_cat(CAT_OTHER, msg, got, want);
+  }
+
+  void check_op(bool cond, const char* msg, uint32_t got = 0,
+                uint32_t want = 0) {
+    if (!cond) fail_cat(CAT_OP, msg, got, want);
+  }
+
+  void check_pc(bool cond, const char* msg, uint32_t got = 0,
+                uint32_t want = 0) {
+    if (!cond) fail_cat(CAT_PC, msg, got, want);
+  }
+
+  void check_req(bool cond, const char* msg, uint32_t got = 0,
+                 uint32_t want = 0) {
+    if (!cond) fail_cat(CAT_REQ, msg, got, want);
   }
 
   static Expected nop_expected() {
@@ -230,6 +279,14 @@ struct Tb {
            a.pred_target == b.pred_target && a.pred_index == b.pred_index;
   }
 
+  static bool same_req(const ReqSnap& a, const ReqSnap& b) {
+    return a.valid == b.valid && a.is_store == b.is_store &&
+           a.va == b.va && a.pa == b.pa && a.size == b.size &&
+           a.byte_mask == b.byte_mask && a.wdata == b.wdata &&
+           a.cacheable == b.cacheable && a.priv == b.priv &&
+           a.id == b.id && a.gen == b.gen;
+  }
+
   void apply(const Inputs& in) {
     dut->reset = in.reset;
     dut->redirect_valid = in.redirect;
@@ -240,6 +297,7 @@ struct Tb {
     dut->req_gate = in.gate;
     dut->fault_mode = in.fault;
     dut->fault_delay_i = in.fault_delay;
+    dut->req_observe_mask_xor = in.req_mask_xor;
     dut->resp_delay_i = in.delay;
   }
 
@@ -247,12 +305,19 @@ struct Tb {
     Pre p{};
     p.dec_valid = dut->dec_valid;
     p.dec = snapshot();
-    p.req_valid = dut->mem_req_valid_o;
+    p.req.valid = dut->mem_req_valid_o;
+    p.req.is_store = dut->mem_req_is_store_o;
+    p.req.va = dut->mem_req_va_o;
+    p.req.pa = dut->mem_req_pa_o;
+    p.req.size = dut->mem_req_size_o;
+    p.req.byte_mask = dut->mem_req_byte_mask_o;
+    p.req.wdata = dut->mem_req_wdata_o;
+    p.req.cacheable = dut->mem_req_cacheable_o;
+    p.req.priv = dut->mem_req_priv_o;
+    p.req.id = dut->mem_req_id_o;
+    p.req.gen = dut->mem_req_gen_o;
     p.req_ready = dut->mem_req_ready_o;
-    p.req_fire = p.req_valid && p.req_ready;
-    p.req_pa = dut->mem_req_pa_o;
-    p.req_id = dut->mem_req_id_o;
-    p.req_gen = dut->mem_req_gen_o;
+    p.req_fire = p.req.valid && p.req_ready;
     p.resp_valid = dut->mem_resp_valid_o;
     p.resp_ready = dut->mem_resp_ready_o;
     p.resp_fire = p.resp_valid && p.resp_ready;
@@ -276,9 +341,8 @@ struct Tb {
       check(same_dec(p.dec, held_dec), "held decoded payload changed");
     }
     if (held_req_valid && !effective) {
-      check(p.req_valid, "held request valid disappeared");
-      check(p.req_pa == held_req_pa && p.req_id == held_req_id &&
-            p.req_gen == held_req_gen, "held request payload changed");
+      check_req(p.req.valid, "held request valid disappeared");
+      check_req(same_req(p.req, held_req), "held request payload changed");
     }
   }
 
@@ -319,7 +383,7 @@ struct Tb {
       return;
     }
 
-    check(d.op == e.op, "op", d.op, e.op);
+    check_op(d.op == e.op, "op", d.op, e.op);
     check(d.exec == e.exec, "exec", d.exec, e.exec);
     check(d.rd == e.rd, "rd", d.rd, e.rd);
     check(d.rs1 == e.rs1, "rs1", d.rs1, e.rs1);
@@ -353,14 +417,32 @@ struct Tb {
     if (p.req_fire) {
       ++total.requests;
       if (effective) fail("request accepted during effective redirect");
+      uint32_t expected_pc = next_req_pc;
+      if (inject_pc_skip && !pc_injected) expected_pc += 4u;
+      check_pc(p.req.va == expected_pc, "request VA order",
+               p.req.va, expected_pc);
+      check_pc(p.req.pa == static_cast<uint64_t>(expected_pc),
+               "request PA order", static_cast<uint32_t>(p.req.pa), expected_pc);
+      if (inject_pc_skip && !pc_injected) pc_injected = true;
+      check_req(!p.req.is_store, "fetch request is_store", p.req.is_store, 0);
+      check_req(p.req.va == static_cast<uint32_t>(p.req.pa),
+                "fetch request VA/PA mismatch", p.req.va,
+                static_cast<uint32_t>(p.req.pa));
+      check_req(p.req.size == 2, "fetch request size", p.req.size, 2);
+      check_req(p.req.byte_mask == 0xfu, "fetch request byte_mask",
+                p.req.byte_mask, 0xf);
+      check_req(p.req.wdata == 0, "fetch request wdata", p.req.wdata, 0);
+      check_req(p.req.cacheable, "fetch request cacheable");
+      check_req(p.req.priv == 3, "fetch request privilege", p.req.priv, 3);
       ReqRec r{};
-      r.pa = p.req_pa;
-      r.pc = static_cast<uint32_t>(p.req_pa & 0xffffffffu);
-      r.id = p.req_id;
-      r.gen = p.req_gen;
+      r.pa = p.req.pa;
+      r.pc = p.req.va;
+      r.id = p.req.id;
+      r.gen = p.req.gen;
       r.expected = expected_at(r.pc);
       r.cancelled = false;
       outstanding.push_back(r);
+      next_req_pc += 4u;
     }
 
     if (p.resp_fire) {
@@ -408,6 +490,7 @@ struct Tb {
     if (effective) {
       ++total.redirects;
       model_pc = in.target;
+      next_req_pc = in.target;
       for (auto& r : outstanding) r.cancelled = true;
       results.clear();
     }
@@ -423,11 +506,9 @@ struct Tb {
     } else {
       held_dec_valid = false;
     }
-    if (p.req_valid && !p.req_fire && !effective) {
+    if (p.req.valid && !p.req_fire && !effective) {
       held_req_valid = true;
-      held_req_pa = p.req_pa;
-      held_req_id = p.req_id;
-      held_req_gen = p.req_gen;
+      held_req = p.req;
     } else {
       held_req_valid = false;
     }
@@ -526,6 +607,7 @@ struct Tb {
     apply(in);
     dut->eval();
     model_pc = RESET_VECTOR;
+    next_req_pc = RESET_VECTOR;
   }
 
   void finish_stage() {
@@ -586,7 +668,7 @@ struct Tb {
     redirect_once(RESET_VECTOR);
   }
 
-  void backpressure_test(uint32_t target, bool inject) {
+  void backpressure_test(uint32_t target, uint8_t inject_mode) {
     begin_stage("directed-backpressure");
     redirect_once(target);
     Inputs in{};
@@ -600,14 +682,19 @@ struct Tb {
       check(same_dec(p.dec, held), "backpressure: payload changed");
       commit(p, in);
     }
-    uint32_t old_op = 0;
-    if (inject) {
+    uint32_t old_op = 0, old_imm = 0;
+    if (inject_mode == 1 || inject_mode == 3) {
       old_op = image[target].op;
       image[target].op ^= 1u;
     }
+    if (inject_mode == 2 || inject_mode == 3) {
+      old_imm = image[target].imm;
+      image[target].imm ^= 1u;
+    }
     in.accept = 1;
     cycle(in);
-    if (inject) image[target].op = old_op;
+    if (inject_mode == 1 || inject_mode == 3) image[target].op = old_op;
+    if (inject_mode == 2 || inject_mode == 3) image[target].imm = old_imm;
     finish_stage();
   }
 
@@ -633,6 +720,29 @@ struct Tb {
     in.accept = 1;
     cycle(in);
     finish_stage();
+  }
+
+  void request_payload_negative_test() {
+    begin_stage("negative-request-stability");
+    const uint32_t target = RESET_VECTOR + 4u * 8u;
+    redirect_once(target);
+    Inputs in{};
+    in.accept = 0;
+    in.gate = true;
+    for (int i = 0; i < 20 && !dut->mem_req_valid_o; ++i) cycle(in);
+    check(dut->mem_req_valid_o, "request stability negative: no request");
+    for (int i = 0; i < 2; ++i) cycle(in);
+    in.gate = false;
+    in.req_mask_xor = true;  // observation fixture changes one held field
+    Pre p = begin_cycle(in);
+    commit(p, in);
+    in.req_mask_xor = false;
+    if (req_errors == 0) {
+      std::printf("P1-B_FRONTEND_REQ_STABILITY_NOT_DETECTED\n");
+      return;
+    }
+    std::printf("P1-B_FRONTEND_REQ_STABILITY_DETECTED errors=%llu\n",
+                (unsigned long long)req_errors);
   }
 
   void request_stall_test(uint32_t target, uint32_t final_target) {
@@ -854,7 +964,7 @@ struct Tb {
     for (int i = 0; i < 200; ++i) {
       Pre p = begin_cycle(in);
       const bool fire = p.req_fire;
-      const uint32_t gen = p.req_gen;
+      const uint32_t gen = p.req.gen;
       commit(p, in);
       if (fire && gen == ((1u << P1B_GEN_W) - 1u)) {
         got_last_gen = true;
@@ -905,33 +1015,72 @@ int main(int argc, char** argv) {
   Verilated::commandArgs(argc, argv);
   Vfrontend_tb_top* dut = new Vfrontend_tb_top;
   Tb tb(dut);
-  bool mismatch = false, hang = false, hang_ignore_term = false;
+  bool mismatch = false, mismatch_other = false, mismatch_extra = false;
+  bool hang = false, hang_ignore_term = false;
   bool inject_directed = false, inject_random0 = false;
+  bool inject_directed_other = false, inject_directed_extra = false;
+  bool inject_pc_skip = false, inject_req_stability = false;
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "+mismatch") == 0) mismatch = true;
+    if (std::strcmp(argv[i], "+mismatch_other") == 0) mismatch_other = true;
+    if (std::strcmp(argv[i], "+mismatch_extra") == 0) mismatch_extra = true;
     if (std::strcmp(argv[i], "+hang") == 0) hang = true;
     if (std::strcmp(argv[i], "+hang_ignore_term") == 0) hang_ignore_term = true;
     if (std::strcmp(argv[i], "+inject_directed") == 0) inject_directed = true;
     if (std::strcmp(argv[i], "+inject_random0") == 0) inject_random0 = true;
+    if (std::strcmp(argv[i], "+inject_directed_other") == 0)
+      inject_directed_other = true;
+    if (std::strcmp(argv[i], "+inject_directed_extra") == 0)
+      inject_directed_extra = true;
+    if (std::strcmp(argv[i], "+inject_pc_skip") == 0) inject_pc_skip = true;
+    if (std::strcmp(argv[i], "+inject_req_stability") == 0)
+      inject_req_stability = true;
   }
+  const bool mismatch_any = mismatch || mismatch_other || mismatch_extra;
+  const bool inject_any = inject_directed || inject_random0 ||
+                          inject_directed_other || inject_directed_extra;
 
   tb.setup_image();
   tb.load_image_while_reset();
+  tb.inject_pc_skip = inject_pc_skip;
+  tb.inject_req_stability = inject_req_stability;
   if (hang_ignore_term) std::signal(SIGTERM, SIG_IGN);
   if (hang || hang_ignore_term) {
     std::printf("P1-B_FRONTEND_TIMEOUT_PROBE\n");
     std::fflush(stdout);
     for (;;) { dut->clk = !dut->clk; dut->eval(); }
   }
-  if (mismatch) {
-    tb.image[RESET_VECTOR].op ^= 1u;
+  if (mismatch_any) {
+    if (mismatch || mismatch_extra) tb.image[RESET_VECTOR].op ^= 1u;
+    if (mismatch_other || mismatch_extra) tb.image[RESET_VECTOR].imm ^= 1u;
     tb.wait_accept(RESET_VECTOR);
-    if (tb.errors == 0) {
-      std::printf("P1-B_FRONTEND_NEGATIVE_NOT_DETECTED\n");
+    if (tb.op_errors > 0 && tb.other_errors == 0) {
+      std::printf("P1-B_FRONTEND_NEGATIVE_OP_DETECTED op_errors=%llu\n",
+                  (unsigned long long)tb.op_errors);
+      delete dut;
+      return 1;
+    }
+    if (tb.op_errors == 0) {
+      std::printf("P1-B_FRONTEND_NEGATIVE_WRONG_REASON op_errors=0 "
+                  "other_errors=%llu\n",
+                  (unsigned long long)tb.other_errors);
       delete dut;
       return 2;
     }
-    std::printf("P1-B_FRONTEND_NEGATIVE_MISMATCH_DETECTED\n");
+    std::printf("P1-B_FRONTEND_NEGATIVE_EXTRA_ERRORS op_errors=%llu "
+                "other_errors=%llu\n",
+                (unsigned long long)tb.op_errors,
+                (unsigned long long)tb.other_errors);
+    delete dut;
+    return 3;
+  }
+  if (inject_req_stability) {
+    tb.request_payload_negative_test();
+    if (tb.req_errors == 0) {
+      std::printf("P1-B_FRONTEND_REQ_STABILITY_NOT_DETECTED\n");
+      delete dut;
+      return 2;
+    }
     delete dut;
     return 1;
   }
@@ -945,7 +1094,11 @@ int main(int argc, char** argv) {
   tb.reset_frontend();
   std::printf("P1-B_FRONTEND_BASIC_PASS cases=%u\n", kDecodeCaseCount);
 
-  tb.backpressure_test(RESET_VECTOR + 4u * 10u, inject_directed);
+  uint8_t directed_mode = 0;
+  if (inject_directed) directed_mode = 1;
+  if (inject_directed_other) directed_mode = 2;
+  if (inject_directed_extra) directed_mode = 3;
+  tb.backpressure_test(RESET_VECTOR + 4u * 10u, directed_mode);
   tb.held_output_redirect_test(RESET_VECTOR + 4u * 11u,
                                RESET_VECTOR + 4u * 12u);
   tb.request_stall_test(RESET_VECTOR + 4u * 20u, RESET_VECTOR + 4u * 21u);
@@ -981,7 +1134,7 @@ int main(int argc, char** argv) {
     if (last_gen != 0xffffffffu && g < last_gen) wrapped = true;
     last_gen = g;
   }
-  tb.check(wrapped, "wrap: generation did not wrap in 40 fetches");
+  tb.check(wrapped, "wrap: generation did not wrap in selected fetch window");
   tb.drain();
   tb.end_stage();
   tb.reset_frontend();
@@ -1035,14 +1188,54 @@ int main(int argc, char** argv) {
            static_cast<uint32_t>(random_total), 1020);
   std::printf("P1-B_FRONTEND_RANDOM_PASS seeds=3 accepted=%llu\n",
               (unsigned long long)random_total);
+  tb.flow_complete = true;
 
+  if (inject_pc_skip) {
+    if (tb.pc_errors > 0 && tb.other_errors == tb.pc_errors) {
+      std::printf("P1-B_FRONTEND_PC_MODEL_MISMATCH_DETECTED\n");
+      delete dut;
+      return 1;
+    }
+    if (tb.pc_errors == 0) {
+      std::printf("P1-B_FRONTEND_PC_MODEL_NOT_DETECTED\n");
+      delete dut;
+      return 2;
+    }
+    std::printf("P1-B_FRONTEND_PC_MODEL_EXTRA_ERRORS pc_errors=%llu "
+                "other_errors=%llu\n",
+                (unsigned long long)tb.pc_errors,
+                (unsigned long long)tb.other_errors);
+    delete dut;
+    return 3;
+  }
+  if (inject_any && tb.flow_complete) {
+    if (tb.op_errors > 0 && tb.other_errors == 0) {
+      std::printf("P1-B_FRONTEND_INJECTED_OP_PASS op_errors=%llu "
+                  "other_errors=0\n",
+                  (unsigned long long)tb.op_errors);
+      delete dut;
+      return 1;
+    }
+    if (tb.op_errors == 0) {
+      std::printf("P1-B_FRONTEND_INJECTED_WRONG_REASON op_errors=0 "
+                  "other_errors=%llu\n",
+                  (unsigned long long)tb.other_errors);
+      delete dut;
+      return 2;
+    }
+    std::printf("P1-B_FRONTEND_INJECTED_EXTRA_ERRORS op_errors=%llu "
+                "other_errors=%llu\n",
+                (unsigned long long)tb.op_errors,
+                (unsigned long long)tb.other_errors);
+    delete dut;
+    return 3;
+  }
   if (tb.errors != 0) {
-    if (inject_directed || inject_random0)
-      std::printf("P1-B_FRONTEND_INJECTED_FAIL errors=%llu\n",
-                  (unsigned long long)tb.errors);
-    else
-      std::printf("P1-B_FRONTEND_TEST_FAIL errors=%llu\n",
-                  (unsigned long long)tb.errors);
+    std::printf("P1-B_FRONTEND_TEST_FAIL errors=%llu op_errors=%llu "
+                "other_errors=%llu\n",
+                (unsigned long long)tb.errors,
+                (unsigned long long)tb.op_errors,
+                (unsigned long long)tb.other_errors);
     delete dut;
     return 1;
   }

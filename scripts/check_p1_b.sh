@@ -1,36 +1,36 @@
 #!/usr/bin/env bash
-# P1-B-R1 total entry: JAL anchor, decode units, default/forced-wrap frontend,
+# P1-B-R2 total entry: JAL anchor, decode units, default/forced-wrap frontend,
 # normal/negative/injection probes, old-version reproduction, and P1-A/P0.
 set -u
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="${P1_B_EVIDENCE:-$ROOT/verification/evidence/P1-B-R1}"
+BASE="${P1_B_EVIDENCE:-$ROOT/verification/evidence/P1-B-R2}"
 LOG_DIR="$BASE/logs"
 INJECT_DIR="$BASE/injection"
-BUILD="$ROOT/build/p1-b-r1"
+BUILD="$ROOT/build/p1-b-r2"
 VERILATOR="${VERILATOR:-verilator}"
 HOST_TIMEOUT="${P1_B_HOST_TIMEOUT:-600}"
 KILL_AFTER="${P1_B_KILL_AFTER:-5}"
 INJECT="${P1_B_INJECT:-}"
 
 if ! [[ "$HOST_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || ! [[ "$KILL_AFTER" =~ ^[1-9][0-9]*$ ]]; then
-  printf 'P1-B-R1_CONFIG_ERROR: invalid host timeout/kill-after\n' >&2
+  printf 'P1-B-R2_CONFIG_ERROR: invalid host timeout/kill-after\n' >&2
   exit 2
 fi
 case "$INJECT" in
-  ""|directed|random0) ;;
-  *) printf 'P1-B-R1_CONFIG_ERROR: invalid P1_B_INJECT=%s\n' "$INJECT" >&2; exit 2 ;;
+  ""|directed|random0|directed_other|directed_extra) ;;
+  *) printf 'P1-B-R2_CONFIG_ERROR: invalid P1_B_INJECT=%s\n' "$INJECT" >&2; exit 2 ;;
 esac
 
 mkdir -p "$LOG_DIR" "$INJECT_DIR" "$BUILD" || {
-  printf 'P1-B-R1_STEP_FAIL: cannot create directories\n' >&2
+  printf 'P1-B-R2_STEP_FAIL: cannot create directories\n' >&2
   exit 1
 }
 
 fail=0
-pass() { printf 'P1-B-R1_STEP_PASS: %s\n' "$*"; }
-bad() { printf 'P1-B-R1_STEP_FAIL: %s\n' "$*" >&2; fail=1; }
+pass() { printf 'P1-B-R2_STEP_PASS: %s\n' "$*"; }
+bad() { printf 'P1-B-R2_STEP_FAIL: %s\n' "$*" >&2; fail=1; }
 
 run_logged() {
   local name="$1"; shift
@@ -43,7 +43,7 @@ run_logged() {
     printf 'exit: %s\n' "$rc"
   } >"$log" 2>&1
   if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
-    printf 'P1-B-R1_WATCHDOG_TIMEOUT: %s exceeded %ss (exit=%s)\n' \
+    printf 'P1-B-R2_WATCHDOG_TIMEOUT: %s exceeded %ss (exit=%s)\n' \
       "$name" "$HOST_TIMEOUT" "$rc"
   fi
   return "$rc"
@@ -77,9 +77,9 @@ run_expected() {
 # V01: lint production and integration wrapper.
 if run_logged lint "$VERILATOR" --lint-only -Wall --assert \
      -I"$ROOT/rtl/include" --top-module p1_frontend_top -f "$ROOT/rtl/p1_b.f"; then
-  pass "P1-B-R1 frontend lint"
+  pass "P1-B-R2 frontend lint"
 else
-  bad "P1-B-R1 frontend lint"
+  bad "P1-B-R2 frontend lint"
 fi
 if run_logged lint-tb "$VERILATOR" --lint-only -Wall --assert \
      -I"$ROOT/rtl/include" --top-module frontend_tb_top \
@@ -88,9 +88,9 @@ if run_logged lint-tb "$VERILATOR" --lint-only -Wall --assert \
      "$ROOT/rtl/frontend/p1_decode.sv" "$ROOT/rtl/frontend/p1_fetch.sv" \
      "$ROOT/rtl/frontend/p1_frontend_core.sv" \
      "$ROOT/verification/p1b/tb/frontend_tb_top.sv"; then
-  pass "P1-B-R1 integration wrapper lint"
+  pass "P1-B-R2 integration wrapper lint"
 else
-  bad "P1-B-R1 integration wrapper lint"
+  bad "P1-B-R2 integration wrapper lint"
 fi
 
 # V01: locked toolchain anchor for JAL.
@@ -144,8 +144,14 @@ if run_logged decode-build "$VERILATOR" --cc --exe --build --assert -Wall \
     bad "decode unit run"
   fi
   run_expected decode-mismatch-probe 1 \
-    "P1-B_DECODE_NEGATIVE_MISMATCH_DETECTED" \
+    "P1-B_DECODE_NEGATIVE_OP_DETECTED" \
     "$BUILD/decode/obj/decode_tb" +mismatch
+  run_expected decode-mismatch-other-probe 2 \
+    "P1-B_DECODE_NEGATIVE_WRONG_REASON" \
+    "$BUILD/decode/obj/decode_tb" +mismatch_other
+  run_expected decode-mismatch-extra-probe 3 \
+    "P1-B_DECODE_NEGATIVE_EXTRA_ERRORS" \
+    "$BUILD/decode/obj/decode_tb" +mismatch_extra
 else
   bad "decode unit build"
 fi
@@ -154,7 +160,9 @@ build_frontend() {
   local tag="$1" gw="$2"; shift 2
   local dir="$BUILD/frontend-$tag"
   rm -rf "$dir"; mkdir -p "$dir/obj"
-  run_logged "frontend-$tag-build" "$VERILATOR" --cc --exe --build --assert -Wall \
+  export P1_B_BUILD_TAG="$tag"
+  run_logged "frontend-$tag-build" "$ROOT/scripts/run_p1_b_build_wrap.sh" \
+    "$VERILATOR" --cc --exe --build --assert -Wall \
     -I"$ROOT/rtl/include" --top-module frontend_tb_top -GGEN_W="$gw" \
     -Mdir "$dir/obj" -CFLAGS "-std=c++17 -DP1B_GEN_W=$gw" \
     "$ROOT/rtl/include/core_config_pkg.sv" "$ROOT/rtl/include/core_types_pkg.sv" \
@@ -163,14 +171,38 @@ build_frontend() {
     "$ROOT/rtl/frontend/p1_frontend_core.sv" \
     "$ROOT/verification/p1b/tb/frontend_tb_top.sv" \
     "$ROOT/verification/p1b/tb/tb_frontend.cpp" -o frontend_tb
+  local rc=$?
+  unset P1_B_BUILD_TAG
+  if [ "$rc" -ne 0 ]; then
+    if [ -x "$dir/obj/frontend_tb" ]; then
+      printf 'binary_exists_after_failed_build: yes\n' >>"$LOG_DIR/frontend-$tag-build.log"
+    else
+      printf 'binary_exists_after_failed_build: no\n' >>"$LOG_DIR/frontend-$tag-build.log"
+    fi
+  fi
+  return "$rc"
 }
 
-build_frontend default 8
-build_frontend wrap 2
+default_build_ok=0
+wrap_build_ok=0
+if build_frontend default 8; then
+  default_build_ok=1
+  pass "default frontend build"
+else
+  bad "default frontend build (run is suppressed)"
+fi
+if build_frontend wrap 2; then
+  wrap_build_ok=1
+  pass "forced-wrap frontend build"
+else
+  bad "forced-wrap frontend build (run is suppressed)"
+fi
 
 frontend_args=()
 if [ "$INJECT" = "directed" ]; then frontend_args+=(+inject_directed); fi
 if [ "$INJECT" = "random0" ]; then frontend_args+=(+inject_random0); fi
+if [ "$INJECT" = "directed_other" ]; then frontend_args+=(+inject_directed_other); fi
+if [ "$INJECT" = "directed_extra" ]; then frontend_args+=(+inject_directed_extra); fi
 
 run_frontend() {
   local tag="$1" gw="$2"; shift 2
@@ -190,27 +222,57 @@ run_frontend() {
   fi
 }
 
-if [ "${#frontend_args[@]}" -gt 0 ]; then
-  run_frontend default 8 "${frontend_args[@]}"
+if [ "$default_build_ok" -eq 1 ]; then
+  if [ "${#frontend_args[@]}" -gt 0 ]; then
+    run_frontend default 8 "${frontend_args[@]}"
+  else
+    run_frontend default 8
+  fi
 else
-  run_frontend default 8
+  bad "default frontend run skipped because build failed"
 fi
-run_frontend wrap 2
+if [ "$wrap_build_ok" -eq 1 ]; then
+  run_frontend wrap 2
+else
+  bad "forced-wrap frontend run skipped because build failed"
+fi
 
 # Expected-failure probes. These never turn into a successful total entry.
-run_expected frontend-mismatch-probe 1 \
-  "P1-B_FRONTEND_NEGATIVE_MISMATCH_DETECTED" \
-  "$BUILD/frontend-default/obj/frontend_tb" +mismatch
-run_expected frontend-inject-directed-probe 1 \
-  "P1-B_FRONTEND_INJECTED_FAIL" \
-  "$BUILD/frontend-default/obj/frontend_tb" +inject_directed
-run_expected frontend-inject-random0-probe 1 \
-  "P1-B_FRONTEND_INJECTED_FAIL" \
-  "$BUILD/frontend-default/obj/frontend_tb" +inject_random0
-run_expected frontend-timeout-probe 124 "P1-B_FRONTEND_TIMEOUT_PROBE" \
-  timeout -k 2s 3s "$BUILD/frontend-default/obj/frontend_tb" +hang
-run_expected frontend-timeout-ignore-term-probe 137 "P1-B_FRONTEND_TIMEOUT_PROBE" \
-  timeout -k 2s 3s "$BUILD/frontend-default/obj/frontend_tb" +hang_ignore_term
+if [ "$default_build_ok" -eq 1 ]; then
+  run_expected frontend-mismatch-probe 1 \
+    "P1-B_FRONTEND_NEGATIVE_OP_DETECTED" \
+    "$BUILD/frontend-default/obj/frontend_tb" +mismatch
+  run_expected frontend-mismatch-other-probe 2 \
+    "P1-B_FRONTEND_NEGATIVE_WRONG_REASON" \
+    "$BUILD/frontend-default/obj/frontend_tb" +mismatch_other
+  run_expected frontend-mismatch-extra-probe 3 \
+    "P1-B_FRONTEND_NEGATIVE_EXTRA_ERRORS" \
+    "$BUILD/frontend-default/obj/frontend_tb" +mismatch_extra
+  run_expected frontend-inject-directed-probe 1 \
+    "P1-B_FRONTEND_INJECTED_OP_PASS" \
+    "$BUILD/frontend-default/obj/frontend_tb" +inject_directed
+  run_expected frontend-inject-directed-other-probe 2 \
+    "P1-B_FRONTEND_INJECTED_WRONG_REASON" \
+    "$BUILD/frontend-default/obj/frontend_tb" +inject_directed_other
+  run_expected frontend-inject-directed-extra-probe 3 \
+    "P1-B_FRONTEND_INJECTED_EXTRA_ERRORS" \
+    "$BUILD/frontend-default/obj/frontend_tb" +inject_directed_extra
+  run_expected frontend-inject-random0-probe 1 \
+    "P1-B_FRONTEND_INJECTED_OP_PASS" \
+    "$BUILD/frontend-default/obj/frontend_tb" +inject_random0
+  run_expected frontend-pc-model-probe 1 \
+    "P1-B_FRONTEND_PC_MODEL_MISMATCH_DETECTED" \
+    "$BUILD/frontend-default/obj/frontend_tb" +inject_pc_skip
+  run_expected frontend-req-stability-probe 1 \
+    "P1-B_FRONTEND_REQ_STABILITY_DETECTED" \
+    "$BUILD/frontend-default/obj/frontend_tb" +inject_req_stability
+  run_expected frontend-timeout-probe 124 "P1-B_FRONTEND_TIMEOUT_PROBE" \
+    timeout -k 2s 3s "$BUILD/frontend-default/obj/frontend_tb" +hang
+  run_expected frontend-timeout-ignore-term-probe 137 "P1-B_FRONTEND_TIMEOUT_PROBE" \
+    timeout -k 2s 3s "$BUILD/frontend-default/obj/frontend_tb" +hang_ignore_term
+else
+  bad "frontend negative probes skipped because default build failed"
+fi
 
 # V02/V03: reproduce F01/F02/F03 on the original implementation.
 if run_logged old-repro env \
@@ -240,7 +302,7 @@ else
 fi
 
 {
-  printf 'P1-B-R1 check summary\n'
+  printf 'P1-B-R2 check summary\n'
   printf 'date_utc: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   printf 'git_head: %s\n' "$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
   printf 'git_branch: %s\n' "$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
@@ -252,6 +314,6 @@ fi
 } >"$LOG_DIR/summary.log"
 
 cat "$LOG_DIR/summary.log"
-if [ "$fail" -eq 0 ]; then printf 'P1-B-R1_CHECK_ALL_PASS\n'; exit 0; fi
-printf 'P1-B-R1_CHECK_ALL_FAIL\n' >&2
+if [ "$fail" -eq 0 ]; then printf 'P1-B-R2_CHECK_ALL_PASS\n'; exit 0; fi
+printf 'P1-B-R2_CHECK_ALL_FAIL\n' >&2
 exit 1

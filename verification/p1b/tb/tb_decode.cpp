@@ -9,15 +9,26 @@
 struct Tb {
   Vdecode_tb_top* dut;
   int errors = 0;
+  int op_errors = 0;
+  int other_errors = 0;
   bool mismatch_probe = false;
 
   explicit Tb(Vdecode_tb_top* d) : dut(d) {}
 
   void check(bool cond, const char* msg, uint32_t got = 0, uint32_t want = 0) {
     if (!cond) {
-      std::fprintf(stderr, "P1-B_DECODE_FAIL: %s got=0x%x want=0x%x\n",
+      std::fprintf(stderr, "P1-B_DECODE_FAIL: cat=other %s got=0x%x want=0x%x\n",
                    msg, got, want);
-      ++errors;
+      ++errors; ++other_errors;
+    }
+  }
+
+  void check_op(bool cond, const char* msg, uint32_t got = 0,
+                uint32_t want = 0) {
+    if (!cond) {
+      std::fprintf(stderr, "P1-B_DECODE_FAIL: cat=op %s got=0x%x want=0x%x\n",
+                   msg, got, want);
+      ++errors; ++op_errors;
     }
   }
 
@@ -64,7 +75,7 @@ static void compare_common(Tb& tb, const ExpectedDecode& e, bool illegal_ok) {
   }
   tb.check(tb.dut->dec_illegal == e.illegal, "illegal flag",
            tb.dut->dec_illegal, e.illegal);
-  tb.check(tb.dut->dec_op == e.op, "op", tb.dut->dec_op, e.op);
+  tb.check_op(tb.dut->dec_op == e.op, "op", tb.dut->dec_op, e.op);
   tb.check(tb.dut->dec_exec == e.exec, "exec", tb.dut->dec_exec, e.exec);
   tb.check(tb.dut->dec_rd == e.rd, "rd", tb.dut->dec_rd, e.rd);
   tb.check(tb.dut->dec_rs1 == e.rs1, "rs1", tb.dut->dec_rs1, e.rs1);
@@ -146,22 +157,27 @@ static void check_jal_anchors(Tb& tb) {
 }
 
 int main(int argc, char** argv) {
-  bool mismatch = false;
-  for (int i = 1; i < argc; ++i)
+  bool mismatch = false, mismatch_other = false, mismatch_extra = false;
+  for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "+mismatch") == 0) mismatch = true;
+    if (std::strcmp(argv[i], "+mismatch_other") == 0) mismatch_other = true;
+    if (std::strcmp(argv[i], "+mismatch_extra") == 0) mismatch_extra = true;
+  }
+  const bool mismatch_any = mismatch || mismatch_other || mismatch_extra;
   Verilated::commandArgs(argc, argv);
   Vdecode_tb_top* dut = new Vdecode_tb_top;
   Tb tb(dut);
-  tb.mismatch_probe = mismatch;
+  tb.mismatch_probe = mismatch_any;
 
   for (unsigned i = 0; i < kDecodeCaseCount; ++i) {
     const ExpectedDecode& e = kDecodeCases[i];
     tb.drive(e.instr, e.pc);
-    if (mismatch && i == 0) {
-      // Deliberately corrupt one expected field; the normal field comparator
-      // must reject it.
+    if (mismatch_any && i == 0) {
+      // Deliberately corrupt only the specified field(s); the normal field
+      // comparator must reject exactly the requested category.
       ExpectedDecode bad = e;
-      bad.op ^= 1u;
+      if (mismatch || mismatch_extra) bad.op ^= 1u;
+      if (mismatch_other || mismatch_extra) bad.imm ^= 1u;
       compare_common(tb, bad, true);
     } else {
       compare_common(tb, e, true);
@@ -187,15 +203,23 @@ int main(int argc, char** argv) {
   dut->eval();
   tb.check(dut->dec_valid == 0, "invalid fetch produced decoded valid");
 
-  if (mismatch) {
-    if (tb.errors > 0) {
-      std::printf("P1-B_DECODE_NEGATIVE_MISMATCH_DETECTED errors=%d\n", tb.errors);
+  if (mismatch_any) {
+    if (tb.op_errors > 0 && tb.other_errors == 0) {
+      std::printf("P1-B_DECODE_NEGATIVE_OP_DETECTED op_errors=%d\n",
+                  tb.op_errors);
       delete dut;
       return 1;
     }
-    std::fprintf(stderr, "P1-B_DECODE_NEGATIVE_MISMATCH_NOT_DETECTED\n");
+    if (tb.op_errors == 0) {
+      std::printf("P1-B_DECODE_NEGATIVE_WRONG_REASON op_errors=0 "
+                  "other_errors=%d\n", tb.other_errors);
+      delete dut;
+      return 2;
+    }
+    std::printf("P1-B_DECODE_NEGATIVE_EXTRA_ERRORS op_errors=%d "
+                "other_errors=%d\n", tb.op_errors, tb.other_errors);
     delete dut;
-    return 1;
+    return 3;
   }
   if (tb.errors != 0) {
     std::fprintf(stderr, "P1-B_DECODE_FAIL errors=%d\n", tb.errors);

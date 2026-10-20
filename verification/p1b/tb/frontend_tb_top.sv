@@ -19,6 +19,7 @@ module frontend_tb_top #(
     input  logic        req_gate,
     input  logic [1:0]  fault_mode,
     input  logic [2:0]  fault_delay_i,
+    input  logic        req_observe_mask_xor,
     input  logic [1:0]  decoded_accept,
 
     output logic        dec_valid,
@@ -69,7 +70,14 @@ module frontend_tb_top #(
     output logic        accept_error_o,
     output logic        mem_req_valid_o,
     output logic        mem_req_ready_o,
+    output logic        mem_req_is_store_o,
+    output logic [31:0] mem_req_va_o,
     output logic [33:0] mem_req_pa_o,
+    output logic [1:0]  mem_req_size_o,
+    output logic [3:0]  mem_req_byte_mask_o,
+    output logic [31:0] mem_req_wdata_o,
+    output logic        mem_req_cacheable_o,
+    output logic [1:0]  mem_req_priv_o,
     output logic [5:0]  mem_req_id_o,
     output logic [7:0]  mem_req_gen_o,
     output logic        mem_resp_valid_o,
@@ -198,7 +206,16 @@ module frontend_tb_top #(
 
   assign mem_req_valid_o = core_req.valid;
   assign mem_req_ready_o = core_req_ready;
+  assign mem_req_is_store_o = core_req.is_store;
+  assign mem_req_va_o = core_req.va;
   assign mem_req_pa_o = core_req.pa;
+  assign mem_req_size_o = core_req.size;
+  // Observation-only fixture hook; production core_req/bridge request is not
+  // modified. Used solely to prove the monitor rejects a changed held field.
+  assign mem_req_byte_mask_o = core_req.byte_mask ^ {3'b000, req_observe_mask_xor};
+  assign mem_req_wdata_o = core_req.wdata;
+  assign mem_req_cacheable_o = core_req.cacheable;
+  assign mem_req_priv_o = core_req.priv;
   assign mem_req_id_o = core_req.req_id;
   assign mem_req_gen_o = core_req.gen;
   assign mem_resp_valid_o = core_resp.valid;
