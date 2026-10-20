@@ -5,12 +5,13 @@ export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BASE="${P1_B_R1_REPRO_EVIDENCE:-$ROOT/verification/evidence/P1-B-R1/old-repro}"
+BUILD="${P1_B_R1_REPRO_BUILD:-$ROOT/build/p1-b-r1/old-repro}"
 OLD="${P1_B_R1_OLD_WORKTREE:-/tmp/opencode/p1b-old-worktree}"
 VERILATOR="${VERILATOR:-verilator}"
 HOST_TIMEOUT="${P1_B_R1_REPRO_TIMEOUT:-120}"
 KILL_AFTER="${P1_B_R1_REPRO_KILL_AFTER:-5}"
 
-mkdir -p "$BASE/build" "$BASE/source" || exit 1
+mkdir -p "$BUILD" "$BASE/source" || exit 1
 
 fail=0
 pass() { printf 'P1-B-R1_OLD_REPRO_PASS: %s\n' "$*"; }
@@ -40,12 +41,12 @@ fi
 # F01: old decoder rejects the reviewed legal JAL words.
 if run_logged f01-jal-build "$VERILATOR" --cc --exe --build --assert \
      -I"$OLD/rtl/include" --top-module decode_tb_top \
-     -Mdir "$BASE/build/f01" -CFLAGS -std=c++17 \
+     -Mdir "$BUILD/f01" -CFLAGS -std=c++17 \
      "$OLD/rtl/include/core_config_pkg.sv" "$OLD/rtl/include/core_types_pkg.sv" \
      "$OLD/rtl/frontend/p1_decode.sv" \
      "$OLD/verification/p1b/tb/decode_tb_top.sv" \
      "$ROOT/verification/p1b/old_repro/tb_jal_old.cpp" -o f01; then
-  if run_logged f01-jal-run "$BASE/build/f01/f01"; then
+  if run_logged f01-jal-run "$BUILD/f01/f01"; then
     if grep -qF 'OLD_F01_JAL_ILLEGAL' "$BASE/f01-jal-run.log"; then
       pass "F01 old JAL illegal reproduced"
     else
@@ -61,14 +62,14 @@ fi
 # F02: old redirect/accept leak and old wrong-response early release.
 if run_logged f02-build "$VERILATOR" --cc --exe --build --assert \
      -I"$OLD/rtl/include" --top-module frontend_tb_top -GGEN_W=2 \
-     -Mdir "$BASE/build/f02" -CFLAGS -std=c++17 \
+     -Mdir "$BUILD/f02" -CFLAGS -std=c++17 \
      "$OLD/rtl/include/core_config_pkg.sv" "$OLD/rtl/include/core_types_pkg.sv" \
      "$OLD/rtl/soc/ram_128k.sv" "$OLD/rtl/soc/ram_bridge.sv" \
      "$OLD/rtl/frontend/p1_decode.sv" "$OLD/rtl/frontend/p1_fetch.sv" \
      "$OLD/rtl/frontend/p1_frontend_core.sv" \
      "$OLD/verification/p1b/tb/frontend_tb_top.sv" \
      "$ROOT/verification/p1b/old_repro/tb_f02_old.cpp" -o f02; then
-  if run_logged f02-run "$BASE/build/f02/f02"; then
+  if run_logged f02-run "$BUILD/f02/f02"; then
     if grep -qF 'OLD_F02A_REDIRECT_ACCEPT_LEAK' "$BASE/f02-run.log" &&
        grep -qF 'OLD_F02B_CANCEL_WRONG_RESPONSE_RELEASED' "$BASE/f02-run.log"; then
       pass "F02 old redirect/accept and cancellation defects reproduced"
@@ -126,14 +127,14 @@ diff -u "$OLD/verification/p1b/tb/tb_frontend.cpp" \
 
 if run_logged f03-build "$VERILATOR" --cc --exe --build --assert \
      -I"$OLD/rtl/include" --top-module frontend_tb_top -GGEN_W=2 \
-     -Mdir "$BASE/build/f03" -CFLAGS "-std=c++17 -DP1B_GEN_W=2" \
+     -Mdir "$BUILD/f03" -CFLAGS "-std=c++17 -DP1B_GEN_W=2" \
      "$OLD/rtl/include/core_config_pkg.sv" "$OLD/rtl/include/core_types_pkg.sv" \
      "$OLD/rtl/soc/ram_128k.sv" "$OLD/rtl/soc/ram_bridge.sv" \
      "$OLD/rtl/frontend/p1_decode.sv" "$OLD/rtl/frontend/p1_fetch.sv" \
      "$OLD/rtl/frontend/p1_frontend_core.sv" \
      "$OLD/verification/p1b/tb/frontend_tb_top.sv" \
      "$OLD/verification/p1b/tb/tb_frontend_f03.cpp" -o f03; then
-  if run_logged f03-run "$BASE/build/f03/f03" +mismatch; then
+  if run_logged f03-run "$BUILD/f03/f03" +mismatch; then
     if grep -qF 'P1-B_FRONTEND_PASS' "$BASE/f03-run.log"; then
       printf 'OLD_F03_ERROR_CLEARED\n' >>"$BASE/f03-run.log"
       pass "F03 old early error forgotten (injected run exit 0)"
