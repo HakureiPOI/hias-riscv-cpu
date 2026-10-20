@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | 已下达，待手动转交；未实施/未验收 |
+| 状态 | 已交付并经 [管理验收](../progress/P1-A-R2-review.md)通过；下一任务 P1-B |
 | 输入 | [P1-A-R1 复审](../progress/P1-A-R1-review.md)，G01—G03 |
 | 分支 | 继续 `codex/p1-a-foundation` |
 | 基线 | 从 `6905b9ec40db42e4e113db19261478e35de6f873` 纳入包含本任务的最新 origin/main，记录实际修复基线 |

@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | 已交付；地址/宽度与看门狗代码接受，剩余验证项执行 [P1-A-R2](P1-A-R2-验证收尾.md)；未整体验收 |
+| 状态 | 本轮代码修复已接受；剩余验证经 R2 [管理验收](../progress/P1-A-R2-review.md)关闭，P1-A 整体通过 |
 | 审查输入 | [P1-A 管理审查](../progress/P1-A-review.md)，F01—F03 未关闭 |
 | 分支 | 继续 `codex/p1-a-foundation` |
 | 修复基线 | 原最终交付 `dcdb54cda060a018212d159dad0cd36fcda8e481` 纳入包含本任务单的最新 origin/main，记录实际基线 Commit |

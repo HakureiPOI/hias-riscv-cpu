@@ -2,6 +2,8 @@
 
 本文只记录仓库中实际存在并执行过的入口。P0-01 的夹具不是 CPU 实现，参考执行也不代表自主 CPU 已运行。
 
+P1-A 经 R2 [管理验收](progress/P1-A-R2-review.md)通过；`P1_A_EVIDENCE=verification/evidence/P1-A-R2 make check-p1-a` 正常 exit 0，独立注入运行总入口 exit 2，详见报告。当前下达 P1-B，但 `check-p1-b` 尚未实现/执行，不能把任务建议命令当作既有通过入口。
+
 ## 环境
 
 锁定值见 `scripts/toolchain.lock`。本次实测环境：

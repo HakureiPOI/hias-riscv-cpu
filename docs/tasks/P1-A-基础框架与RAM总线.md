@@ -2,7 +2,7 @@
 
 | 项目 | 约定 |
 | --- | --- |
-| 状态 | 首轮与 R1 已交付，地址修复接受；执行 [P1-A-R2](P1-A-R2-验证收尾.md) 完成验证收尾，未整体验收 |
+| 状态 | 经 R2 [管理验收](../progress/P1-A-R2-review.md)整体通过；下一任务 [P1-B](P1-B-取指与译码.md) |
 | 前置 | [P0-02-R2 管理验收与规格冻结](../progress/P0-02-R2-review.md) |
 | 分支 | 从包含本任务和冻结澄清的最新 origin/main 新建 `codex/p1-a-foundation` |
 | 起点 | P0-02 实施 `e375a0a075bd47bd469467c54dafcdc0cfe9a8c3` 加本轮管理文档；记录实际基线 Commit |
