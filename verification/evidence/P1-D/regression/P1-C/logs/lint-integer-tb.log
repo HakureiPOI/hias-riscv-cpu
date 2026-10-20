@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s verilator --lint-only -Wall --assert -I/workspace/hias-riscv-cpu/rtl/include --top-module integer_tb_top -f /workspace/hias-riscv-cpu/rtl/p1_c.f /workspace/hias-riscv-cpu/verification/p1c/tb/integer_tb_top.sv
+exit: 0

@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s spike --isa=rv32i --priv=m --disable-dtb -m0x80000000:0x20000 --pc=0x80000000 --instructions=5000 --log-commits --log=verification/evidence/P1-D/probe-fail/probe-extra/software/directed.spike.log verification/evidence/P1-D/probe-fail/probe-extra/software/directed.elf
+exit: 0

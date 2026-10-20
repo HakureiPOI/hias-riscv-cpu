@@ -1,0 +1,4 @@
+command: timeout -k 5s 1200s /workspace/hias-riscv-cpu/build/p1-c/integer/obj/integer_tb +image=/workspace/hias-riscv-cpu/verification/evidence/P1-D/regression/P1-C/software/random0.bin +trace=/workspace/hias-riscv-cpu/verification/evidence/P1-D/regression/P1-C/software/random0.dut.jsonl +regs=/workspace/hias-riscv-cpu/verification/evidence/P1-D/regression/P1-C/software/random0.regs.json +end_pc=0x800001c0 +max_retire=200000 +max_cycles=1000000 +stall +delay
+P1D_MEM_STATS data_req=0 data_resp=0 fetch_req=1417 fetch_resp=1417 ram_writes=0 data_req_waits=0
+P1C_DUT_PASS retires=1281 endpoint=0x800001c0 cycles=10393 redirect_req_wait=3 redirect_resp_wait=110 redirect_resp_same=5 redirect_dec=19 redirect_stall=19
+exit: 0

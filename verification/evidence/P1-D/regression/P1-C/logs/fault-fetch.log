@@ -1,0 +1,22 @@
+command: timeout -k 5s 1200s /workspace/hias-riscv-cpu/build/p1-c/fault/obj/fault_tb +case=fetch
+P1C_FAULT_TRACE case=fetch phase=commit index=0 pc=0x80000000 instr=0x100002b7 rd_we=1 rd=5 data=0x10000000
+P1C_FAULT_TRACE case=fetch phase=commit index=1 pc=0x80000004 instr=0x00028067 rd_we=0 rd=0 data=0x80000008
+P1C_FAULT_TRACE case=fetch phase=fault_first kind=0 cause=1 tval=0x10000000 pc=0x10000000 instr=0x00000000 token=0/2 fetch_gen=4
+P1C_FAULT_TRACE case=fetch phase=hold edge=0 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=1 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=2 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=3 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=4 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=5 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=6 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=7 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=8 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=9 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=10 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=11 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=12 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=13 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=14 arf_ok
+P1C_FAULT_TRACE case=fetch phase=hold edge=15 arf_ok
+P1C_FAULT_PASS case=fetch kind=0 commits=2
+exit: 0

@@ -1,0 +1,125 @@
+
+verification/evidence/P1-D/probe-fail/probe-extra/regression/P1-C/software/directed.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+80000000 <_start>:
+80000000:	123450b7          	lui	ra,0x12345
+80000004:	67808093          	addi	ra,ra,1656 # 12345678 <PLATFORM_RAM_SIZE+0x12325678>
+80000008:	80000137          	lui	sp,0x80000
+8000000c:	800001b7          	lui	gp,0x80000
+80000010:	fff18193          	addi	gp,gp,-1 # 7fffffff <PLATFORM_RAM_SIZE+0x7ffdffff>
+80000014:	fff00213          	li	tp,-1
+80000018:	00000293          	li	t0,0
+8000001c:	00100313          	li	t1,1
+80000020:	01f00393          	li	t2,31
+80000024:	80000413          	li	s0,-2048
+80000028:	7ff00493          	li	s1,2047
+8000002c:	55555537          	lui	a0,0x55555
+80000030:	55550513          	addi	a0,a0,1365 # 55555555 <PLATFORM_RAM_SIZE+0x55535555>
+80000034:	0aaab5b7          	lui	a1,0xaaab
+80000038:	aaa58593          	addi	a1,a1,-1366 # aaaaaaa <PLATFORM_RAM_SIZE+0xaa8aaaa>
+8000003c:	00f00613          	li	a2,15
+80000040:	ff000693          	li	a3,-16
+80000044:	00001737          	lui	a4,0x1
+80000048:	10000793          	li	a5,256
+8000004c:	80000837          	lui	a6,0x80000
+80000050:	00700893          	li	a7,7
+80000054:	00300913          	li	s2,3
+80000058:	ff900993          	li	s3,-7
+8000005c:	ffd00a13          	li	s4,-3
+80000060:	00010ab7          	lui	s5,0x10
+80000064:	fffa8a93          	addi	s5,s5,-1 # ffff <PLATFORM_PAGE_TABLE_RESERVE+0xbfff>
+80000068:	00008b37          	lui	s6,0x8
+8000006c:	00008bb7          	lui	s7,0x8
+80000070:	fffb8b93          	addi	s7,s7,-1 # 7fff <PLATFORM_PAGE_TABLE_RESERVE+0x3fff>
+80000074:	deadcc37          	lui	s8,0xdeadc
+80000078:	eefc0c13          	addi	s8,s8,-273 # deadbeef <PLATFORM_STACK_TOP+0x5eabbeff>
+8000007c:	12345cb7          	lui	s9,0x12345
+80000080:	678c8c93          	addi	s9,s9,1656 # 12345678 <PLATFORM_RAM_SIZE+0x12325678>
+80000084:	0f0f1d37          	lui	s10,0xf0f1
+80000088:	f0fd0d13          	addi	s10,s10,-241 # f0f0f0f <PLATFORM_RAM_SIZE+0xf0d0f0f>
+8000008c:	f0f0fdb7          	lui	s11,0xf0f0f
+80000090:	0f0d8d93          	addi	s11,s11,240 # f0f0f0f0 <PLATFORM_STACK_TOP+0x70eef100>
+80000094:	80000e37          	lui	t3,0x80000
+80000098:	fffe0e13          	addi	t3,t3,-1 # 7fffffff <PLATFORM_RAM_SIZE+0x7ffdffff>
+8000009c:	80000eb7          	lui	t4,0x80000
+800000a0:	00600f13          	li	t5,6
+800000a4:	05500f93          	li	t6,85
+800000a8:	00328293          	addi	t0,t0,3
+800000ac:	00534333          	xor	t1,t1,t0
+800000b0:	ffff0f13          	addi	t5,t5,-1
+800000b4:	fe0f1ae3          	bnez	t5,800000a8 <_start+0xa8>
+800000b8:	006280b3          	add	ra,t0,t1
+800000bc:	40628133          	sub	sp,t0,t1
+800000c0:	011291b3          	sll	gp,t0,a7
+800000c4:	0149a233          	slt	tp,s3,s4
+800000c8:	0149b2b3          	sltu	t0,s3,s4
+800000cc:	00b54333          	xor	t1,a0,a1
+800000d0:	012c53b3          	srl	t2,s8,s2
+800000d4:	412c5433          	sra	s0,s8,s2
+800000d8:	00b564b3          	or	s1,a0,a1
+800000dc:	00b57533          	and	a0,a0,a1
+800000e0:	80058593          	addi	a1,a1,-2048
+800000e4:	ffd9a613          	slti	a2,s3,-3
+800000e8:	ffd9b693          	sltiu	a3,s3,-3
+800000ec:	7ff74713          	xori	a4,a4,2047
+800000f0:	7007e793          	ori	a5,a5,1792
+800000f4:	0ff87813          	zext.b	a6,a6
+800000f8:	01f89893          	slli	a7,a7,0x1f
+800000fc:	000c5913          	srli	s2,s8,0x0
+80000100:	41fc5993          	srai	s3,s8,0x1f
+80000104:	abcdeab7          	lui	s5,0xabcde
+80000108:	00001b17          	auipc	s6,0x1
+8000010c:	00108b93          	addi	s7,ra,1
+80000110:	017b8bb3          	add	s7,s7,s7
+80000114:	063b8013          	addi	zero,s7,99
+80000118:	00500c13          	li	s8,5
+8000011c:	00500c93          	li	s9,5
+80000120:	019c0463          	beq	s8,s9,80000128 <_start+0x128>
+80000124:	111d0d13          	addi	s10,s10,273
+80000128:	0b9c1063          	bne	s8,s9,800001c8 <_start+0x1c8>
+8000012c:	001d0d13          	addi	s10,s10,1
+80000130:	0149c463          	blt	s3,s4,80000138 <_start+0x138>
+80000134:	222d0d13          	addi	s10,s10,546
+80000138:	013a5463          	bge	s4,s3,80000140 <_start+0x140>
+8000013c:	333d0d13          	addi	s10,s10,819
+80000140:	fff00d93          	li	s11,-1
+80000144:	00100e13          	li	t3,1
+80000148:	01be6463          	bltu	t3,s11,80000150 <_start+0x150>
+8000014c:	444d0d13          	addi	s10,s10,1092
+80000150:	01cdf463          	bgeu	s11,t3,80000158 <_start+0x158>
+80000154:	555d0d13          	addi	s10,s10,1365
+80000158:	00000463          	beqz	zero,80000160 <_start+0x160>
+8000015c:	666d0d13          	addi	s10,s10,1638
+80000160:	06001463          	bnez	zero,800001c8 <_start+0x1c8>
+80000164:	00100363          	beq	zero,ra,8000016a <_start+0x16a>
+80000168:	01fa4463          	blt	s4,t6,80000170 <_start+0x170>
+8000016c:	07fd0d13          	addi	s10,s10,127
+80000170:	014fd463          	bge	t6,s4,80000178 <_start+0x178>
+80000174:	07fd0d13          	addi	s10,s10,127
+80000178:	0549c863          	blt	s3,s4,800001c8 <_start+0x1c8>
+8000017c:	053a5663          	bge	s4,s3,800001c8 <_start+0x1c8>
+80000180:	05cde463          	bltu	s11,t3,800001c8 <_start+0x1c8>
+80000184:	05be7263          	bgeu	t3,s11,800001c8 <_start+0x1c8>
+80000188:	008000ef          	jal	80000190 <_start+0x190>
+8000018c:	777d0d13          	addi	s10,s10,1911
+80000190:	0080006f          	j	80000198 <_start+0x198>
+80000194:	088d0d13          	addi	s10,s10,136
+80000198:	00000117          	auipc	sp,0x0
+8000019c:	01010113          	addi	sp,sp,16 # 800001a8 <_start+0x1a8>
+800001a0:	00010167          	jalr	sp,sp
+800001a4:	099d0d13          	addi	s10,s10,153
+800001a8:	00000197          	auipc	gp,0x0
+800001ac:	01418193          	addi	gp,gp,20 # 800001bc <_start+0x1bc>
+800001b0:	00118193          	addi	gp,gp,1
+800001b4:	00018267          	jalr	tp,gp
+800001b8:	0aad0d13          	addi	s10,s10,170
+800001bc:	008002ef          	jal	t0,800001c4 <_start+0x1c4>
+800001c0:	0bbd0d13          	addi	s10,s10,187
+800001c4:	0080006f          	j	800001cc <end>
+800001c8:	07fd0d13          	addi	s10,s10,127
+
+800001cc <end>:
+800001cc:	0000006f          	j	800001cc <end>

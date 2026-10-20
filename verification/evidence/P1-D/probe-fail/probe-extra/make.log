@@ -1,0 +1,44 @@
+P1-D_STEP_PASS: P1-D RTL lint
+P1-D_STEP_PASS: P1-D integer TB lint
+P1-D_STEP_PASS: arbiter fairness/routing/stability
+P1-D_STEP_PASS: integer DUT build
+P1-D_STEP_PASS: data fault build
+P1-D_STEP_PASS: software directed
+P1-D_STEP_PASS: DUT/Spike diff directed data_req=63 writes=31
+P1-D_STEP_PASS: software random0
+P1-D_STEP_PASS: DUT/Spike diff random0 data_req=264 writes=156
+P1-D_STEP_PASS: software random1
+P1-D_STEP_PASS: DUT/Spike diff random1 data_req=264 writes=156
+P1-D_STEP_PASS: software random2
+P1-D_STEP_PASS: DUT/Spike diff random2 data_req=264 writes=156
+P1-D_STEP_PASS: data fault load_misalign
+P1-D_STEP_PASS: data fault load_x0_misalign
+P1-D_STEP_PASS: data fault load_access
+P1-D_STEP_PASS: data fault store_misalign
+P1-D_STEP_PASS: data fault store_access
+P1-D_STEP_PASS: data fault bridge_load_error
+P1-D_STEP_FAIL: diff-inject-pc (rc=3 want=1, see verification/evidence/P1-D/probe-fail/probe-extra/injection/diff-inject-pc.log)
+P1-D_STEP_PASS: diff-inject-instr (exit=1)
+P1-D_STEP_PASS: diff-inject-rd (exit=1)
+P1-D_STEP_PASS: diff-inject-next_pc (exit=1)
+P1-D_STEP_PASS: diff-inject-missing (exit=1)
+P1-D_STEP_PASS: diff-inject-duplicate (exit=1)
+P1-D_STEP_PASS: diff-inject-token (exit=1)
+P1-D_STEP_PASS: diff-inject-pc-extra (exit=3)
+P1-D_STEP_PASS: format-seq_dup (exit=4)
+P1-D_STEP_PASS: format-seq_missing (exit=4)
+P1-D_STEP_PASS: format-bool_string (exit=4)
+P1-D_STEP_PASS: probe-extra-rejection (exit=3)
+P1-D_STEP_PASS: P1-C regression (including P1-B/P1-A/P0)
+P1-D check summary
+date_utc: 2026-10-20T11:28:10Z
+git_head: b42794cbe2e704251b277fc65a3a0f6c73ad6622
+git_branch: codex/p1-d-load-store
+log_dir: verification/evidence/P1-D/probe-fail/probe-extra/logs
+inject: none
+probe_extra: 1
+git_status:
+  ?? verification/evidence/P1-D/
+result: FAIL
+P1-D_CHECK_ALL_FAIL
+make: *** [Makefile:72: check-p1-d] Error 1

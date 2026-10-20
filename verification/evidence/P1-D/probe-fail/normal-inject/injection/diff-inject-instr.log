@@ -1,0 +1,3 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/p1d_diff.py --dut verification/evidence/P1-D/probe-fail/normal-inject/software/directed.dut.jsonl --spike verification/evidence/P1-D/probe-fail/normal-inject/software/directed.spike.log --regs verification/evidence/P1-D/probe-fail/normal-inject/software/directed.regs.json --end-pc 0x80000158 --ram-dump verification/evidence/P1-D/probe-fail/normal-inject/software/directed.ram --ram-start 0x80018000 --ram-len 256 --inject instr
+P1D_DIFF_NEGATIVE_INSTR_DETECTED: index=80 field=instr dut=286425746 ref=286425747
+exit: 1

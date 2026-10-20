@@ -1,0 +1,3 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/p1d_diff.py --dut /workspace/hias-riscv-cpu/verification/evidence/P1-D/software/random2.dut.jsonl --spike /workspace/hias-riscv-cpu/verification/evidence/P1-D/software/random2.spike.log --regs /workspace/hias-riscv-cpu/verification/evidence/P1-D/software/random2.regs.json --end-pc 0x80000254 --ram-dump /workspace/hias-riscv-cpu/verification/evidence/P1-D/software/random2.ram --ram-start 0x80018000 --ram-len 256
+P1D_DIFF_PASS retires=2123 endpoint=0x80000254 reference_next_pc=derived
+exit: 0

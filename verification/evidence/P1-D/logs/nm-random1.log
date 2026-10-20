@@ -1,0 +1,2 @@
+command: timeout -k 5s 1200s bash -c exec "$0" "$1" > "$2" riscv64-unknown-elf-nm /workspace/hias-riscv-cpu/verification/evidence/P1-D/software/random1.elf /workspace/hias-riscv-cpu/verification/evidence/P1-D/software/random1.nm
+exit: 0

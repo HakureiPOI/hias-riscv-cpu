@@ -1,0 +1,53 @@
+command: bash -c 
+  set -e
+  args="--isa=rv32im_zicsr_zifencei_svade --priv=msu"
+  echo "== dump-dts =="
+  spike $args -m0x80000000:0x20000 --dump-dts "$1" | sed -n "1,40p"
+  echo "== run =="
+  spike $args --disable-dtb -m0x80000000:0x20000 "$1"
+  echo "spike-final-smoke-exit: $?"
+ _ /workspace/hias-riscv-cpu/build/p0-02-platform/platform_check.elf
+== dump-dts ==
+/dts-v1/;
+
+/ {
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	compatible = "ucbbar,spike-bare-dev";
+	model = "ucbbar,spike-bare";
+
+	chosen {
+		stdout-path = "/soc/ns16550@10000000";
+		bootargs = "console=ttyS0 earlycon";
+	};
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		timebase-frequency = <0x989680>;
+
+		cpu@0 {
+			device_type = "cpu";
+			reg = <0x00>;
+			status = "okay";
+			compatible = "riscv";
+			riscv,isa = "rv32im_zicsr_zifencei_svade";
+			mmu-type = "riscv,sv32";
+			riscv,pmpregions = <0x10>;
+			riscv,pmpgranularity = <0x04>;
+			clock-frequency = <0x3b9aca00>;
+
+			interrupt-controller {
+				#address-cells = <0x02>;
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+				phandle = <0x01>;
+			};
+		};
+	};
+
+	memory@80000000 {
+== run ==
+spike-final-smoke-exit: 0
+exit: 0

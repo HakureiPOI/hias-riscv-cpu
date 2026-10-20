@@ -1,0 +1,6 @@
+command: timeout -k 5s 900s /workspace/hias-riscv-cpu/build/p1-b-r2/frontend-default/obj/frontend_tb +inject_req_stability
+P1-B_FRONTEND_FAIL: stage=negative-request-stability cat=req held request payload changed got=0x0 want=0x0 pc=0x80000020
+P1-B_FRONTEND_FAIL: stage=negative-request-stability cat=req fetch request byte_mask got=0xe want=0xf pc=0x80000020
+P1-B_FRONTEND_REQ_STABILITY_DETECTED errors=2
+elapsed_seconds: 0
+exit: 1

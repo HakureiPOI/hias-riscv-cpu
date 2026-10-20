@@ -1,0 +1,9 @@
+command: timeout -k 5s 1200s python3 /workspace/hias-riscv-cpu/scripts/p1c_branch_matrix.py --spike /workspace/hias-riscv-cpu/verification/evidence/P1-D/regression/P1-C/software/directed.spike.log --end-pc 0x800001cc
+P1C_BRANCH_MATRIX beq untaken=1 taken=2
+P1C_BRANCH_MATRIX bne untaken=3 taken=5
+P1C_BRANCH_MATRIX blt untaken=2 taken=1
+P1C_BRANCH_MATRIX bge untaken=2 taken=1
+P1C_BRANCH_MATRIX bltu untaken=1 taken=1
+P1C_BRANCH_MATRIX bgeu untaken=1 taken=1
+P1C_BRANCH_MATRIX_PASS six_branches_both_directions
+exit: 0
