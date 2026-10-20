@@ -1,0 +1,3 @@
+command: /workspace/hias-riscv-cpu/build/p0-02/interface/obj/interface_fixture
+P0-02_INTERFACE_FIXTURE_PASS
+exit: 0

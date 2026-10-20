@@ -1,0 +1,15 @@
+outer_command: timeout -k 5s 120s env P0_01_NORMAL_HANG=1 P0_01_NORMAL_TIMEOUT=2 P0_01_LOG_DIR=verification/evidence/P1-B-R2/probe-fail/directed-extra/regression/P1-A/regression/p0-02/regression/p0-01-r1/rtl-normal-hang/logs /workspace/hias-riscv-cpu/scripts/run_rtl_smoke.sh
+== lint ==
+P0-01_RTL_STEP_PASS: lint (log: verification/evidence/P1-B-R2/probe-fail/directed-extra/regression/P1-A/regression/p0-02/regression/p0-01-r1/rtl-normal-hang/logs/lint-smoke.log)
+P0-01_RTL_STEP_PASS: build smoke_buffer simulator
+P0-01_RTL_STEP_PASS: build assertion probe simulator
+P0-01_WATCHDOG_TIMEOUT: normal-rtl exceeded 2s (exit=124)
+P0-01_RTL_STEP_FAIL: normal-rtl (exit=124, expected exit=0, message 'P0-01_RTL_SMOKE_PASS'; see verification/evidence/P1-B-R2/probe-fail/directed-extra/regression/P1-A/regression/p0-02/regression/p0-01-r1/rtl-normal-hang/logs/normal-rtl.log)
+P0-01_RTL_STEP_PASS: checker-probe (exit=1, expected message present)
+P0-01_RTL_STEP_PASS: timeout-probe (exit=1, expected message present)
+P0-01_WATCHDOG_TIMEOUT: watchdog-rtl-probe exceeded 2s (exit=124)
+P0-01_RTL_STEP_PASS: watchdog-rtl-probe (exit=124, expected message present)
+P0-01_RTL_STEP_PASS: assertion-probe (exit=134, expected message present)
+P0-01_RTL_SMOKE_ALL_FAIL
+outer_exit: 1
+elapsed_seconds: 13

@@ -1,0 +1,27 @@
+command: timeout -k 5s 600s env P1_A_EVIDENCE=/workspace/hias-riscv-cpu/verification/evidence/P1-B-R2/regression/P1-A P1_A_HOST_TIMEOUT=600 make -C /workspace/hias-riscv-cpu check-p1-a
+make[1]: Entering directory '/workspace/hias-riscv-cpu'
+P1-A_STEP_PASS: P1-A RTL lint
+P1-A_STEP_PASS: idle skeleton build
+P1-A_STEP_PASS: idle skeleton: no fake request/retire/trap
+P1-A_STEP_PASS: RAM/bridge build
+P1-A_STEP_PASS: RAM/bridge directed and seeded random tests
+P1-A_STEP_PASS: ram-mismatch-probe (exit=1, elapsed=0s, expected message present)
+P1-A_STEP_PASS: ram-timeout-probe (exit=124, elapsed=5s, expected message present)
+P1-A_STEP_PASS: ram-timeout-ignore-term-probe (exit=137, elapsed=7s, expected message present)
+P1-A_STEP_PASS: ram-comparison-hang-probe (exit=124, elapsed=5s, expected message present)
+P1-A_STEP_PASS: ram-stability-probe (exit=1, elapsed=0s, expected message present)
+P1-A_STEP_PASS: ram-final-handshake-probe (exit=1, elapsed=0s, expected message present)
+P1-A_STEP_PASS: token joint build
+P1-A_STEP_PASS: cancelled token + wrap drain joint test
+P1-A_STEP_PASS: P0-02 regression (including P0-01/R1)
+P1-A check summary
+date_utc: 2026-10-20T03:08:44Z
+git_head: c14c2befd5483f9ce5b542db32912e453c789add
+git_branch: codex/p1-b-fetch-decode
+log_dir: verification/evidence/P1-B-R2/regression/P1-A/logs
+git_status:
+  ?? verification/evidence/P1-B-R2/
+result: PASS
+P1-A_CHECK_ALL_PASS
+make[1]: Leaving directory '/workspace/hias-riscv-cpu'
+exit: 0

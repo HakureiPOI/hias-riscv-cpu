@@ -1,0 +1,10 @@
+outer_command: timeout -k 5s 120s env P0_01_BUILD_FAULT=1 P0_01_LOG_DIR=verification/evidence/P1-B-R2/build-fail/default/regression/P1-A/regression/p0-02/regression/p0-01-r1/build-fault-runner/logs /workspace/hias-riscv-cpu/scripts/run_rtl_smoke.sh
+== lint ==
+P0-01_RTL_STEP_PASS: lint (log: verification/evidence/P1-B-R2/build-fail/default/regression/P1-A/regression/p0-02/regression/p0-01-r1/build-fault-runner/logs/lint-smoke.log)
+P0-01_BUILD_FAIL: smoke_buffer build returned exit=3 (log: verification/evidence/P1-B-R2/build-fail/default/regression/P1-A/regression/p0-02/regression/p0-01-r1/build-fault-runner/logs/build-smoke.log)
+P0-01_RTL_STEP_FAIL: build smoke_buffer simulator (see verification/evidence/P1-B-R2/build-fail/default/regression/P1-A/regression/p0-02/regression/p0-01-r1/build-fault-runner/logs/build-smoke.log)
+P0-01_BUILD_FAIL: assert_probe build returned exit=3 (log: verification/evidence/P1-B-R2/build-fail/default/regression/P1-A/regression/p0-02/regression/p0-01-r1/build-fault-runner/logs/build-probe.log)
+P0-01_RTL_STEP_FAIL: build assertion probe simulator (see verification/evidence/P1-B-R2/build-fail/default/regression/P1-A/regression/p0-02/regression/p0-01-r1/build-fault-runner/logs/build-probe.log)
+P0-01_RTL_SMOKE_ALL_FAIL
+outer_exit: 1
+elapsed_seconds: 10

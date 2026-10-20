@@ -1,0 +1,7 @@
+command: /workspace/hias-riscv-cpu/build/p0-02/invalid/obj/invalid_probe
+[0] %Error: type_invalid_probe.sv:17: Assertion failed in TOP.type_invalid_probe: P0-02_INVALID_PARAM_DETECTED: ROB_ENTRIES=33
+%Error: /workspace/hias-riscv-cpu/verification/spec/types/type_invalid_probe.sv:17: Verilog $stop
+Aborting...
+timeout: the monitored command dumped core
+./scripts/check_p0_02.sh: line 26: 1531121 Aborted                 timeout -k 5s "${STEP_TIMEOUT}s" "$@" 2>&1
+exit: 134

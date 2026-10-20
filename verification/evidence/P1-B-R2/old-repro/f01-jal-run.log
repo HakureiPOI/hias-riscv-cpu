@@ -1,0 +1,5 @@
+command: timeout -k 5s 120s /workspace/hias-riscv-cpu/build/p1-b-r1/old-repro/f01/f01
+OLD_F01 instr=0x000010ef illegal=1 rd=1 imm=0x00000000
+OLD_F01 instr=0x000012ef illegal=1 rd=5 imm=0x00000000
+OLD_F01_JAL_ILLEGAL reproduced=2
+exit: 0

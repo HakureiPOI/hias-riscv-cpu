@@ -1,0 +1,26 @@
+P1-B-R2_STEP_PASS: P1-B-R2 frontend lint
+P1-B-R2_STEP_PASS: P1-B-R2 integration wrapper lint
+P1-B-R2_STEP_PASS: F01 JAL assembler/objdump anchor
+P1-B-R2_STEP_PASS: decode unit build
+P1-B-R2_STEP_PASS: decode units (92 independent expectations + JAL anchors)
+P1-B-R2_STEP_PASS: decode-mismatch-probe (exit=1, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: decode-mismatch-other-probe (exit=2, elapsed=0s, expected message present)
+P1-B-R2_STEP_PASS: decode-mismatch-extra-probe (exit=3, elapsed=0s, expected message present)
+P1-B-R2_STEP_FAIL: default frontend build (run is suppressed)
+P1-B-R2_STEP_PASS: forced-wrap frontend build
+P1-B-R2_STEP_FAIL: default frontend run skipped because build failed
+P1-B-R2_STEP_PASS: integrated frontend wrap (image, wrap, redirects, 1020 accepts)
+P1-B-R2_STEP_FAIL: frontend negative probes skipped because default build failed
+P1-B-R2_STEP_PASS: old-version F01/F02/F03 reproduction
+P1-B-R2_STEP_PASS: P1-A regression (including P0)
+P1-B-R2 check summary
+date_utc: 2026-10-20T02:56:32Z
+git_head: c14c2befd5483f9ce5b542db32912e453c789add
+git_branch: codex/p1-b-fetch-decode
+log_dir: verification/evidence/P1-B-R2/build-fail/default/logs
+inject: none
+git_status:
+  ?? verification/evidence/P1-B-R2/
+result: FAIL
+P1-B-R2_CHECK_ALL_FAIL
+make: *** [Makefile:62: check-p1-b] Error 1

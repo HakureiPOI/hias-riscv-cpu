@@ -1,0 +1,2 @@
+command: verilator --lint-only -Wall --assert -I/workspace/hias-riscv-cpu/rtl/include --top-module type_selfcheck /workspace/hias-riscv-cpu/rtl/include/core_config_pkg.sv /workspace/hias-riscv-cpu/rtl/include/core_types_pkg.sv /workspace/hias-riscv-cpu/verification/spec/types/type_selfcheck.sv
+exit: 0

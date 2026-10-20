@@ -1,0 +1,2 @@
+command: timeout -k 5s 600s riscv64-unknown-elf-objcopy -O binary /workspace/hias-riscv-cpu/build/p1-b-r2/jal/jal_anchor.o /workspace/hias-riscv-cpu/build/p1-b-r2/jal/jal_anchor.bin
+exit: 0
