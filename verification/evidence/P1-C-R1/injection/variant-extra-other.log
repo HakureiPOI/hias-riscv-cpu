@@ -1,0 +1,4 @@
+command: timeout -k 5s 900s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut /workspace/hias-riscv-cpu/verification/evidence/P1-C-R1/injection/traces/extra-other.jsonl --spike /workspace/hias-riscv-cpu/verification/evidence/P1-C-R1/software/directed.spike.log --regs /workspace/hias-riscv-cpu/verification/evidence/P1-C-R1/software/directed.regs.json --end-pc 0x800001cc
+P1C_DIFF_BASELINE_FAIL: DUT never ended at the unique endpoint
+elapsed_seconds: 0
+exit: 4

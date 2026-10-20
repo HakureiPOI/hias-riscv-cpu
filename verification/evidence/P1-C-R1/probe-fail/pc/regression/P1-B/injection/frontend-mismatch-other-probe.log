@@ -1,0 +1,5 @@
+command: timeout -k 5s 900s /workspace/hias-riscv-cpu/build/p1-b-r2/frontend-default/obj/frontend_tb +mismatch_other
+P1-B_FRONTEND_FAIL: stage=init cat=other imm got=0x12345000 want=0x12345001 pc=0x80000000
+P1-B_FRONTEND_NEGATIVE_WRONG_REASON op_errors=0 other_errors=1
+elapsed_seconds: 0
+exit: 2

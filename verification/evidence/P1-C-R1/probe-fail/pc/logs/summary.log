@@ -1,0 +1,9 @@
+P1-C check summary
+date_utc: 2026-10-20T06:52:20Z
+git_head: d8d7cabe9cad2b967ce7146feed6313848945ef9
+git_branch: codex/p1-c-integer-execute
+log_dir: verification/evidence/P1-C-R1/probe-fail/pc/logs
+inject: pc
+git_status:
+  ?? verification/evidence/P1-C-R1/
+result: FAIL

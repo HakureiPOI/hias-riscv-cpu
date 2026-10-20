@@ -1,0 +1,3 @@
+command: timeout -k 5s 900s python3 /workspace/hias-riscv-cpu/scripts/check_retire_contract.py --validate-file verification/evidence/P1-C-R1/probe-fail/pc/software/directed-recovery-2-0.jsonl
+RETIRE_CONTRACT_FILE_PASS: directed-recovery-2-0.jsonl records=124
+exit: 0

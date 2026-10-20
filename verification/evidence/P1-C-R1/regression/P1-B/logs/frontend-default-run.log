@@ -1,0 +1,22 @@
+command: timeout -k 5s 900s /workspace/hias-riscv-cpu/build/p1-b-r2/frontend-default/obj/frontend_tb
+P1-B_FRONTEND_STAGE name=basic-image accepted=93 requests=95 responses=95 matched=95 orphan=0 redirects=2 decode_accepts=93 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_BASIC_PASS cases=92
+P1-B_FRONTEND_STAGE name=directed-backpressure accepted=2 requests=2 responses=2 matched=2 orphan=0 redirects=1 decode_accepts=2 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-held-redirect-accept accepted=2 requests=3 responses=3 matched=3 orphan=0 redirects=2 decode_accepts=2 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-request-stall accepted=2 requests=2 responses=2 matched=2 orphan=0 redirects=2 decode_accepts=2 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-response-redirect accepted=2 requests=3 responses=3 matched=3 orphan=0 redirects=2 decode_accepts=2 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-same-cycle-redirect accepted=2 requests=3 responses=3 matched=3 orphan=0 redirects=2 decode_accepts=2 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-fault-id-gen accepted=2 requests=2 responses=3 matched=2 orphan=1 redirects=1 decode_accepts=2 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-fault-id accepted=2 requests=2 responses=3 matched=2 orphan=1 redirects=1 decode_accepts=2 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-fault-gen accepted=2 requests=2 responses=3 matched=2 orphan=1 redirects=1 decode_accepts=2 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-fetch-error accepted=3 requests=3 responses=3 matched=3 orphan=0 redirects=2 decode_accepts=3 fetch_exc=1 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-illegal-target-pending accepted=3 requests=4 responses=4 matched=4 orphan=0 redirects=2 decode_accepts=3 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-continuous-redirect accepted=2 requests=2 responses=2 matched=2 orphan=0 redirects=3 decode_accepts=2 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=directed-wrap accepted=265 requests=265 responses=265 matched=265 orphan=0 redirects=0 decode_accepts=265 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_WRAP_PASS gen_w=8
+P1-B_FRONTEND_STAGE name=random-0 accepted=341 requests=471 responses=471 matched=471 orphan=0 redirects=136 decode_accepts=341 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=random-1 accepted=341 requests=466 responses=466 matched=466 orphan=0 redirects=142 decode_accepts=341 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_STAGE name=random-2 accepted=341 requests=452 responses=452 matched=452 orphan=0 redirects=121 decode_accepts=341 fetch_exc=0 errors=0 result=PASS
+P1-B_FRONTEND_RANDOM_PASS seeds=3 accepted=1020
+P1-B_FRONTEND_PASS accepted=1405 requests=1777 responses=1780 matched=1777 orphan=3 decode=1405 fetch_exc=1 redirects=420 cycles=10182
+exit: 0

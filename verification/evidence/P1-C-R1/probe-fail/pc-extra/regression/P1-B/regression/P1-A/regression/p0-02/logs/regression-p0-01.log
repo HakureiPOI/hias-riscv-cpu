@@ -1,0 +1,119 @@
+command: env P0_01_LOG_DIR=verification/evidence/P1-C-R1/probe-fail/pc-extra/regression/P1-B/regression/P1-A/regression/p0-02/regression/p0-01/logs make -C /workspace/hias-riscv-cpu check-p0-01
+make[4]: Entering directory '/workspace/hias-riscv-cpu'
+== env-check ==
+== environment ==
+date_utc: 2026-10-20T06:54:15Z
+timezone: HKT +0800
+repo_root: /workspace/hias-riscv-cpu
+git_head: d8d7cabe9cad2b967ce7146feed6313848945ef9
+git_branch: codex/p1-c-integer-execute
+git_status:
+  ?? verification/evidence/P1-C-R1/
+os: Ubuntu 24.04
+kernel: Linux 6.8.0-124-generic x86_64 GNU/Linux
+arch: x86_64
+nproc: 128
+uid: 0 (root)
+mem_total: 1056656448 kB
+disk_workspace: 21T total, 5.7T available
+ulimit_nofile: 524288
+ulimit_nproc: unlimited
+
+== toolchain lock ==
+  # P0-01 toolchain lock. Values describe the environment that produced the
+  # committed evidence; they are not version requirements for future work.
+  #
+  # Spike was built from source in this container:
+  #   git clone https://github.com/riscv-software-src/riscv-isa-sim.git
+  #   git checkout 5a760667bf0d0ab893173b9eeff9c109c8d7dd9a
+  #   ./configure --prefix=/usr/local && make -j$(nproc) && make install
+  # No prebuilt spike package exists in Ubuntu 24.04 (apt-cache policy spike
+  # reports no candidate).
+  SPIKE_URL=https://github.com/riscv-software-src/riscv-isa-sim.git
+  SPIKE_COMMIT=5a760667bf0d0ab893173b9eeff9c109c8d7dd9a
+  SPIKE_VERSION=1.1.1-dev
+  SPIKE_PATH=/usr/local/bin/spike
+  VERILATOR_VERSION=5.008
+  VERILATOR_PATH=/usr/local/bin/verilator
+  CROSS_PREFIX=riscv64-unknown-elf-
+  CROSS_GCC_VERSION=13.2.0
+  CROSS_ARCH=rv32i
+  CROSS_ABI=ilp32
+
+== required commands ==
+  OK   git -> /usr/bin/git
+  OK   make -> /usr/bin/make
+  OK   gcc -> /usr/bin/gcc
+  OK   g++ -> /usr/bin/g++
+  OK   python3 -> /usr/bin/python3
+  OK   verilator -> /usr/local/bin/verilator
+  OK   riscv64-unknown-elf-gcc -> /usr/bin/riscv64-unknown-elf-gcc
+  OK   riscv64-unknown-elf-readelf -> /usr/bin/riscv64-unknown-elf-readelf
+  OK   riscv64-unknown-elf-objdump -> /usr/bin/riscv64-unknown-elf-objdump
+  OK   riscv64-unknown-elf-nm -> /usr/bin/riscv64-unknown-elf-nm
+  OK   spike -> /usr/local/bin/spike
+
+== versions ==
+  git: git version 2.43.0
+  make: GNU Make 4.3
+  gcc: gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+  g++: g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+  python3: Python 3.12.3
+  verilator: Verilator 5.008 2023-03-04 rev UNKNOWN.REV
+  riscv64-unknown-elf-gcc: riscv64-unknown-elf-gcc (13.2.0-11ubuntu1+12) 13.2.0
+  spike_banner: Spike RISC-V ISA Simulator 1.1.1-dev
+  spike_path: /usr/local/bin/spike
+
+== RV32I/ILP32 compile probe ==
+  compile_exit: 0
+  elf_header:
+      Class:                             ELF32
+      Type:                              REL (Relocatable file)
+      Machine:                           RISC-V
+  attributes:
+      Tag_RISCV_stack_align: 16-bytes
+      Tag_RISCV_arch: "rv32i2p1"
+  rv32i_ilp32_object: OK
+
+ENV_CHECK_PASS
+STEP_PASS env-check exit=0
+== rtl-smoke ==
+== lint ==
+P0-01_RTL_STEP_PASS: lint (log: verification/evidence/P1-C-R1/probe-fail/pc-extra/regression/P1-B/regression/P1-A/regression/p0-02/regression/p0-01/logs/lint-smoke.log)
+P0-01_RTL_STEP_PASS: build smoke_buffer simulator
+P0-01_RTL_STEP_PASS: build assertion probe simulator
+P0-01_RTL_STEP_PASS: normal-rtl (exit=0, expected message present)
+P0-01_RTL_STEP_PASS: checker-probe (exit=1, expected message present)
+P0-01_RTL_STEP_PASS: timeout-probe (exit=1, expected message present)
+P0-01_WATCHDOG_TIMEOUT: watchdog-rtl-probe exceeded 2s (exit=124)
+P0-01_RTL_STEP_PASS: watchdog-rtl-probe (exit=124, expected message present)
+P0-01_RTL_STEP_PASS: assertion-probe (exit=134, expected message present)
+P0-01_RTL_SMOKE_ALL_PASS
+STEP_PASS rtl-smoke exit=0
+== ref-smoke ==
+P0-01_REF_STEP_PASS: build ok.elf
+P0-01_REF_STEP_PASS: build fail.elf
+P0-01_REF_STEP_PASS: build hang.elf
+P0-01_REF_STEP_PASS: ELF inspection (log: verification/evidence/P1-C-R1/probe-fail/pc-extra/regression/P1-B/regression/P1-A/regression/p0-02/regression/p0-01/logs/elf-inspection.log)
+P0-01_REF_STEP_PASS: Spike normal run reached PASS signature
+P0-01_REF_STEP_PASS: Spike negative control detected wrong result (exit=1)
+P0-01_REF_STEP_PASS: Spike timeout control detected hang (exit=124)
+P0-01_REF_STEP_PASS: Spike observation interface (-d reg/until, --log-commits)
+P0-01_REF_SMOKE_ALL_PASS
+STEP_PASS ref-smoke exit=0
+P0-01 check summary
+date_utc: 2026-10-20T06:54:32Z
+git_head: d8d7cabe9cad2b967ce7146feed6313848945ef9
+git_branch: codex/p1-c-integer-execute
+host_timeout_seconds: 60
+step_timeout_seconds: 600
+log_dir: verification/evidence/P1-C-R1/probe-fail/pc-extra/regression/P1-B/regression/P1-A/regression/p0-02/regression/p0-01/logs
+git_status:
+  ?? verification/evidence/P1-C-R1/
+steps:
+  env-check    exit=0
+  rtl-smoke    exit=0
+  ref-smoke    exit=0
+result: PASS
+make[4]: Leaving directory '/workspace/hias-riscv-cpu'
+exit: 0

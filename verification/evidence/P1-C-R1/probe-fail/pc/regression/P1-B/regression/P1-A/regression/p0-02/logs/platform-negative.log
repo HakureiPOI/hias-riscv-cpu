@@ -1,0 +1,12 @@
+command: python3 /workspace/hias-riscv-cpu/scripts/check_platform.py --negative
+PLATFORM_CHECK_NEGATIVE_OK: mmio_overlaps_ram (exit=2, reason='range overlaps ram')
+PLATFORM_CHECK_NEGATIVE_OK: wrong_ram_size (exit=2, reason='memory.size must be 0x20000')
+PLATFORM_CHECK_NEGATIVE_OK: misaligned_mmio (exit=2, reason='4 KiB aligned')
+PLATFORM_CHECK_NEGATIVE_OK: spike_memory_mismatch (exit=2, reason='memory_arg must be')
+PLATFORM_CHECK_NEGATIVE_OK: wrong_pa_bits (exit=2, reason='pa_bits must be 34')
+PLATFORM_CHECK_NEGATIVE_OK: stack_exceeds_ram (exit=2, reason='reserved regions')
+PLATFORM_CHECK_NEGATIVE_OK: duplicate_mmio_name (exit=2, reason='duplicate')
+PLATFORM_CHECK_NEGATIVE_OK: page_table_not_page_granular (exit=2, reason='page_table_reserve must be')
+PLATFORM_CHECK_DRIFT_OK: generated drift rejected with exit=3
+PLATFORM_CHECK_NEGATIVE_ALL_PASS
+exit: 0

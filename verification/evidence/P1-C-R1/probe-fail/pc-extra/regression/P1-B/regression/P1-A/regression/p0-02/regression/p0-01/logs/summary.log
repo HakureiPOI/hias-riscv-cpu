@@ -1,0 +1,14 @@
+P0-01 check summary
+date_utc: 2026-10-20T06:54:32Z
+git_head: d8d7cabe9cad2b967ce7146feed6313848945ef9
+git_branch: codex/p1-c-integer-execute
+host_timeout_seconds: 60
+step_timeout_seconds: 600
+log_dir: verification/evidence/P1-C-R1/probe-fail/pc-extra/regression/P1-B/regression/P1-A/regression/p0-02/regression/p0-01/logs
+git_status:
+  ?? verification/evidence/P1-C-R1/
+steps:
+  env-check    exit=0
+  rtl-smoke    exit=0
+  ref-smoke    exit=0
+result: PASS

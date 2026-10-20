@@ -1,0 +1,54 @@
+P1-C_STEP_PASS: P1-C integer RTL lint
+P1-C_STEP_PASS: P1-C integer TB lint
+P1-C_STEP_PASS: 29-op ALU unit
+P1-C_STEP_PASS: ARF x0/reset/write/read
+P1-C_STEP_PASS: integer DUT build
+P1-C_STEP_PASS: fault-probe build
+P1-C_STEP_PASS: software directed
+P1-C_STEP_FAIL: subset diff directed (see verification/evidence/P1-C-R1/probe-fail/pc-extra/logs/diff-directed.log)
+P1-C_STEP_PASS: six-branch taken/untaken matrix
+P1-C_STEP_PASS: recovery recovery-0-0 redirect_req_wait=28
+P1-C_STEP_PASS: recovery recovery-1-2 redirect_resp_wait=28
+P1-C_STEP_PASS: recovery recovery-2-0 redirect_dec=28
+P1-C_STEP_PASS: recovery recovery-3-0 redirect_resp_same=1
+P1-C_STEP_PASS: old-checker F01/F02 reproduction
+P1-C_STEP_PASS: software random0
+P1-C_STEP_PASS: DUT/Spike diff random0 retires=1281
+P1-C_STEP_PASS: software random1
+P1-C_STEP_PASS: DUT/Spike diff random1 retires=1281
+P1-C_STEP_PASS: software random2
+P1-C_STEP_PASS: DUT/Spike diff random2 retires=1282
+P1-C_STEP_PASS: fault/control probe illegal
+P1-C_STEP_PASS: fault/control probe unsupported
+P1-C_STEP_PASS: fault/control probe unaligned
+P1-C_STEP_PASS: fault/control probe unaligned_branch
+P1-C_STEP_PASS: fault/control probe jalr_unaligned
+P1-C_STEP_PASS: fault/control probe fetch
+P1-C_STEP_PASS: fault/control probe branch_untaken
+P1-C_STEP_PASS: fault/control probe jalr_clear
+P1-C_STEP_PASS: diff-inject-pc (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-instr (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-rd (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-next_pc (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-missing (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-duplicate (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-token (exit=1, elapsed=0s, expected message present)
+P1-C_STEP_PASS: diff-inject-pc-extra (exit=3, elapsed=1s, expected message present)
+P1-C_STEP_PASS: variant-extra-endpoint (exit=4, elapsed=0s, expected message present)
+P1-C_STEP_PASS: variant-extra-other (exit=4, elapsed=0s, expected message present)
+P1-C_STEP_PASS: variant-bad-line (exit=4, elapsed=0s, expected message present)
+P1-C_STEP_PASS: variant-priv (exit=4, elapsed=0s, expected message present)
+P1-C_STEP_PASS: variant-last-next (exit=4, elapsed=0s, expected message present)
+P1-C_STEP_PASS: variant-dirty-pc-inject-rd (exit=4, elapsed=0s, expected message present)
+P1-C_STEP_PASS: P1-B regression (including P1-A/P0)
+P1-C check summary
+date_utc: 2026-10-20T06:55:45Z
+git_head: d8d7cabe9cad2b967ce7146feed6313848945ef9
+git_branch: codex/p1-c-integer-execute
+log_dir: verification/evidence/P1-C-R1/probe-fail/pc-extra/logs
+inject: pc_extra
+git_status:
+  ?? verification/evidence/P1-C-R1/
+result: FAIL
+P1-C_CHECK_ALL_FAIL
+make: *** [Makefile:67: check-p1-c] Error 1

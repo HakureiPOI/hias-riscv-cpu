@@ -1,0 +1,4 @@
+command: timeout -k 5s 900s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut verification/evidence/P1-C-R1/probe-fail/pc/software/directed.dut.jsonl --spike verification/evidence/P1-C-R1/probe-fail/pc/software/directed.spike.log --regs verification/evidence/P1-C-R1/probe-fail/pc/software/directed.regs.json --end-pc 0x800001cc --inject token
+P1C_DIFF_NEGATIVE_TOKEN_DETECTED: index=62 field=token dut={'idx': 0, 'gen': 63} ref=gen=62
+elapsed_seconds: 0
+exit: 1

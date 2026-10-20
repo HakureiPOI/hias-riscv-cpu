@@ -1,0 +1,3 @@
+command: timeout -k 5s 900s /workspace/hias-riscv-cpu/build/p1-c/fault/obj/fault_tb +case=unaligned
+P1C_FAULT_PASS case=unaligned kind=3 commits=0 hold_edges=16
+exit: 0

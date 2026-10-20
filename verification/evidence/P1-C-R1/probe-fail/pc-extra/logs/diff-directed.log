@@ -1,0 +1,3 @@
+command: timeout -k 5s 900s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut verification/evidence/P1-C-R1/probe-fail/pc-extra/software/directed.dut.jsonl --spike verification/evidence/P1-C-R1/probe-fail/pc-extra/software/directed.spike.log --regs verification/evidence/P1-C-R1/probe-fail/pc-extra/software/directed.regs.json --end-pc 0x800001cc --inject pc_extra
+P1C_DIFF_INJECTION_EXTRA_ERRORS: target=index=62 field=pc dut=2147483820 ref=2147483816 extra=['index=0 field=rd_wdata dut=(1, 305418241) ref=(1, 305418240)']
+exit: 3
