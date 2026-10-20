@@ -1,0 +1,29 @@
+--- /tmp/opencode/p1b-old-worktree/verification/p1b/tb/tb_frontend.cpp	2026-10-20 16:28:07.534955120 +0800
++++ /tmp/opencode/p1b-old-worktree/verification/p1b/tb/tb_frontend_f03.cpp	2026-10-20 16:28:17.313931881 +0800
+@@ -427,18 +427,6 @@
+     std::fflush(stdout);
+     for (;;) { dut->clk = !dut->clk; dut->eval(); }
+   }
+-  if (mismatch_probe) {
+-    tb.wait_accept(RESET_VECTOR);
+-    if (tb.errors == 0) {
+-      std::printf("P1-B_FRONTEND_NEGATIVE_NOT_DETECTED\n");
+-      delete dut;
+-      return 2;
+-    }
+-    std::printf("P1-B_FRONTEND_NEGATIVE_MISMATCH_DETECTED\n");
+-    delete dut;
+-    return 1;
+-  }
+-
+   // V02: sequential fetch/decode of the independent image.
+   for (unsigned i = 0; i < kDecodeCaseCount; ++i) {
+     const ExpectedDecode& e = kDecodeCases[i];
+@@ -446,6 +434,7 @@
+   }
+   tb.last_word_test();
+   tb.drain_response_counters();
++  if (mismatch_probe) tb.image[RESET_VECTOR].op ^= 1u;
+   std::printf("P1-B_FRONTEND_BASIC_PASS cases=%u accepted=%llu\n",
+               kDecodeCaseCount, static_cast<unsigned long long>(tb.accepted));
+ 

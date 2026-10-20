@@ -1,0 +1,3 @@
+command: timeout -k 5s 900s /workspace/hias-riscv-cpu/build/p1-c/integer/obj/integer_tb +image=/workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/software/directed.bin +trace=/workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/software/directed-recovery-0-0.jsonl +regs=/workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/software/directed-recovery-0-0.regs.json +end_pc=0x800001cc +max_retire=200000 +max_cycles=1000000 +recovery=0 +resp_delay=0
+P1C_DUT_PASS retires=124 endpoint=0x800001cc cycles=758 redirect_req_wait=28 redirect_resp_wait=0 redirect_resp_same=0 redirect_dec=0 redirect_stall=0
+exit: 0

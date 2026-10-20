@@ -1,0 +1,123 @@
+
+/workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/software/random2.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+80000000 <_start>:
+80000000:	c76930b7          	lui	ra,0xc7693
+80000004:	edf08093          	addi	ra,ra,-289 # c7692edf <PLATFORM_STACK_TOP+0x47672eef>
+80000008:	f9a1f137          	lui	sp,0xf9a1f
+8000000c:	6e910113          	addi	sp,sp,1769 # f9a1f6e9 <PLATFORM_STACK_TOP+0x799ff6f9>
+80000010:	9121c1b7          	lui	gp,0x9121c
+80000014:	20b18193          	addi	gp,gp,523 # 9121c20b <PLATFORM_STACK_TOP+0x111fc21b>
+80000018:	3cd82237          	lui	tp,0x3cd82
+8000001c:	03120213          	addi	tp,tp,49 # 3cd82031 <PLATFORM_RAM_SIZE+0x3cd62031>
+80000020:	056e02b7          	lui	t0,0x56e0
+80000024:	ef328293          	addi	t0,t0,-269 # 56dfef3 <PLATFORM_RAM_SIZE+0x56bfef3>
+80000028:	e5efb337          	lui	t1,0xe5efb
+8000002c:	c6530313          	addi	t1,t1,-923 # e5efac65 <PLATFORM_STACK_TOP+0x65edac75>
+80000030:	d9c823b7          	lui	t2,0xd9c82
+80000034:	6aa38393          	addi	t2,t2,1706 # d9c826aa <PLATFORM_STACK_TOP+0x59c626ba>
+80000038:	235cc437          	lui	s0,0x235cc
+8000003c:	1d240413          	addi	s0,s0,466 # 235cc1d2 <PLATFORM_RAM_SIZE+0x235ac1d2>
+80000040:	41c3e4b7          	lui	s1,0x41c3e
+80000044:	2d548493          	addi	s1,s1,725 # 41c3e2d5 <PLATFORM_RAM_SIZE+0x41c1e2d5>
+80000048:	216e7537          	lui	a0,0x216e7
+8000004c:	22a50513          	addi	a0,a0,554 # 216e722a <PLATFORM_RAM_SIZE+0x216c722a>
+80000050:	27a8d5b7          	lui	a1,0x27a8d
+80000054:	71858593          	addi	a1,a1,1816 # 27a8d718 <PLATFORM_RAM_SIZE+0x27a6d718>
+80000058:	b8da9637          	lui	a2,0xb8da9
+8000005c:	66360613          	addi	a2,a2,1635 # b8da9663 <PLATFORM_STACK_TOP+0x38d89673>
+80000060:	8ca386b7          	lui	a3,0x8ca38
+80000064:	45568693          	addi	a3,a3,1109 # 8ca38455 <PLATFORM_STACK_TOP+0xca18465>
+80000068:	6b78b737          	lui	a4,0x6b78b
+8000006c:	f5270713          	addi	a4,a4,-174 # 6b78af52 <PLATFORM_RAM_SIZE+0x6b76af52>
+80000070:	51fc97b7          	lui	a5,0x51fc9
+80000074:	38a78793          	addi	a5,a5,906 # 51fc938a <PLATFORM_RAM_SIZE+0x51fa938a>
+80000078:	52480837          	lui	a6,0x52480
+8000007c:	bad80813          	addi	a6,a6,-1107 # 5247fbad <PLATFORM_RAM_SIZE+0x5245fbad>
+80000080:	b19e58b7          	lui	a7,0xb19e5
+80000084:	fcd88893          	addi	a7,a7,-51 # b19e4fcd <PLATFORM_STACK_TOP+0x319c4fdd>
+80000088:	21bca937          	lui	s2,0x21bca
+8000008c:	2c590913          	addi	s2,s2,709 # 21bca2c5 <PLATFORM_RAM_SIZE+0x21baa2c5>
+80000090:	54d759b7          	lui	s3,0x54d75
+80000094:	90f98993          	addi	s3,s3,-1777 # 54d7490f <PLATFORM_RAM_SIZE+0x54d5490f>
+80000098:	1c135a37          	lui	s4,0x1c135
+8000009c:	6a8a0a13          	addi	s4,s4,1704 # 1c1356a8 <PLATFORM_RAM_SIZE+0x1c1156a8>
+800000a0:	ba9baab7          	lui	s5,0xba9ba
+800000a4:	c62a8a93          	addi	s5,s5,-926 # ba9b9c62 <PLATFORM_STACK_TOP+0x3a999c72>
+800000a8:	6620bb37          	lui	s6,0x6620b
+800000ac:	f63b0b13          	addi	s6,s6,-157 # 6620af63 <PLATFORM_RAM_SIZE+0x661eaf63>
+800000b0:	12794bb7          	lui	s7,0x12794
+800000b4:	e9ab8b93          	addi	s7,s7,-358 # 12793e9a <PLATFORM_RAM_SIZE+0x12773e9a>
+800000b8:	bef49c37          	lui	s8,0xbef49
+800000bc:	be0c0c13          	addi	s8,s8,-1056 # bef48be0 <PLATFORM_STACK_TOP+0x3ef28bf0>
+800000c0:	44879cb7          	lui	s9,0x44879
+800000c4:	b92c8c93          	addi	s9,s9,-1134 # 44878b92 <PLATFORM_RAM_SIZE+0x44858b92>
+800000c8:	242fbd37          	lui	s10,0x242fb
+800000cc:	f53d0d13          	addi	s10,s10,-173 # 242faf53 <PLATFORM_RAM_SIZE+0x242daf53>
+800000d0:	77377db7          	lui	s11,0x77377
+800000d4:	a28d8d93          	addi	s11,s11,-1496 # 77376a28 <PLATFORM_RAM_SIZE+0x77356a28>
+800000d8:	f4060e37          	lui	t3,0xf4060
+800000dc:	519e0e13          	addi	t3,t3,1305 # f4060519 <PLATFORM_STACK_TOP+0x74040529>
+800000e0:	db3c4eb7          	lui	t4,0xdb3c4
+800000e4:	dcde8e93          	addi	t4,t4,-563 # db3c3dcd <PLATFORM_STACK_TOP+0x5b3a3ddd>
+800000e8:	0c37af37          	lui	t5,0xc37a
+800000ec:	17ff0f13          	addi	t5,t5,383 # c37a17f <PLATFORM_RAM_SIZE+0xc35a17f>
+800000f0:	ad02cfb7          	lui	t6,0xad02c
+800000f4:	020f8f93          	addi	t6,t6,32 # ad02c020 <PLATFORM_STACK_TOP+0x2d00c030>
+800000f8:	02800f13          	li	t5,40
+800000fc:	5dc58137          	lui	sp,0x5dc58
+80000100:	86ac0713          	addi	a4,s8,-1942
+80000104:	0012e4b3          	or	s1,t0,ra
+80000108:	e5647b93          	andi	s7,s0,-426
+8000010c:	cc6c71b7          	lui	gp,0xcc6c7
+80000110:	4153d793          	srai	a5,t2,0x15
+80000114:	00d90d33          	add	s10,s2,a3
+80000118:	01be9813          	slli	a6,t4,0x1b
+8000011c:	e93ba613          	slti	a2,s7,-365
+80000120:	00769093          	slli	ra,a3,0x7
+80000124:	46cf2e97          	auipc	t4,0x46cf2
+80000128:	41ce81b3          	sub	gp,t4,t3
+8000012c:	01420db3          	add	s11,tp,s4
+80000130:	40b35d93          	srai	s11,t1,0xb
+80000134:	00ce0633          	add	a2,t3,a2
+80000138:	62bdc893          	xori	a7,s11,1579
+8000013c:	f3b66e13          	ori	t3,a2,-197
+80000140:	00c69613          	slli	a2,a3,0xc
+80000144:	001b5213          	srli	tp,s6,0x1
+80000148:	c87e7b93          	andi	s7,t3,-889
+8000014c:	0eb50b93          	addi	s7,a0,235
+80000150:	01129463          	bne	t0,a7,80000158 <_start+0x158>
+80000154:	01257933          	and	s2,a0,s2
+80000158:	224efd13          	andi	s10,t4,548
+8000015c:	01c316b3          	sll	a3,t1,t3
+80000160:	40fad593          	srai	a1,s5,0xf
+80000164:	007855b3          	srl	a1,a6,t2
+80000168:	402bd4b3          	sra	s1,s7,sp
+8000016c:	01482cb3          	slt	s9,a6,s4
+80000170:	ffff0f13          	addi	t5,t5,-1
+80000174:	f80f14e3          	bnez	t5,800000fc <_start+0xfc>
+80000178:	1edb6c93          	ori	s9,s6,493
+8000017c:	58414513          	xori	a0,sp,1412
+80000180:	05774293          	xori	t0,a4,87
+80000184:	009b1133          	sll	sp,s6,s1
+80000188:	011664b3          	or	s1,a2,a7
+8000018c:	014dd993          	srli	s3,s11,0x14
+80000190:	0134f6b3          	and	a3,s1,s3
+80000194:	41d55b33          	sra	s6,a0,t4
+80000198:	f7574913          	xori	s2,a4,-139
+8000019c:	41bd5333          	sra	t1,s10,s11
+800001a0:	d7286713          	ori	a4,a6,-654
+800001a4:	01394463          	blt	s2,s3,800001ac <_start+0x1ac>
+800001a8:	01d31633          	sll	a2,t1,t4
+800001ac:	00bba833          	slt	a6,s7,a1
+800001b0:	00cbf463          	bgeu	s7,a2,800001b8 <_start+0x1b8>
+800001b4:	01375533          	srl	a0,a4,s3
+800001b8:	00c61333          	sll	t1,a2,a2
+800001bc:	00fad313          	srli	t1,s5,0xf
+800001c0:	0040006f          	j	800001c4 <end>
+
+800001c4 <end>:
+800001c4:	0000006f          	j	800001c4 <end>

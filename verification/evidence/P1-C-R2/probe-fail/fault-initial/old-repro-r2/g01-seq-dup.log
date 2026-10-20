@@ -1,0 +1,3 @@
+command: timeout -k 5s 120s python3 /workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/probe-fail/fault-initial/old-repro-r2/old-p1c_diff.py --dut /workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/probe-fail/fault-initial/old-repro-r2/data/seq-dup.jsonl --spike /workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/probe-fail/fault-initial/software/directed.spike.log --regs /workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/probe-fail/fault-initial/software/directed.regs.json --end-pc 0x800001cc
+P1C_DIFF_PASS retires=124 endpoint=0x800001cc reference_next_pc=derived
+exit: 0

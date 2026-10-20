@@ -1,0 +1,3 @@
+command: timeout -k 5s 900s python3 /workspace/hias-riscv-cpu/scripts/p1c_diff.py --dut /workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/software/random2.dut.jsonl --spike /workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/software/random2.spike.log --regs /workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/software/random2.regs.json --end-pc 0x800001c4
+P1C_DIFF_PASS retires=1282 endpoint=0x800001c4 reference_next_pc=derived
+exit: 0

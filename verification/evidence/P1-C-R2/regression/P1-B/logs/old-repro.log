@@ -1,0 +1,9 @@
+command: timeout -k 5s 900s env P1_B_R1_REPRO_EVIDENCE=/workspace/hias-riscv-cpu/verification/evidence/P1-C-R2/regression/P1-B/old-repro /workspace/hias-riscv-cpu/scripts/repro_p1_b_r1.sh
+P1-B-R1_OLD_REPRO_PASS: F01 old JAL illegal reproduced
+P1-B-R1_OLD_REPRO_PASS: F02 old redirect/accept and cancellation defects reproduced
+P1-B-R1_OLD_REPRO_PASS: F03 old early error forgotten (injected run exit 0)
+P1-B-R1 old reproduction summary
+old_commit: 278f6f7e13eb423952c1119a28d1900f3ac57356
+result: PASS
+P1-B-R1_OLD_REPRO_ALL_PASS
+exit: 0
